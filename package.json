@@ -1,0 +1,14 @@
+{
+  "name": "tosiq-yol-root",
+  "version": "1.0.0",
+  "description": "To'siq Yo'l Telegram Mini App Workspace",
+  "private": true,
+  "scripts": {
+    "install-all": "npm install --prefix client && npm install --prefix server",
+    "dev": "concurrently \"npm run dev --prefix client\" \"npm run dev --prefix server\"",
+    "start": "npm run start --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

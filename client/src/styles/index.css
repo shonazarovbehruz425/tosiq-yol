@@ -1,0 +1,292 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import './menu.css';
+@import './game.css';
+@import './modals.css';
+@import './animations.css';
+
+:root {
+  /* Default dark mode values (premium appearance) */
+  --bg-color: #0b0f19;
+  --text-color: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --primary: #7c3aed;
+  --primary-glow: rgba(124, 58, 237, 0.4);
+  --primary-gradient: linear-gradient(135deg, #7c3aed, #4f46e5);
+  --primary-hover: #6d28d9;
+
+  /* Real usable viewport height (set by JS, falls back to 100vh) */
+  --app-height: 100vh;
+
+  /* Safe area insets for notched / gesture-bar phones */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  
+  --card-bg: #111827;
+  --card-border: rgba(255, 255, 255, 0.05);
+  --card-glow: rgba(0, 0, 0, 0.2);
+  
+  --accent-red: #ef4444;
+  --accent-red-glow: rgba(239, 68, 68, 0.4);
+  --accent-red-gradient: linear-gradient(135deg, #ef4444, #dc2626);
+  
+  --accent-blue: #3b82f6;
+  --accent-blue-glow: rgba(59, 130, 246, 0.4);
+  --accent-blue-gradient: linear-gradient(135deg, #3b82f6, #2563eb);
+  
+  --accent-green: #10b981;
+  --accent-green-gradient: linear-gradient(135deg, #10b981, #059669);
+  
+  --accent-yellow: #f59e0b;
+
+  /* Game board theming (dark defaults) */
+  --board-bg: #121824;
+  --board-border: rgba(255, 255, 255, 0.05);
+  --cell-bg: rgba(255, 255, 255, 0.03);
+  --cell-bg-hover: rgba(255, 255, 255, 0.06);
+  --board-shadow: inset 0 4px 20px rgba(0, 0, 0, 0.5);
+
+  /* App background (dark): deep purple gradient */
+  --app-bg: radial-gradient(120% 80% at 50% 0%, #2a1b4e 0%, #15102e 45%, #0b0f19 100%);
+
+  /* Menu pill surfaces */
+  --pill-bg: rgba(255, 255, 255, 0.07);
+  --pill-border: rgba(255, 255, 255, 0.12);
+  
+  --border-radius-sm: 8px;
+  --border-radius-md: 16px;
+  --border-radius-lg: 24px;
+  --border-radius-full: 9999px;
+  
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Light theme overrides (when applied manually or detected) */
+html.light-mode {
+  --bg-color: #f8fafc;
+  --text-color: #0f172a;
+  --text-secondary: #64748b;
+  --card-bg: #ffffff;
+  --card-border: rgba(0, 0, 0, 0.06);
+  --card-glow: rgba(148, 163, 184, 0.08);
+  --primary-glow: rgba(124, 58, 237, 0.2);
+  
+  /* Slightly softer colors for light mode to maintain premium feel */
+  --accent-red: #e11d48;
+  --accent-blue: #2563eb;
+
+  /* Game board theming (light) */
+  --board-bg: #e8edf5;
+  --board-border: rgba(0, 0, 0, 0.08);
+  --cell-bg: rgba(15, 23, 42, 0.06);
+  --cell-bg-hover: rgba(15, 23, 42, 0.12);
+  --board-shadow: inset 0 2px 12px rgba(100, 116, 139, 0.25);
+
+  /* App background (light): soft lavender gradient */
+  --app-bg: radial-gradient(120% 80% at 50% 0%, #ede9fb 0%, #f3f1fa 45%, #f8fafc 100%);
+
+  /* Menu pill surfaces (light): translucent white over lavender */
+  --pill-bg: rgba(255, 255, 255, 0.55);
+  --pill-border: rgba(124, 58, 237, 0.12);
+}
+
+/* Telegram theme colors mapped to local properties when inside Telegram */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-color: var(--tg-bg-color, #0b0f19);
+    --text-color: var(--tg-text-color, #f3f4f6);
+    --card-bg: var(--tg-secondary-bg-color, #111827);
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  html:not(.dark-mode) {
+    --bg-color: var(--tg-bg-color, #f8fafc);
+    --text-color: var(--tg-text-color, #0f172a);
+    --card-bg: var(--tg-secondary-bg-color, #ffffff);
+  }
+}
+
+/* Base Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #000;
+  color: var(--text-color);
+  height: var(--app-height);
+  overflow: hidden;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+  line-height: 1.5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#app {
+  /* Lock the play area to a 9:16 portrait phone format */
+  aspect-ratio: 9 / 16;
+  height: var(--app-height);
+  max-height: var(--app-height);
+  width: auto;
+  max-width: 100vw;
+  background: var(--app-bg);
+  background-color: var(--bg-color);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+}
+
+/* If the viewport is narrower than 9:16 (typical real phones), fill the width */
+@media (max-aspect-ratio: 9 / 16) {
+  #app {
+    width: 100vw;
+    height: auto;
+    aspect-ratio: 9 / 16;
+    max-height: var(--app-height);
+  }
+}
+
+/* Layout Utilities */
+.screen {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  padding: calc(16px + var(--safe-top)) calc(20px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(20px + var(--safe-left));
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  animation: fadeIn var(--transition-normal);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Card styles */
+.card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--border-radius-md);
+  box-shadow: 0 4px 20px var(--card-glow);
+  padding: 20px;
+  margin-bottom: 16px;
+  transition: transform var(--transition-bounce), box-shadow var(--transition-normal);
+}
+
+.card:active {
+  transform: scale(0.98);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 600;
+  padding: 14px 24px;
+  border-radius: var(--border-radius-md);
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter var(--transition-fast), box-shadow var(--transition-fast);
+  text-decoration: none;
+  color: #ffffff;
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+.btn-primary {
+  background: var(--primary-gradient);
+  box-shadow: 0 4px 15px var(--primary-glow);
+}
+
+.btn-primary:active {
+  box-shadow: 0 2px 5px var(--primary-glow);
+}
+
+.btn-secondary {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-color);
+  border: 1px solid var(--card-border);
+}
+
+.btn-secondary:active {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.btn-danger {
+  background: var(--accent-red-gradient);
+  box-shadow: 0 4px 15px var(--accent-red-glow);
+}
+
+.btn-outline-red {
+  background: transparent;
+  color: var(--accent-red);
+  border: 2px solid var(--accent-red);
+}
+
+.btn-outline-blue {
+  background: transparent;
+  color: var(--accent-blue);
+  border: 2px solid var(--accent-blue);
+}
+
+/* Headers */
+h1 {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+p {
+  color: var(--text-secondary);
+}
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--border-radius-full);
+  font-size: 13px;
+  font-weight: 600;
+  background-color: rgba(255, 255, 255, 0.08);
+  width: fit-content;
+}
+
+.badge-online {
+  color: var(--accent-green);
+  background-color: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
