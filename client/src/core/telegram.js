@@ -8,20 +8,18 @@ export const isTelegram = () => {
 
 export const initTelegram = () => {
   if (tg) {
-    tg.ready();
-    tg.expand();
-    applyTheme();
-    
+    try { tg.ready(); } catch (e) { /* ignore */ }
+    try { tg.expand(); } catch (e) { /* ignore */ }
+    try { applyTheme(); } catch (e) { /* ignore */ }
+
     // Lock vertical swipes (prevent accidental minimize while playing) when supported
     try {
       if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
     } catch (e) { /* older clients */ }
 
-    // Watch for theme changes
-    tg.onEvent('themeChanged', applyTheme);
-
-    // Keep app height in sync with the Telegram viewport
-    tg.onEvent('viewportChanged', applyViewportHeight);
+    // Watch for theme & viewport changes (guarded — older desktop clients vary)
+    try { tg.onEvent('themeChanged', applyTheme); } catch (e) { /* ignore */ }
+    try { tg.onEvent('viewportChanged', applyViewportHeight); } catch (e) { /* ignore */ }
   }
 
   applyViewportHeight();
@@ -46,7 +44,17 @@ const applyViewportHeight = () => {
   if (!height || height < 200) {
     height = window.innerHeight || document.documentElement.clientHeight || 600;
   }
-  document.documentElement.style.setProperty('--app-height', `${height}px`);
+
+  const winW = window.innerWidth || document.documentElement.clientWidth || 400;
+
+  // Compute the 9:16 portrait frame width explicitly (no CSS min()/calc/aspect-ratio,
+  // which can break in older/desktop Telegram WebViews and cause a 0-width black screen).
+  let width = Math.round(height * 9 / 16);
+  if (width > winW) width = winW; // never wider than the viewport
+
+  const root = document.documentElement;
+  root.style.setProperty('--app-height', `${height}px`);
+  root.style.setProperty('--app-width', `${width}px`);
 };
 
 export const getInitData = () => {
