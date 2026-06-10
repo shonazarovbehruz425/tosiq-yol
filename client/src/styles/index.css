@@ -151,18 +151,26 @@ body {
   box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
 }
 
+/* Direct children of #app must never exceed the frame (EdgeHTML flex safety) */
+#app > * {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 /* Layout Utilities */
 .screen {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
   padding: calc(16px + var(--safe-top)) calc(20px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(20px + var(--safe-left));
   position: relative;
   width: 100%;
-  max-width: 500px;
+  max-width: 100%;
   margin: 0 auto;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   animation: fadeIn var(--transition-normal);
 }
