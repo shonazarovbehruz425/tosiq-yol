@@ -1,14 +1,36 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Persist data outside the (ephemeral) deploy directory when DATA_DIR is set.
-// On Render, attach a Persistent Disk and set DATA_DIR=/data so the database
-// survives redeploys/restarts. Without it, falls back to the local file.
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..');
+// Pick a writable directory for the local db.json copy.
+// Order: DATA_DIR (e.g. a Render persistent disk) -> server folder -> OS temp.
+function resolveDataDir() {
+  const candidates = [
+    process.env.DATA_DIR,
+    path.join(__dirname, '..'),
+    os.tmpdir()
+  ].filter(Boolean);
+
+  for (const dir of candidates) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      // Verify we can actually write here
+      const probe = path.join(dir, '.write-test');
+      fs.writeFileSync(probe, 'ok');
+      fs.unlinkSync(probe);
+      return dir;
+    } catch (e) {
+      // try next candidate
+    }
+  }
+  return os.tmpdir();
+}
+
+const DATA_DIR = resolveDataDir();
 const DB_PATH = path.join(DATA_DIR, 'db.json');
 
 class JSONDatabase {
@@ -17,15 +39,14 @@ class JSONDatabase {
       users: {},   // key: telegram_id -> { id, username, first_name, rating, wins, losses, draws }
       games: []    // list of { id, player_red, player_blue, winner, moves, time }
     };
+    // Optional remote persistence hook (set by Telegram channel store)
+    this.onPersist = null;
+    this._persistTimer = null;
     this.init();
   }
 
   init() {
     try {
-      // Ensure the data directory exists (e.g. a freshly mounted disk)
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
-      }
       if (fs.existsSync(DB_PATH)) {
         const fileContent = fs.readFileSync(DB_PATH, 'utf8');
         this.data = JSON.parse(fileContent);
@@ -40,12 +61,42 @@ class JSONDatabase {
     }
   }
 
+  // Replace all data (used when restoring from the Telegram channel)
+  replaceData(newData) {
+    if (newData && typeof newData === 'object') {
+      this.data = {
+        users: newData.users || {},
+        games: newData.games || []
+      };
+      // Write to local file but don't trigger a remote re-upload
+      try {
+        fs.writeFileSync(DB_PATH, JSON.stringify(this.data, null, 2), 'utf8');
+      } catch (e) { /* ignore */ }
+      console.log(`[db] Restored ${Object.keys(this.data.users).length} users from remote store`);
+    }
+  }
+
+  serialize() {
+    return JSON.stringify(this.data, null, 2);
+  }
+
   save() {
     try {
-      fs.writeFileSync(DB_PATH, JSON.stringify(this.data, null, 2), 'utf8');
+      fs.writeFileSync(DB_PATH, this.serialize(), 'utf8');
     } catch (err) {
-      console.error('Failed to save JSON database:', err);
+      console.error('Failed to save local JSON database:', err.code || err.message);
     }
+    // Debounced remote persistence (Telegram channel), if configured
+    this.scheduleRemoteSave();
+  }
+
+  scheduleRemoteSave() {
+    if (typeof this.onPersist !== 'function') return;
+    if (this._persistTimer) return; // already scheduled within the window
+    this._persistTimer = setTimeout(() => {
+      this._persistTimer = null;
+      try { this.onPersist(this.serialize()); } catch (e) { /* ignore */ }
+    }, 8000); // batch writes; upload at most every 8s
   }
 
   // Users

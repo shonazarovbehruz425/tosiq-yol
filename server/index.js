@@ -12,6 +12,7 @@ dotenv.config();
 
 // Imports
 import { db } from './db/database.js';
+import { initTelegramStore } from './db/telegram-store.js';
 import { handleWebSocketConnection } from './ws/handler.js';
 import { roomManager } from './ws/rooms.js';
 import { loginHandler, logoutHandler, requireAdmin } from './admin/auth.js';
@@ -149,8 +150,9 @@ wss.on('connection', (ws, request) => {
 
 // Start listening
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`Server listening on port ${PORT}`);
-  // Start the Telegram bot (long polling). No-op if BOT_TOKEN is unset.
+  // Restore DB from the Telegram channel (if configured), then start the bot.
+  await initTelegramStore();
   startBot();
 });
