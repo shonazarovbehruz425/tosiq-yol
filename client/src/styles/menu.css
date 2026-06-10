@@ -1467,8 +1467,8 @@ html.light-mode .qbg-grid {
 .lb-wins { flex-shrink: 0; font-size: 11.5px; font-weight: 600; color: var(--text-secondary); }
 .lb-rating {
   flex-shrink: 0;
-  min-width: 48px; text-align: right;
-  font-size: 15px; font-weight: 800;
+  text-align: right;
+  font-size: 14px; font-weight: 800;
   background: linear-gradient(135deg, #fbbf24, #f59e0b);
   -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent;

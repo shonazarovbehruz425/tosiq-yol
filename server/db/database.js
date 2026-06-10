@@ -237,7 +237,8 @@ class JSONDatabase {
   getLeaderboard(limit = 20, requesterId = null) {
     const sorted = Object.values(this.data.users)
       .slice()
-      .sort((a, b) => (b.rating || 0) - (a.rating || 0) || (b.wins || 0) - (a.wins || 0));
+      // Rank by online wins (then fewer losses as a tie-breaker).
+      .sort((a, b) => (b.wins || 0) - (a.wins || 0) || (a.losses || 0) - (b.losses || 0));
 
     const nameOf = (u) => u.display_name || u.first_name || (u.username ? '@' + u.username : 'Anonymous');
 
@@ -246,7 +247,6 @@ class JSONDatabase {
       id: u.id,
       name: nameOf(u),
       country_code: u.country_code || '',
-      rating: u.rating || 0,
       wins: u.wins || 0,
       losses: u.losses || 0
     }));
@@ -262,7 +262,6 @@ class JSONDatabase {
           id: u.id,
           name: nameOf(u),
           country_code: u.country_code || '',
-          rating: u.rating || 0,
           wins: u.wins || 0,
           losses: u.losses || 0
         };

@@ -151,7 +151,7 @@ export const en = {
   // Leaderboard
   leaderboard: "Leaderboard",
   leaderboardTitle: "Leaderboard",
-  leaderboardSubtitle: "Top players by rating",
+  leaderboardSubtitle: "Most online wins",
   rank: "Rank",
   player: "Player",
   rating: "Rating",

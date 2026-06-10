@@ -151,7 +151,7 @@ export const uz = {
   // Leaderboard
   leaderboard: "Reyting",
   leaderboardTitle: "Reyting Jadvali",
-  leaderboardSubtitle: "Reyting bo'yicha eng zo'r o'yinchilar",
+  leaderboardSubtitle: "Eng ko'p g'alaba qozongan o'yinchilar",
   rank: "O'rin",
   player: "O'yinchi",
   rating: "Reyting",
