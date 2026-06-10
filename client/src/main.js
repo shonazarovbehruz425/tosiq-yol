@@ -24,8 +24,17 @@ async function bootstrap() {
   // 1b. Arm audio so the first user gesture unlocks Web Audio (mobile/Telegram)
   initSound();
 
-  // 2. Load stored settings (language, theme, sounds, vibration)
-  await StorageManager.loadSettings();
+  // 2. Load stored settings (language, theme, sounds, vibration).
+  //    Never let this block the app — guard with a timeout so a stalled
+  //    storage backend can't leave the screen blank (seen on desktop Telegram).
+  try {
+    await Promise.race([
+      StorageManager.loadSettings(),
+      new Promise((resolve) => setTimeout(resolve, 2500))
+    ]);
+  } catch (e) {
+    console.warn('loadSettings failed, continuing with defaults:', e);
+  }
 
   // 3. Register routing screens
   router.register('home', HomeScreen);

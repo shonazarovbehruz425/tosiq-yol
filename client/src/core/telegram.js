@@ -135,39 +135,70 @@ export const hideBackButton = () => {
   }
 };
 
-// Cloud Storage Wrapper (Falls back to localStorage)
+// Cloud Storage Wrapper (Falls back to localStorage).
+// Each call has a timeout so a stalled Telegram callback (seen on some desktop
+// clients) can never hang the app — it falls back to localStorage instead.
+const CS_TIMEOUT = 1500;
+
 export const cloudStorage = {
   setItem: (key, value) => {
     return new Promise((resolve) => {
+      let done = false;
+      const finish = (v) => { if (!done) { done = true; resolve(v); } };
+      const timer = setTimeout(() => {
+        try { localStorage.setItem(key, value); } catch (e) {}
+        finish(true);
+      }, CS_TIMEOUT);
       try {
         if (tg?.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9')) {
           tg.CloudStorage.setItem(key, value, (err, success) => {
-            resolve(!err && success);
+            clearTimeout(timer);
+            try { localStorage.setItem(key, value); } catch (e) {}
+            finish(!err && success);
           });
         } else {
+          clearTimeout(timer);
           localStorage.setItem(key, value);
-          resolve(true);
+          finish(true);
         }
       } catch (e) {
-        console.warn('Telegram CloudStorage setItem failed, falling back to localStorage:', e);
-        localStorage.setItem(key, value);
-        resolve(true);
+        clearTimeout(timer);
+        try { localStorage.setItem(key, value); } catch (_) {}
+        finish(true);
       }
     });
   },
   getItem: (key) => {
     return new Promise((resolve) => {
+      let done = false;
+      const finish = (v) => { if (!done) { done = true; resolve(v); } };
+      const timer = setTimeout(() => {
+        // Telegram callback stalled — fall back to localStorage
+        let local = null;
+        try { local = localStorage.getItem(key); } catch (e) {}
+        finish(local);
+      }, CS_TIMEOUT);
       try {
         if (tg?.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast('6.9')) {
           tg.CloudStorage.getItem(key, (err, value) => {
-            resolve(err ? null : value);
+            clearTimeout(timer);
+            if (err || value == null || value === '') {
+              let local = null;
+              try { local = localStorage.getItem(key); } catch (e) {}
+              finish(local);
+            } else {
+              finish(value);
+            }
           });
         } else {
-          resolve(localStorage.getItem(key));
+          clearTimeout(timer);
+          finish(localStorage.getItem(key));
         }
       } catch (e) {
-        console.warn('Telegram CloudStorage getItem failed, falling back to localStorage:', e);
-        resolve(localStorage.getItem(key));
+        clearTimeout(timer);
+        let local = null;
+        try { local = localStorage.getItem(key); } catch (_) {}
+        finish(local);
       }
     });
   }
