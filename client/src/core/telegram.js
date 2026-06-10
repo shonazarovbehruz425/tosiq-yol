@@ -12,11 +12,6 @@ export const initTelegram = () => {
     try { tg.expand(); } catch (e) { /* ignore */ }
     try { applyTheme(); } catch (e) { /* ignore */ }
 
-    // Lock vertical swipes (prevent accidental minimize while playing) when supported
-    try {
-      if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
-    } catch (e) { /* older clients */ }
-
     // Watch for theme & viewport changes (guarded — older desktop clients vary)
     try { tg.onEvent('themeChanged', applyTheme); } catch (e) { /* ignore */ }
     try { tg.onEvent('viewportChanged', applyViewportHeight); } catch (e) { /* ignore */ }
