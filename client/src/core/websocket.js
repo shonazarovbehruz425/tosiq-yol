@@ -23,7 +23,10 @@ class WebSocketManager {
       // Auto-detect URL
       const loc = window.location;
       const protocol = loc.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = loc.port ? `${loc.hostname}:3000` : loc.host;
+      // In Vite dev (port 5173) the API/WS server runs on :3000.
+      // In production (Render etc.) the frontend and backend share the same host/port.
+      const isViteDev = loc.port === '5173';
+      const host = isViteDev ? `${loc.hostname}:3000` : loc.host;
       this.url = `${protocol}//${host}/ws`;
     }
 

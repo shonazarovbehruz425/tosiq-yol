@@ -36,13 +36,15 @@ export const initTelegram = () => {
 
 // Write the real usable height into a CSS variable to avoid 100vh issues on mobile
 const applyViewportHeight = () => {
-  let height;
+  let height = 0;
   if (tg && tg.viewportStableHeight) {
     height = tg.viewportStableHeight;
   } else if (tg && tg.viewportHeight) {
     height = tg.viewportHeight;
-  } else {
-    height = window.innerHeight;
+  }
+  // Guard: Telegram may report 0 before expand (esp. desktop). Fall back to window.
+  if (!height || height < 200) {
+    height = window.innerHeight || document.documentElement.clientHeight || 600;
   }
   document.documentElement.style.setProperty('--app-height', `${height}px`);
 };
