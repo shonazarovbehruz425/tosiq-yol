@@ -15,6 +15,7 @@ import { db } from './db/database.js';
 import { handleWebSocketConnection } from './ws/handler.js';
 import { roomManager } from './ws/rooms.js';
 import { loginHandler, logoutHandler, requireAdmin } from './admin/auth.js';
+import { startBot } from './bot/bot.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -128,4 +129,6 @@ wss.on('connection', (ws) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
+  // Start the Telegram bot (long polling). No-op if BOT_TOKEN is unset.
+  startBot();
 });
