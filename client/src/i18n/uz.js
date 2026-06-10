@@ -24,6 +24,9 @@ export const uz = {
   // Lobby / Online
   onlineTitle: "Onlayn Arena",
   createLobby: "Lobby Yaratish",
+  quickPlay: "Tezkor O'yin",
+  openGames: "Ochiq O'yinlar",
+  waitingOpponent: "Raqib kutilmoqda...",
   join: "Qo'shilish",
   lobbyCode: "Lobby Kodu",
   players: "O'yinchilar",

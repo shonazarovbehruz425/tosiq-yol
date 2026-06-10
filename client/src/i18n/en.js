@@ -24,6 +24,9 @@ export const en = {
   // Lobby / Online
   onlineTitle: "Online Arena",
   createLobby: "Create Lobby",
+  quickPlay: "Quick Play",
+  openGames: "Open Games",
+  waitingOpponent: "Waiting for opponent...",
   join: "Join",
   lobbyCode: "Lobby Code",
   players: "Players",

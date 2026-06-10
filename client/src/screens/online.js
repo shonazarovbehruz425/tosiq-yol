@@ -6,24 +6,31 @@ import { Toast } from '../components/toast.js';
 export class OnlineScreen {
   constructor(router, params) {
     this.router = router;
-    this.params = params || {}; // e.g. { searchActive: false }
-    
+    this.params = params || {};
+
     this.lobbies = [];
-    this.searchActive = this.params.searchActive || false;
-    
+    this.searchActive = false;   // matchmaking queue
+    this.waitingLobby = false;   // created a public lobby, waiting for someone
+
     this.onLobbiesList = this.onLobbiesList.bind(this);
     this.onMatchFound = this.onMatchFound.bind(this);
+    this.onConnect = this.onConnect.bind(this);
+
+    // Register socket listeners once for this screen instance
+    this.bindSockets();
   }
 
   render() {
-    if (this.searchActive) {
+    // Searching / waiting view
+    if (this.searchActive || this.waitingLobby) {
+      const title = this.searchActive ? t('searchingMatch') : t('waitingOpponent');
       return `
         <div class="screen screen-enter" style="justify-content: center; align-items: center; text-align: center;">
-          <div class="card" style="width: 100%; max-width: 340px; padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 20px;">
-            <div class="loader" style="width: 50px; height: 50px; border-width: 4px;"></div>
-            <h2 style="margin-bottom: 0;">${t('searchingMatch')}</h2>
-            <p>${t('modeDuellDesc')}</p>
-            <button class="btn btn-secondary" id="cancel-search-btn" style="margin-top: 10px;">
+          <div class="card" style="width: 100%; max-width: 340px; padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 18px;">
+            <div class="loader" style="width: 52px; height: 52px; border-width: 4px;"></div>
+            <h2 style="margin-bottom: 0;">${title}</h2>
+            <p class="muted" style="font-size: 14px;">${t('modeDuellDesc')}</p>
+            <button class="btn btn-secondary" id="cancel-search-btn" style="margin-top: 6px; width: 100%;">
               ${t('cancel')}
             </button>
           </div>
@@ -31,7 +38,7 @@ export class OnlineScreen {
       `;
     }
 
-    let lobbiesHtml = '';
+    let lobbiesHtml;
     if (this.lobbies.length === 0) {
       lobbiesHtml = `
         <div class="card" style="text-align: center; padding: 30px; color: var(--text-secondary);">
@@ -45,7 +52,7 @@ export class OnlineScreen {
           ${this.lobbies.map(lobby => `
             <div class="lobby-card">
               <div class="lobby-info">
-                <span class="lobby-name">🏆 Xona #${lobby.id.slice(0, 4).toUpperCase()}</span>
+                <span class="lobby-name">🏆 #${String(lobby.id).slice(0, 4).toUpperCase()}</span>
                 <div class="lobby-meta">
                   <span class="badge" style="font-size: 11px;">🧭 ${lobby.boardSize}x${lobby.boardSize}</span>
                   <span class="badge" style="font-size: 11px;">⏱️ ${lobby.totalTime ? lobby.totalTime/60 + 'm' : '∞'}</span>
@@ -64,17 +71,17 @@ export class OnlineScreen {
     return `
       <div class="screen screen-enter">
         <h2 class="menu-title" style="margin-top: 20px;">${t('onlineTitle')}</h2>
-        
+
         <div style="display: flex; gap: 10px; margin: 20px 0 10px;">
           <button class="btn btn-primary" id="quick-play-btn" style="flex: 1;">
-            ⚡ Tezkor O'yin
+            ⚡ ${t('quickPlay')}
           </button>
           <button class="btn btn-secondary" id="create-lobby-btn" style="flex: 1;">
             ➕ ${t('createLobby')}
           </button>
         </div>
 
-        <div class="section-title">Ochiq O'yinlar</div>
+        <div class="section-title">${t('openGames')}</div>
         ${lobbiesHtml}
 
         <button class="btn btn-secondary" id="back-btn" style="margin-top: auto;">
@@ -85,73 +92,55 @@ export class OnlineScreen {
   }
 
   afterRender() {
-    socket.connect();
-    
-    // Listen for events
-    socket.on('lobbies_list', this.onLobbiesList);
-    socket.on('match_found', this.onMatchFound);
-
-    // Request initial lobbies list
-    if (!this.searchActive) {
-      socket.send('get_lobbies');
-    } else {
-      // If search is active (e.g. redirected from mode selector)
-      // Tell backend we are looking for a match
-      // Note: we already sent create_public_lobby which registers search
-    }
-
-    // Bind UI actions
-    if (this.searchActive) {
+    // Bind UI for the current view. Socket listeners are registered once in onMount.
+    if (this.searchActive || this.waitingLobby) {
       const cancelBtn = document.getElementById('cancel-search-btn');
-      cancelBtn.addEventListener('click', () => {
+      cancelBtn?.addEventListener('click', () => {
         haptic.impact('light');
         socket.send('cancel_search');
         this.searchActive = false;
-        this.router.navigate('online');
+        this.waitingLobby = false;
+        socket.send('get_lobbies');
+        this.router.reRenderActiveScreen();
+        this.rebindList();
       });
       return;
     }
 
-    const quickPlayBtn = document.getElementById('quick-play-btn');
-    quickPlayBtn.addEventListener('click', () => {
+    this.rebindList();
+  }
+
+  // Bind buttons on the lobby-list view
+  rebindList() {
+    const quickBtn = document.getElementById('quick-play-btn');
+    quickBtn?.addEventListener('click', () => {
       haptic.impact('medium');
       this.searchActive = true;
       this.router.reRenderActiveScreen();
-      
-      // Request matchmaking search
-      socket.send('enter_matchmaking', {
-        boardSize: 9,
-        totalTime: 300,
-        blitzTime: 0,
-        wallsCount: 10
-      });
+      this.afterRender();
+      this.whenConnected(() => socket.send('enter_matchmaking', {
+        mode: 'duel', boardSize: 9, totalTime: 300, blitzTime: 0, wallsCount: 10
+      }));
     });
 
-    const createLobbyBtn = document.getElementById('create-lobby-btn');
-    createLobbyBtn.addEventListener('click', () => {
+    const createBtn = document.getElementById('create-lobby-btn');
+    createBtn?.addEventListener('click', () => {
       haptic.impact('medium');
-      this.searchActive = true;
+      this.waitingLobby = true;
       this.router.reRenderActiveScreen();
-
-      // Create a standard public lobby and wait for an opponent
-      socket.send('enter_matchmaking', {
-        mode: 'duel',
-        boardSize: 9,
-        totalTime: 300,
-        blitzTime: 0,
-        wallsCount: 10
-      });
+      this.afterRender();
+      this.whenConnected(() => socket.send('create_public_lobby', {
+        mode: 'duel', boardSize: 9, totalTime: 300, blitzTime: 0, wallsCount: 10
+      }));
     });
 
     const backBtn = document.getElementById('back-btn');
-    backBtn.addEventListener('click', () => {
+    backBtn?.addEventListener('click', () => {
       haptic.impact('light');
       this.router.navigate('home');
     });
 
-    // Join button clicks
-    const joinBtns = document.querySelectorAll('.lobby-join-btn');
-    joinBtns.forEach(btn => {
+    document.querySelectorAll('.lobby-join-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const lobbyId = btn.dataset.lobbyId;
         haptic.impact('medium');
@@ -161,26 +150,49 @@ export class OnlineScreen {
     });
   }
 
+  // Register socket listeners exactly once
+  bindSockets() {
+    socket.connect();
+    socket.on('lobbies_list', this.onLobbiesList);
+    socket.on('match_found', this.onMatchFound);
+    socket.on('connect', this.onConnect);
+    this.whenConnected(() => socket.send('get_lobbies'));
+  }
+
+  onConnect() {
+    // (Re)request the lobby list after a (re)connection if we're browsing
+    if (!this.searchActive && !this.waitingLobby) socket.send('get_lobbies');
+  }
+
+  whenConnected(fn) {
+    if (socket.isConnected) fn();
+    else {
+      socket.connect();
+      const once = () => { socket.off('connect', once); fn(); };
+      socket.on('connect', once);
+    }
+  }
+
   onLobbiesList(data) {
-    if (this.searchActive) return;
+    // Ignore list updates while we're in a searching/waiting view
+    if (this.searchActive || this.waitingLobby) return;
     this.lobbies = data || [];
     this.router.reRenderActiveScreen();
+    this.rebindList();
   }
 
   onMatchFound(data) {
     haptic.notification('success');
-    Toast.success("Raqib topildi! O'yin boshlanmoqda.");
-    
-    // Redirect to gameplay screen
-    // P1 or P2 side is sent from backend
+    Toast.success(t('opponentFound'));
     this.router.navigate('game', {
       vs: 'online',
       roomCode: data.roomCode,
-      playerSide: data.side, // 0 = Red, 1 = Blue
+      playerSide: data.side,
       boardSize: data.config.boardSize,
       totalTime: data.config.totalTime,
       blitzTime: data.config.blitzTime,
       wallsCount: data.config.wallsCount,
+      mode: data.config.mode,
       opponent: data.opponent
     });
   }
@@ -188,6 +200,7 @@ export class OnlineScreen {
   destroy() {
     socket.off('lobbies_list', this.onLobbiesList);
     socket.off('match_found', this.onMatchFound);
+    socket.off('connect', this.onConnect);
   }
 }
 export default OnlineScreen;
