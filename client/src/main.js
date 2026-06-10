@@ -87,7 +87,34 @@ async function bootstrap() {
   router.navigate('home');
 }
 
-// Start app
+// Render a visible error instead of a blank screen, so failures are diagnosable.
+function showFatal(err) {
+  try {
+    const app = document.getElementById('app');
+    if (app) {
+      app.innerHTML = `
+        <div style="padding:24px;color:#f1f5f9;font-family:system-ui,sans-serif;overflow:auto;height:100%;">
+          <h2 style="color:#fb7185;margin-bottom:10px;">Yuklashda xatolik</h2>
+          <p style="color:#9ca3af;font-size:13px;margin-bottom:14px;">Iltimos skrinshot yuboring:</p>
+          <pre style="white-space:pre-wrap;font-size:12px;background:#1b2436;padding:12px;border-radius:10px;color:#fca5a5;">${(err && (err.stack || err.message)) || String(err)}</pre>
+          <button onclick="location.reload()" style="margin-top:16px;padding:12px 20px;background:#7c3aed;color:#fff;border:none;border-radius:12px;font-weight:700;">Qayta urinish</button>
+        </div>`;
+    }
+  } catch (e) { /* ignore */ }
+}
+
+// Catch async errors during bootstrap
 bootstrap().catch(err => {
-  console.error("App bootstrap error:", err);
+  console.error('App bootstrap error:', err);
+  showFatal(err);
+});
+
+// Catch any uncaught error/rejection that would otherwise leave a blank screen
+window.addEventListener('error', (e) => {
+  console.error('Uncaught error:', e.error || e.message);
+  if (!document.querySelector('.screen, .game-container')) showFatal(e.error || e.message);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('Unhandled rejection:', e.reason);
+  if (!document.querySelector('.screen, .game-container')) showFatal(e.reason);
 });
