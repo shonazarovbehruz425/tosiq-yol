@@ -10,9 +10,19 @@ class WebSocketManager {
     this.reconnectDelay = 2000;
     this.isConnected = false;
     this.pingInterval = null;
+    this.reconnectTimer = null;
+    this.closing = false; // set when the app/page is shutting down
+
+    // Fully tear down on page hide/unload so the WebView doesn't hang on close.
+    if (typeof window !== 'undefined') {
+      const shutdown = () => this.shutdown();
+      window.addEventListener('pagehide', shutdown);
+      window.addEventListener('beforeunload', shutdown);
+    }
   }
 
   connect(customUrl = null) {
+    if (this.closing) return;
     if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
       return;
     }
@@ -64,8 +74,9 @@ class WebSocketManager {
       this.isConnected = false;
       this.stopHeartbeat();
       this.trigger('disconnect', event);
-      
-      if (!event.wasClean) {
+
+      // Don't reconnect if we're intentionally shutting down (page closing)
+      if (!this.closing && !event.wasClean) {
         this.attemptReconnect();
       }
     };
@@ -104,6 +115,7 @@ class WebSocketManager {
   }
 
   attemptReconnect() {
+    if (this.closing) return;
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.error('Max WebSocket reconnect attempts reached.');
       this.trigger('reconnect_failed', null);
@@ -113,9 +125,11 @@ class WebSocketManager {
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
     console.log(`Attempting reconnect ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms...`);
-    
-    setTimeout(() => {
-      this.connect();
+
+    clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      if (!this.closing) this.connect();
     }, delay);
   }
 
@@ -137,11 +151,28 @@ class WebSocketManager {
 
   disconnect() {
     this.stopHeartbeat();
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (this.ws) {
-      this.ws.close(1000, 'Normal closure');
+      try {
+        this.ws.onclose = null;
+        this.ws.onerror = null;
+        this.ws.onmessage = null;
+        this.ws.onopen = null;
+        this.ws.close(1000, 'Normal closure');
+      } catch (e) { /* ignore */ }
       this.ws = null;
     }
     this.isConnected = false;
+  }
+
+  // Hard shutdown used on page hide/unload. Prevents any reconnect/heartbeat
+  // activity during teardown which can hang the Telegram desktop WebView.
+  shutdown() {
+    this.closing = true;
+    this.disconnect();
   }
 }
 
