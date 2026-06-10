@@ -63,7 +63,8 @@ async function call(token, method, payload) {
       body: JSON.stringify(payload)
     });
     const data = await res.json();
-    if (!data.ok) {
+    if (!data.ok && data.error_code !== 409) {
+      // 409 (polling conflict) is handled & logged in poll(); don't double-log it.
       console.warn(`[bot] ${method} not ok: ${data.error_code} ${data.description}`);
     }
     return data;
@@ -230,14 +231,27 @@ async function poll(token, webAppUrl) {
   const res = await call(token, 'getUpdates', {
     offset, timeout: 30, allowed_updates: ['message', 'callback_query']
   });
+
+  // 409 Conflict = another instance is polling the same bot token.
+  // Back off and retry instead of hammering the API / flooding logs.
+  if (res && !res.ok && res.error_code === 409) {
+    console.warn('[bot] 409 Conflict — another instance is polling this token. Retrying in 10s.');
+    if (running) setTimeout(() => poll(token, webAppUrl), 10000);
+    return;
+  }
+
   if (res && res.ok && Array.isArray(res.result)) {
     for (const update of res.result) {
       offset = update.update_id + 1;
       if (update.message) await handleMessage(token, update.message, webAppUrl);
       else if (update.callback_query) await handleCallback(token, update.callback_query, webAppUrl);
     }
+    if (running) setImmediate(() => poll(token, webAppUrl));
+    return;
   }
-  if (running) setImmediate(() => poll(token, webAppUrl));
+
+  // Any other transient error: wait briefly before retrying
+  if (running) setTimeout(() => poll(token, webAppUrl), 3000);
 }
 
 // Set the persistent menu button + slash commands.
