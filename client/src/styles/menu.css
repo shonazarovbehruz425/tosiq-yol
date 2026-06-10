@@ -1168,3 +1168,104 @@ input:checked + .slider:before {
 .diff-level .lvl:nth-child(4) { height: 24px; }
 .diff-level .lvl:nth-child(5) { height: 28px; }
 .diff-level { height: 28px; }
+
+/* ===== Quoridor-themed animated menu background ===== */
+.qbg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Grid of board cells (the "qafaslar") */
+.qbg-grid {
+  position: absolute;
+  inset: -2px;
+  background-image:
+    linear-gradient(to right, var(--qbg-line, rgba(124, 58, 237, 0.10)) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--qbg-line, rgba(124, 58, 237, 0.10)) 1px, transparent 1px);
+  background-size: 42px 42px;
+  -webkit-mask-image: radial-gradient(130% 90% at 50% 30%, #000 55%, transparent 100%);
+  mask-image: radial-gradient(130% 90% at 50% 30%, #000 55%, transparent 100%);
+  animation: qbgGridDrift 60s linear infinite;
+}
+
+@keyframes qbgGridDrift {
+  from { background-position: 0 0, 0 0; }
+  to   { background-position: 42px 42px, 42px 42px; }
+}
+
+.qbg-items { position: absolute; inset: 0; }
+
+/* Floating wall pieces (barricades) */
+.qbg-wall {
+  position: absolute;
+  border-radius: 5px;
+  opacity: 0.6;
+  animation-name: qbgFloat;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+.qbg-wall.h { width: 64px; height: 11px; }
+.qbg-wall.v { width: 11px; height: 64px; }
+
+.qbg-wall.red {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.45);
+}
+.qbg-wall.blue {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.45);
+}
+
+/* Drifting pawn markers */
+.qbg-pawn {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  opacity: 0.65;
+  animation-name: qbgPawnFloat;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+.qbg-pawn.red {
+  background: radial-gradient(circle at 35% 30%, #ff7a7a, #ef4444 55%, #b91c1c);
+  box-shadow: 0 0 18px rgba(239, 68, 68, 0.7);
+}
+.qbg-pawn.blue {
+  background: radial-gradient(circle at 35% 30%, #93c5fd, #3b82f6 55%, #1d4ed8);
+  box-shadow: 0 0 18px rgba(59, 130, 246, 0.7);
+}
+
+@keyframes qbgFloat {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  25%  { transform: translate(14px, -18px) rotate(2deg); }
+  50%  { transform: translate(-10px, -30px) rotate(-2deg); }
+  75%  { transform: translate(-16px, -12px) rotate(1deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+@keyframes qbgPawnFloat {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(10px, -16px) scale(1.08); }
+  66%  { transform: translate(-12px, -8px) scale(0.95); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+/* Keep menu content above the animated background */
+.menu-header,
+.menu-actions,
+.menu-footer { position: relative; z-index: 1; }
+
+/* Lighter grid lines in light mode for a clean, airy look */
+html.light-mode .qbg-grid {
+  --qbg-line: rgba(99, 102, 241, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qbg-grid, .qbg-wall, .qbg-pawn { animation: none !important; }
+}

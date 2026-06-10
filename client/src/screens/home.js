@@ -11,9 +11,48 @@ export class HomeScreen {
     this.onUsersCount = this.onUsersCount.bind(this);
   }
 
+  // Quoridor-themed animated background: a grid board with floating wall
+  // pieces and drifting red/blue pawn markers behind the menu.
+  renderBackground() {
+    const walls = [
+      // type, color, left%, top%, drift duration(s), delay(s)
+      ['h', 'red',  12, 14, 26, 0],
+      ['h', 'blue', 64, 9,  32, -6],
+      ['v', 'blue', 8,  52, 30, -3],
+      ['h', 'red',  78, 60, 28, -10],
+      ['h', 'blue', 22, 82, 34, -14],
+      ['v', 'red',  88, 30, 24, -8],
+      ['v', 'blue', 44, 70, 36, -18],
+      ['h', 'red',  52, 38, 30, -22],
+    ];
+    const pawns = [
+      // color, left%, top%, float duration(s), delay(s)
+      ['red',  56, 68, 12, 0],
+      ['blue', 30, 26, 14, -4],
+      ['red',  82, 46, 16, -7],
+      ['blue', 16, 74, 13, -2],
+    ];
+
+    const wallEls = walls.map(([type, color, l, t, dur, delay]) =>
+      `<span class="qbg-wall ${type} ${color}" style="left:${l}%;top:${t}%;animation-duration:${dur}s;animation-delay:${delay}s"></span>`
+    ).join('');
+
+    const pawnEls = pawns.map(([color, l, t, dur, delay]) =>
+      `<span class="qbg-pawn ${color}" style="left:${l}%;top:${t}%;animation-duration:${dur}s;animation-delay:${delay}s"></span>`
+    ).join('');
+
+    return `
+      <div class="qbg" aria-hidden="true">
+        <div class="qbg-grid"></div>
+        <div class="qbg-items">${wallEls}${pawnEls}</div>
+      </div>
+    `;
+  }
+
   render() {
     return `
       <div class="screen screen-enter">
+        ${this.renderBackground()}
         <div class="menu-header">
           <div class="logo-container">
             <!-- Intersecting arrows symbol representing Quoridor blocking paths -->
