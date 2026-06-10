@@ -154,6 +154,21 @@ class JSONDatabase {
     return u;
   }
 
+  // Update an EXISTING user without creating a new one. Returns true if found.
+  // Used by the Mini App WebSocket so merely opening the app doesn't add users —
+  // only the bot's /start creates accounts.
+  touchUser(telegramId, userProfile = {}) {
+    const u = this.data.users[telegramId];
+    if (!u) return false;
+    if (userProfile.username) u.username = userProfile.username;
+    if (userProfile.first_name) u.first_name = userProfile.first_name;
+    const langCode = userProfile.language_code || userProfile.lang;
+    if (langCode) u.language_code = langCode;
+    u.last_seen = new Date().toISOString();
+    this.save();
+    return true;
+  }
+
   // Delete a user by Telegram id. Returns true if a user was removed.
   deleteUser(telegramId) {
     const key = String(telegramId);

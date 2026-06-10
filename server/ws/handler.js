@@ -70,19 +70,22 @@ export function handleWebSocketConnection(ws, wss, request) {
 
         userProfile = authResult.user;
         console.log(`Auth success for user: ${userProfile.first_name} (ID: ${userProfile.id})`);
-        
-        // Save user to database (includes language_code -> country/flag)
-        db.saveUser(userProfile.id, userProfile);
 
-        // Mark user online
+        // Do NOT create a user here — only the bot's /start registers accounts.
+        // If the user already exists (started the bot), update their last_seen/info.
+        const known = db.touchUser(userProfile.id, userProfile);
+
+        // Mark user online (for live admin presence)
         presence.add(userProfile.id);
 
-        // Resolve real country from IP (async, non-blocking) and persist it
-        lookupCountry(clientIp).then(geo => {
-          if (geo && geo.code) {
-            db.setUserCountry(userProfile.id, geo.code, geo.country);
-          }
-        }).catch(() => {});
+        // Resolve real country from IP — but only persist it for known users
+        if (known) {
+          lookupCountry(clientIp).then(geo => {
+            if (geo && geo.code) {
+              db.setUserCountry(userProfile.id, geo.code, geo.country);
+            }
+          }).catch(() => {});
+        }
 
         // check if user has an active room to reconnect to!
         const existingRoom = roomManager.getRoomByPlayerId(userProfile.id);
