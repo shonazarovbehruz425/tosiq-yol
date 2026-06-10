@@ -86,15 +86,10 @@ export class BotScreen {
         const difficulty = card.dataset.diff;
         haptic.impact('medium');
 
-        // Start a bot game directly with the standard ruleset
-        this.router.navigate('game', {
+        // Go to the mode settings screen (same as the Mode card), for a bot game
+        this.router.navigate('mode-select', {
           vs: 'bot',
-          difficulty,
-          mode: 'duel',
-          boardSize: 9,
-          totalTime: 300,
-          blitzTime: 0,
-          wallsCount: 10
+          difficulty
         });
       });
     });

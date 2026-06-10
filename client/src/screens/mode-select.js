@@ -3,6 +3,17 @@ import { haptic } from '../core/telegram.js';
 import { socket } from '../core/websocket.js';
 import { Toast } from '../components/toast.js';
 
+// Available board sizes with their default and maximum barricade counts.
+// Walls scale with the board so larger boards allow more barricades.
+const BOARD_SIZES = [
+  { size: 7,  defWalls: 6,  maxWalls: 10, subKey: 'size7Sub' },
+  { size: 9,  defWalls: 10, maxWalls: 14, subKey: 'size9Sub' },
+  { size: 11, defWalls: 14, maxWalls: 20, subKey: 'size11Sub' },
+  { size: 13, defWalls: 18, maxWalls: 26, subKey: 'size13Sub' }
+];
+
+const sizeInfo = (size) => BOARD_SIZES.find(b => b.size === size) || BOARD_SIZES[1];
+
 export class ModeSelectScreen {
   constructor(router, params) {
     this.router = router;
@@ -11,7 +22,7 @@ export class ModeSelectScreen {
     // Default configuration
     this.config = {
       mode: 'duel',   // 'duel' or 'race'
-      size: 9,        // 7 or 9
+      size: 9,        // 7 | 9 | 11 | 13
       timer: 300,     // 0 | 180 | 300
       blitz: 0,       // 0 | 10 | 15 | 30
       walls: 10
@@ -77,15 +88,13 @@ export class ModeSelectScreen {
 
         <!-- Board size -->
         <div class="mode-section-label">${t('boardSize')}</div>
-        <div class="big-card-grid">
-          <button class="big-card size-card ${c.size === 7 ? 'active' : ''}" data-size="7">
-            <span class="big-card-title">7 × 7</span>
-            <span class="big-card-sub">${t('size7Sub')}</span>
-          </button>
-          <button class="big-card size-card ${c.size === 9 ? 'active' : ''}" data-size="9">
-            <span class="big-card-title">9 × 9</span>
-            <span class="big-card-sub">${t('size9Sub')}</span>
-          </button>
+        <div class="size-grid">
+          ${BOARD_SIZES.map(b => `
+            <button class="size-chip ${c.size === b.size ? 'active' : ''}" data-size="${b.size}">
+              <span class="size-chip-title">${b.size}×${b.size}</span>
+              <span class="size-chip-sub">${t(b.subKey)}</span>
+            </button>
+          `).join('')}
         </div>
 
         <!-- Timer -->
@@ -112,6 +121,7 @@ export class ModeSelectScreen {
           <span class="counter-val" id="walls-val">${c.walls}</span>
           <button class="counter-btn" id="walls-plus">+</button>
         </div>
+        <div class="walls-max-hint" id="walls-max-hint">${t('maxLabel')}: ${sizeInfo(c.size).maxWalls}</div>
 
         <button class="btn btn-primary" id="start-game-btn" style="margin-top: 18px; padding: 16px 24px; font-size: 18px;">
           ${this.startLabel()}
@@ -173,15 +183,19 @@ export class ModeSelectScreen {
       });
     });
 
-    // Board size cards
-    document.querySelectorAll('.big-card[data-size]').forEach(card => {
+    // Board size chips
+    document.querySelectorAll('.size-chip[data-size]').forEach(card => {
       card.addEventListener('click', () => {
-        document.querySelectorAll('.big-card[data-size]').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.size-chip[data-size]').forEach(b => b.classList.remove('active'));
         card.classList.add('active');
         this.config.size = parseInt(card.dataset.size);
-        this.config.walls = this.config.size === 7 ? 6 : 10;
+        // Reset walls to the default for this board and update the max hint
+        const info = sizeInfo(this.config.size);
+        this.config.walls = info.defWalls;
         const wv = document.getElementById('walls-val');
         if (wv) wv.innerText = this.config.walls;
+        const hint = document.getElementById('walls-max-hint');
+        if (hint) hint.innerText = `${t('maxLabel')}: ${info.maxWalls}`;
         haptic.selection();
         this.refreshBadges();
       });
@@ -208,7 +222,7 @@ export class ModeSelectScreen {
       });
     });
 
-    // Barricades
+    // Barricades (clamped to this board's min 0 / max)
     const wallsVal = document.getElementById('walls-val');
     document.getElementById('walls-minus')?.addEventListener('click', () => {
       if (this.config.walls > 0) {
@@ -219,12 +233,14 @@ export class ModeSelectScreen {
       }
     });
     document.getElementById('walls-plus')?.addEventListener('click', () => {
-      const maxWalls = this.config.size === 7 ? 12 : 20;
+      const maxWalls = sizeInfo(this.config.size).maxWalls;
       if (this.config.walls < maxWalls) {
         this.config.walls++;
         wallsVal.innerText = this.config.walls;
         haptic.impact('light');
         this.refreshBadges();
+      } else {
+        haptic.notification('warning');
       }
     });
 
