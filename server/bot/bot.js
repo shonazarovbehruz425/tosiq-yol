@@ -166,14 +166,26 @@ async function handleCallback(token, cb, webAppUrl) {
     // Acknowledge the button tap (removes the loading spinner)
     await call(token, 'answerCallbackQuery', { callback_query_id: cb.id, text: s.langSet });
 
-    // Send the localized welcome with an inline Play button
+    // Edit the language-picker message in place into the localized welcome
+    // (with an inline Play button) instead of sending a new message.
     const name = from.first_name || 'there';
-    await call(token, 'sendMessage', {
+    const edited = await call(token, 'editMessageText', {
       chat_id: chatId,
+      message_id: cb.message.message_id,
       text: s.welcome(name),
       parse_mode: 'Markdown',
       reply_markup: playKeyboard(valid, webAppUrl)
     });
+
+    // Fallback: if the edit failed (e.g. message too old), send a fresh message.
+    if (!edited || !edited.ok) {
+      await call(token, 'sendMessage', {
+        chat_id: chatId,
+        text: s.welcome(name),
+        parse_mode: 'Markdown',
+        reply_markup: playKeyboard(valid, webAppUrl)
+      });
+    }
     return;
   }
 
