@@ -4,6 +4,7 @@ import { roomManager } from './rooms.js';
 import { matchmaking } from './matchmaking.js';
 import { QuoridorEngine } from '../game/quoridor.js';
 import { presence } from './presence.js';
+import { getClientIp, lookupCountry } from './geoip.js';
 
 // Send active online count to everyone
 function broadcastOnlineCount(wss) {
@@ -32,11 +33,14 @@ function getOpenLobbies() {
     }));
 }
 
-export function handleWebSocketConnection(ws, wss) {
+export function handleWebSocketConnection(ws, wss, request) {
   console.log('New WebSocket connection established.');
   
   // Track user profile on the socket object
   let userProfile = null;
+
+  // Client IP for geolocation (resolved to a country on auth)
+  const clientIp = request ? getClientIp(request) : '';
   
   // Send active count on new connection
   broadcastOnlineCount(wss);
@@ -72,6 +76,13 @@ export function handleWebSocketConnection(ws, wss) {
 
         // Mark user online
         presence.add(userProfile.id);
+
+        // Resolve real country from IP (async, non-blocking) and persist it
+        lookupCountry(clientIp).then(geo => {
+          if (geo && geo.code) {
+            db.setUserCountry(userProfile.id, geo.code, geo.country);
+          }
+        }).catch(() => {});
 
         // check if user has an active room to reconnect to!
         const existingRoom = roomManager.getRoomByPlayerId(userProfile.id);

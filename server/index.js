@@ -143,8 +143,8 @@ server.on('upgrade', (request, socket, head) => {
   }
 });
 
-wss.on('connection', (ws) => {
-  handleWebSocketConnection(ws, wss);
+wss.on('connection', (ws, request) => {
+  handleWebSocketConnection(ws, wss, request);
 });
 
 // Start listening

@@ -206,7 +206,7 @@ export default function Dashboard({ onLogout, onExpire }) {
                   <thead><tr><th>Name</th><th>Username</th><th>Telegram ID</th><th>Country</th><th>Status</th><th></th></tr></thead>
                   <tbody>
                     {users.map((u) => {
-                      const c = country(u.language_code);
+                      const c = country(u);
                       return (
                         <tr key={u.id}>
                           <td>{u.first_name || '—'}</td>

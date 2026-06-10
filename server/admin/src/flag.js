@@ -1,29 +1,20 @@
-// Map Telegram language_code -> a representative country flag emoji + label.
-// language_code isn't a country, but it's the best signal Telegram gives us.
-const LANG_COUNTRY = {
-  uz: { flag: '🇺🇿', name: 'Uzbekistan' },
-  en: { flag: '🇬🇧', name: 'English' },
-  ru: { flag: '🇷🇺', name: 'Russia' },
-  es: { flag: '🇪🇸', name: 'Spain' },
-  zh: { flag: '🇨🇳', name: 'China' },
-  hi: { flag: '🇮🇳', name: 'India' },
-  ar: { flag: '🇸🇦', name: 'Arabic' },
-  fr: { flag: '🇫🇷', name: 'France' },
-  pt: { flag: '🇵🇹', name: 'Portugal' },
-  de: { flag: '🇩🇪', name: 'Germany' },
-  tr: { flag: '🇹🇷', name: 'Turkey' },
-  fa: { flag: '🇮🇷', name: 'Iran' },
-  kk: { flag: '🇰🇿', name: 'Kazakhstan' },
-  ky: { flag: '🇰🇬', name: 'Kyrgyzstan' },
-  tg: { flag: '🇹🇯', name: 'Tajikistan' },
-  uk: { flag: '🇺🇦', name: 'Ukraine' },
-  ja: { flag: '🇯🇵', name: 'Japan' },
-  ko: { flag: '🇰🇷', name: 'Korea' },
-  it: { flag: '🇮🇹', name: 'Italy' }
-};
+// Convert an ISO 3166-1 alpha-2 country code (e.g. "UZ") into a flag emoji.
+// Each letter maps to a regional indicator symbol.
+function codeToFlag(code) {
+  if (!code || code.length !== 2) return '🌐';
+  const A = 0x1f1e6;
+  const up = code.toUpperCase();
+  return String.fromCodePoint(A + (up.charCodeAt(0) - 65)) +
+         String.fromCodePoint(A + (up.charCodeAt(1) - 65));
+}
 
-export function country(code) {
-  if (!code) return { flag: '🌐', name: '—' };
-  const key = String(code).toLowerCase().split('-')[0];
-  return LANG_COUNTRY[key] || { flag: '🌐', name: code };
+// Resolve a display { flag, name } for a user.
+// Prefers the real IP-derived country; falls back to "unknown".
+export function country(user) {
+  const code = user && user.country_code;
+  const name = (user && user.country_name) || '';
+  if (code) {
+    return { flag: codeToFlag(code), name: name || code };
+  }
+  return { flag: '🌐', name: '—' };
 }

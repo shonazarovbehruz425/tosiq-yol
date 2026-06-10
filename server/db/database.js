@@ -92,6 +92,17 @@ class JSONDatabase {
     return u;
   }
 
+  // Set the user's country resolved from their IP (code: ISO-2, e.g. "UZ")
+  setUserCountry(telegramId, code, name) {
+    const u = this.data.users[telegramId];
+    if (u && code) {
+      u.country_code = code;
+      u.country_name = name || code;
+      this.save();
+    }
+    return u;
+  }
+
   // Stats updates
   updateStats(winnerId, loserId, isDraw = false) {
     const winner = this.data.users[winnerId];
@@ -198,6 +209,8 @@ class JSONDatabase {
         first_name: u.first_name,
         username: u.username,
         language_code: u.language_code || u.lang || '',
+        country_code: u.country_code || '',
+        country_name: u.country_name || '',
         rating: u.rating,
         wins: u.wins,
         losses: u.losses,
