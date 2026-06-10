@@ -19,6 +19,10 @@ export default defineConfig({
   },
   build: {
     outDir: '../dist', // Output to a shared folder if needed, or default to dist
-    emptyOutDir: true
+    emptyOutDir: true,
+    // Target older browser engines so the bundle runs in desktop Telegram's
+    // (sometimes dated) WebView. Avoids top-level features that break there.
+    target: ['es2018', 'chrome70', 'safari12'],
+    cssTarget: 'chrome70'
   }
 });

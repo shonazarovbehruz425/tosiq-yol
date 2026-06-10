@@ -12,5 +12,35 @@
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
+
+    <!-- Classic (non-module) watchdog: runs even in old WebViews where ES modules
+         may fail. If the app hasn't rendered after a few seconds, show diagnostics. -->
+    <script>
+      (function () {
+        function isLoaded() {
+          var app = document.getElementById('app');
+          return app && app.querySelector('.screen, .game-container, .login-wrap');
+        }
+        window.addEventListener('error', function (e) {
+          window.__lastErr = (e && (e.message || (e.error && e.error.message))) || 'script error';
+        });
+        setTimeout(function () {
+          if (isLoaded()) return;
+          var app = document.getElementById('app');
+          if (!app) return;
+          var moduleSupported = ('noModule' in document.createElement('script'));
+          app.innerHTML =
+            '<div style="padding:20px;color:#f1f5f9;font-family:sans-serif;overflow:auto;height:100%;box-sizing:border-box;">' +
+            '<h3 style="color:#fb7185;margin:0 0 10px;">Yuklanmadi (debug)</h3>' +
+            '<div style="font-size:12px;color:#cbd5e1;line-height:1.6;word-break:break-word;">' +
+            'ES modules: <b>' + moduleSupported + '</b><br>' +
+            'Error: <b>' + (window.__lastErr || 'none') + '</b><br>' +
+            'UA: ' + navigator.userAgent +
+            '</div>' +
+            '<button onclick="location.reload()" style="margin-top:16px;padding:12px 18px;background:#7c3aed;color:#fff;border:none;border-radius:10px;font-weight:700;">Qayta urinish</button>' +
+            '</div>';
+        }, 4500);
+      })();
+    </script>
   </body>
 </html>
