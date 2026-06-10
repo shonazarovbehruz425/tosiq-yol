@@ -49,6 +49,7 @@ class JSONDatabase {
         id: telegramId,
         username: userProfile.username || '',
         first_name: userProfile.first_name || 'Anonymous',
+        lang: userProfile.lang || 'en',
         rating: 1000,
         wins: 0,
         losses: 0,
@@ -56,12 +57,22 @@ class JSONDatabase {
         created_at: new Date().toISOString()
       };
     } else {
-      // Update names
+      // Update names (preserve lang and stats)
       this.data.users[telegramId].username = userProfile.username || existing.username;
       this.data.users[telegramId].first_name = userProfile.first_name || existing.first_name;
     }
     this.save();
     return this.data.users[telegramId];
+  }
+
+  // Set the user's preferred language (uz | en | ru ...)
+  setUserLang(telegramId, lang) {
+    const u = this.data.users[telegramId];
+    if (u) {
+      u.lang = lang;
+      this.save();
+    }
+    return u;
   }
 
   // Stats updates
