@@ -1,7 +1,18 @@
 import { defineConfig } from 'vite';
+import legacy from '@vitejs/plugin-legacy';
 
 export default defineConfig({
   root: './',
+  plugins: [
+    // Generate an ES5 + polyfilled bundle for old engines (Telegram Desktop
+    // on Windows uses a legacy EdgeHTML/Chakra WebView that can't run modern JS).
+    legacy({
+      targets: ['chrome >= 64', 'edge >= 18', 'safari >= 11', 'ie >= 11'],
+      additionalLegacyPolyfills: ['regenerator-runtime/runtime'],
+      renderLegacyChunks: true,
+      polyfills: true
+    })
+  ],
   server: {
     port: 5173,
     host: true, // Listen on all network addresses (helpful for testing on mobile via local IP)
