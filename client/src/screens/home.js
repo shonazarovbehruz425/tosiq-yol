@@ -29,22 +29,6 @@ export class HomeScreen {
         </div>
 
         <div class="menu-actions home-actions" style="margin-top: 20px;">
-          <button class="menu-pill menu-pill-mode" id="duel-mode-card">
-            <span class="menu-pill-icon icon-mode">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="9"/>
-                <circle cx="12" cy="12" r="5"/>
-                <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
-              </svg>
-            </span>
-            <span class="menu-pill-label">${t('modeCardTitle')}</span>
-            <span class="menu-pill-chevron">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 6l6 6-6 6"/>
-              </svg>
-            </span>
-          </button>
-
           <button class="menu-pill menu-pill-primary" id="play-online-btn">
             <span class="menu-pill-icon icon-online">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -54,6 +38,20 @@ export class HomeScreen {
               </svg>
             </span>
             <span class="menu-pill-label">${t('playOnline')}</span>
+          </button>
+
+          <button class="menu-pill" id="play-bot-btn">
+            <span class="menu-pill-icon icon-bot">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="5" y="8" width="14" height="11" rx="3"/>
+                <path d="M12 8V4"/>
+                <circle cx="12" cy="3" r="1"/>
+                <circle cx="9.5" cy="13" r="1.2" fill="currentColor" stroke="none"/>
+                <circle cx="14.5" cy="13" r="1.2" fill="currentColor" stroke="none"/>
+                <path d="M2 13v3M22 13v3"/>
+              </svg>
+            </span>
+            <span class="menu-pill-label">${t('playBot')}</span>
           </button>
 
           <button class="menu-pill" id="play-friend-btn">
@@ -70,18 +68,20 @@ export class HomeScreen {
             <span class="menu-pill-label">${t('playFriend')}</span>
           </button>
 
-          <button class="menu-pill" id="play-bot-btn">
-            <span class="menu-pill-icon icon-bot">
+          <button class="menu-pill menu-pill-mode" id="duel-mode-card">
+            <span class="menu-pill-icon icon-mode">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="5" y="8" width="14" height="11" rx="3"/>
-                <path d="M12 8V4"/>
-                <circle cx="12" cy="3" r="1"/>
-                <circle cx="9.5" cy="13" r="1.2" fill="currentColor" stroke="none"/>
-                <circle cx="14.5" cy="13" r="1.2" fill="currentColor" stroke="none"/>
-                <path d="M2 13v3M22 13v3"/>
+                <circle cx="12" cy="12" r="9"/>
+                <circle cx="12" cy="12" r="5"/>
+                <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
               </svg>
             </span>
-            <span class="menu-pill-label">${t('playBot')}</span>
+            <span class="menu-pill-label">${t('modeCardTitle')}</span>
+            <span class="menu-pill-chevron">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 6l6 6-6 6"/>
+              </svg>
+            </span>
           </button>
 
           <button class="menu-pill" id="settings-btn">
