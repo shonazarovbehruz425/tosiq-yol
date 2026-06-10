@@ -137,5 +137,27 @@ export const en = {
   vibration: "Vibration",
   soundEffects: "Sound Effects",
   on: "On",
-  off: "Off"
+  off: "Off",
+  username: "Username",
+  usernamePlaceholder: "Enter your name",
+  usernameHint: "This name appears on the leaderboard",
+  save: "Save",
+  saved: "Saved",
+  usernameSaved: "Username saved ✓",
+  usernameEmpty: "Please enter a name",
+  usernameNotRegistered: "Open the bot and press Start first",
+  usernameError: "Could not save. Try again.",
+
+  // Leaderboard
+  leaderboard: "Leaderboard",
+  leaderboardTitle: "Leaderboard",
+  leaderboardSubtitle: "Top players by rating",
+  rank: "Rank",
+  player: "Player",
+  rating: "Rating",
+  wins: "Wins",
+  yourRank: "Your rank",
+  noRanking: "Play games to enter the rankings",
+  leaderboardEmpty: "No players ranked yet",
+  loadingBoard: "Loading rankings..."
 };

@@ -9,7 +9,8 @@ const defaultSettings = {
   theme: 'dark',
   vibration: true,
   sound: true,
-  lang: 'uz'
+  lang: 'uz',
+  username: ''
 };
 
 const defaultStats = {

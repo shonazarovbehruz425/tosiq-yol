@@ -137,5 +137,27 @@ export const uz = {
   vibration: "Tebranish (Vibratsiya)",
   soundEffects: "Ovoz effektlari",
   on: "Yoqilgan",
-  off: "O'chirilgan"
+  off: "O'chirilgan",
+  username: "Foydalanuvchi nomi",
+  usernamePlaceholder: "Ismingizni kiriting",
+  usernameHint: "Bu nom reytingda ko'rinadi",
+  save: "Saqlash",
+  saved: "Saqlandi",
+  usernameSaved: "Nom saqlandi ✓",
+  usernameEmpty: "Iltimos nom kiriting",
+  usernameNotRegistered: "Avval botga kirib Start bosing",
+  usernameError: "Saqlab bo'lmadi. Qayta urinib ko'ring.",
+
+  // Leaderboard
+  leaderboard: "Reyting",
+  leaderboardTitle: "Reyting Jadvali",
+  leaderboardSubtitle: "Reyting bo'yicha eng zo'r o'yinchilar",
+  rank: "O'rin",
+  player: "O'yinchi",
+  rating: "Reyting",
+  wins: "G'alabalar",
+  yourRank: "Sizning o'rningiz",
+  noRanking: "Reytingga kirish uchun o'ynang",
+  leaderboardEmpty: "Hali reytingda o'yinchilar yo'q",
+  loadingBoard: "Reyting yuklanmoqda..."
 };

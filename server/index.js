@@ -36,8 +36,8 @@ app.get('/api/health', (req, res) => {
 
 app.get('/api/leaderboard', (req, res) => {
   try {
-    const board = db.getLeaderboard();
-    res.json(board);
+    const board = db.getLeaderboard(20);
+    res.json(board.top);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -1,6 +1,7 @@
 import { t, getLanguage, LANGUAGES } from '../core/i18n.js';
 import { StorageManager } from '../core/storage.js';
 import { haptic } from '../core/telegram.js';
+import { socket } from '../core/websocket.js';
 
 export class SettingsScreen {
   constructor(router, params) {
@@ -30,6 +31,28 @@ export class SettingsScreen {
         <h2 class="menu-title" style="margin-top: 20px;">${t('systemSettings')}</h2>
         
         <div class="card" style="margin-top: 24px;">
+          <!-- Username Setting -->
+          <div class="setting-row setting-row-stack">
+            <div class="setting-label">
+              <span class="setting-title">${t('username')}</span>
+              <span class="setting-subtitle">${t('usernameHint')}</span>
+            </div>
+            <div class="username-field">
+              <input
+                type="text"
+                id="username-input"
+                class="username-input"
+                maxlength="20"
+                placeholder="${t('usernamePlaceholder')}"
+                value="${(this.settings.username || '').replace(/"/g, '&quot;')}"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button class="username-save" id="username-save-btn" disabled>${t('save')}</button>
+            </div>
+            <div class="username-status" id="username-status"></div>
+          </div>
+
           <!-- Theme Setting -->
           <div class="setting-row">
             <div class="setting-label">
@@ -107,6 +130,66 @@ export class SettingsScreen {
       return;
     }
 
+    // Bind username input + save
+    const usernameInput = document.getElementById('username-input');
+    const usernameSaveBtn = document.getElementById('username-save-btn');
+    const usernameStatus = document.getElementById('username-status');
+    if (usernameInput && usernameSaveBtn) {
+      const initial = (this.settings.username || '').trim();
+
+      const refreshBtnState = () => {
+        const val = usernameInput.value.trim();
+        usernameSaveBtn.disabled = (val.length === 0 || val === usernameInput.dataset.saved);
+      };
+      usernameInput.dataset.saved = initial;
+
+      usernameInput.addEventListener('input', () => {
+        if (usernameStatus) { usernameStatus.textContent = ''; usernameStatus.className = 'username-status'; }
+        refreshBtnState();
+      });
+
+      // Listen for the server's confirmation (bound once per screen)
+      this._onUsernameSet = (data) => {
+        if (!usernameStatus) return;
+        if (data && data.ok) {
+          usernameStatus.textContent = t('usernameSaved');
+          usernameStatus.className = 'username-status ok';
+        } else {
+          const err = data && data.error;
+          usernameStatus.textContent = err === 'not_registered'
+            ? t('usernameNotRegistered')
+            : (err === 'empty' ? t('usernameEmpty') : t('usernameError'));
+          usernameStatus.className = 'username-status err';
+        }
+      };
+      socket.on('username_set', this._onUsernameSet);
+
+      const saveUsername = async () => {
+        const val = usernameInput.value.trim().slice(0, 20);
+        if (!val) {
+          if (usernameStatus) {
+            usernameStatus.textContent = t('usernameEmpty');
+            usernameStatus.className = 'username-status err';
+          }
+          return;
+        }
+        haptic.impact('light');
+        this.settings.username = val;
+        usernameInput.dataset.saved = val;
+        await StorageManager.saveSettings(this.settings);
+        // Push to the server (requires an authenticated socket)
+        socket.connect();
+        socket.send('set_username', { name: val });
+        usernameSaveBtn.disabled = true;
+      };
+
+      usernameSaveBtn.addEventListener('click', saveUsername);
+      usernameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); if (!usernameSaveBtn.disabled) saveUsername(); }
+      });
+      refreshBtnState();
+    }
+
     // Bind theme toggle
     const themeToggle = document.getElementById('theme-toggle');
     themeToggle.addEventListener('change', async (e) => {
@@ -179,6 +262,10 @@ export class SettingsScreen {
     if (this._closeLangDropdown) {
       document.removeEventListener('click', this._closeLangDropdown);
       this._closeLangDropdown = null;
+    }
+    if (this._onUsernameSet) {
+      socket.off('username_set', this._onUsernameSet);
+      this._onUsernameSet = null;
     }
   }
 }

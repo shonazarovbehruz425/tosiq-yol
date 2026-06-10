@@ -143,6 +143,18 @@ class JSONDatabase {
     return u;
   }
 
+  // Set the user's chosen display name (shown on the leaderboard).
+  // Only updates an EXISTING user (created via the bot /start). Returns the
+  // user object on success, or null if not found.
+  setDisplayName(telegramId, name) {
+    const u = this.data.users[telegramId];
+    if (!u) return null;
+    u.display_name = name;
+    u.last_seen = new Date().toISOString();
+    this.save();
+    return u;
+  }
+
   // Set the user's country resolved from their IP (code: ISO-2, e.g. "UZ")
   setUserCountry(telegramId, code, name) {
     const u = this.data.users[telegramId];
@@ -222,17 +234,42 @@ class JSONDatabase {
     return record;
   }
 
-  getLeaderboard() {
-    return Object.values(this.data.users)
-      .sort((a, b) => b.rating - a.rating)
-      .slice(0, 10)
-      .map(u => ({
-        first_name: u.first_name,
-        username: u.username,
-        rating: u.rating,
-        wins: u.wins,
-        losses: u.losses
-      }));
+  getLeaderboard(limit = 20, requesterId = null) {
+    const sorted = Object.values(this.data.users)
+      .slice()
+      .sort((a, b) => (b.rating || 0) - (a.rating || 0) || (b.wins || 0) - (a.wins || 0));
+
+    const nameOf = (u) => u.display_name || u.first_name || (u.username ? '@' + u.username : 'Anonymous');
+
+    const top = sorted.slice(0, limit).map((u, i) => ({
+      rank: i + 1,
+      id: u.id,
+      name: nameOf(u),
+      country_code: u.country_code || '',
+      rating: u.rating || 0,
+      wins: u.wins || 0,
+      losses: u.losses || 0
+    }));
+
+    // Resolve the requesting user's own rank (even if outside the top list).
+    let me = null;
+    if (requesterId != null) {
+      const idx = sorted.findIndex(u => String(u.id) === String(requesterId));
+      if (idx !== -1) {
+        const u = sorted[idx];
+        me = {
+          rank: idx + 1,
+          id: u.id,
+          name: nameOf(u),
+          country_code: u.country_code || '',
+          rating: u.rating || 0,
+          wins: u.wins || 0,
+          losses: u.losses || 0
+        };
+      }
+    }
+
+    return { top, me, total: sorted.length };
   }
 
   // ===== Admin helpers =====

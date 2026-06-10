@@ -113,6 +113,31 @@ export function handleWebSocketConnection(ws, wss, request) {
         return;
       }
 
+      // 1b. Set display name (username for the leaderboard)
+      if (type === 'set_username') {
+        const raw = (payload && payload.name != null) ? String(payload.name) : '';
+        const name = raw.trim().slice(0, 20);
+        if (!name) {
+          ws.send(JSON.stringify({ type: 'username_set', payload: { ok: false, error: 'empty' } }));
+          return;
+        }
+        const updated = db.setDisplayName(userProfile.id, name);
+        if (updated) {
+          ws.send(JSON.stringify({ type: 'username_set', payload: { ok: true, name } }));
+        } else {
+          // User not registered yet (hasn't pressed /start in the bot)
+          ws.send(JSON.stringify({ type: 'username_set', payload: { ok: false, error: 'not_registered' } }));
+        }
+        return;
+      }
+
+      // 1c. Leaderboard request (includes the requester's own rank)
+      if (type === 'get_leaderboard') {
+        const board = db.getLeaderboard(20, userProfile.id);
+        ws.send(JSON.stringify({ type: 'leaderboard', payload: board }));
+        return;
+      }
+
       // 2. Matchmaking
       if (type === 'enter_matchmaking') {
         const player = { id: userProfile.id, first_name: userProfile.first_name, username: userProfile.username, ws };

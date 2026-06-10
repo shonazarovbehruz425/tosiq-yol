@@ -7,6 +7,7 @@ import { initSound } from './core/sound.js';
 // Screen Imports
 import HomeScreen from './screens/home.js';
 import SettingsScreen from './screens/settings.js';
+import LeaderboardScreen from './screens/leaderboard.js';
 import BotScreen from './screens/bot.js';
 import ModeSelectScreen from './screens/mode-select.js';
 import OnlineScreen from './screens/online.js';
@@ -39,6 +40,7 @@ async function bootstrap() {
   // 3. Register routing screens
   router.register('home', HomeScreen);
   router.register('settings', SettingsScreen);
+  router.register('leaderboard', LeaderboardScreen);
   router.register('bot', BotScreen);
   router.register('mode-select', ModeSelectScreen);
   router.register('online', OnlineScreen);

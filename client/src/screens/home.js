@@ -79,6 +79,22 @@ export class HomeScreen {
             <span class="menu-pill-label">${t('playOnline')}</span>
           </button>
 
+          <button class="menu-pill" id="leaderboard-btn">
+            <span class="menu-pill-icon icon-leaderboard">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 21h8M12 17v4"/>
+                <path d="M7 4h10v5a5 5 0 0 1-10 0z"/>
+                <path d="M7 5H4v2a3 3 0 0 0 3 3M17 5h3v2a3 3 0 0 1-3 3"/>
+              </svg>
+            </span>
+            <span class="menu-pill-label">${t('leaderboard')}</span>
+            <span class="menu-pill-chevron">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 6l6 6-6 6"/>
+              </svg>
+            </span>
+          </button>
+
           <button class="menu-pill" id="play-bot-btn">
             <span class="menu-pill-icon icon-bot">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -169,6 +185,14 @@ export class HomeScreen {
       haptic.impact('medium');
       this.router.navigate('bot');
     });
+
+    const leaderboardBtn = document.getElementById('leaderboard-btn');
+    if (leaderboardBtn) {
+      leaderboardBtn.addEventListener('click', () => {
+        haptic.impact('medium');
+        this.router.navigate('leaderboard');
+      });
+    }
 
     const settingsBtn = document.getElementById('settings-btn');
     settingsBtn.addEventListener('click', () => {
