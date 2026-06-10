@@ -48,3 +48,9 @@ export async function sendMessage(userId, text) {
   const data = await r.json().catch(() => ({}));
   return { ok: r.ok, error: data.error };
 }
+
+export async function getMetric(name) {
+  const r = await fetch(`/api/admin/metric/${name}`, opts());
+  if (!r.ok) throw new Error('unauthorized');
+  return r.json();
+}

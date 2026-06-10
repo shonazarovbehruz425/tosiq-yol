@@ -311,3 +311,47 @@ tbody tr:hover { background: rgba(255,255,255,0.03); }
 }
 .btn-send:hover { transform: translateY(-1px); }
 .btn-send:disabled { opacity: .5; cursor: default; box-shadow: none; }
+
+/* ===== Clickable stat cards ===== */
+.stat {
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  width: 100%;
+}
+.stat-more {
+  font-size: 11px; font-weight: 600; color: var(--accent);
+  opacity: 0; transform: translateX(-4px);
+  transition: opacity .2s, transform .2s; margin-top: 2px;
+}
+.stat:hover .stat-more { opacity: 1; transform: translateX(0); }
+
+/* ===== Metric modal (wide) ===== */
+.modal-wide { max-width: 640px; }
+
+.metric-big { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 18px; }
+.metric-big-val { font-size: 44px; font-weight: 900; letter-spacing: -1.5px; line-height: 1; }
+.metric-big-label { font-size: 13px; color: var(--muted); }
+
+/* Area chart */
+.chart-wrap { margin-bottom: 8px; }
+.area-chart { width: 100%; height: 160px; display: block; }
+.chart-tip { font-size: 12.5px; color: var(--text); margin-top: 6px; min-height: 18px; }
+.chart-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted-2); margin-top: 2px; }
+.chart-empty { padding: 30px; text-align: center; color: var(--muted); font-size: 14px; }
+
+/* Breakdown bar lists */
+.break-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 18px; }
+@media (max-width: 560px) { .break-grid { grid-template-columns: 1fr; } }
+.break-card {
+  background: rgba(11,15,25,0.4); border: 1px solid var(--glass-border);
+  border-radius: 16px; padding: 16px;
+}
+.break-title { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); font-weight: 600; margin-bottom: 12px; }
+
+.barlist { display: flex; flex-direction: column; gap: 10px; }
+.barlist-row { display: grid; grid-template-columns: 90px 1fr 34px; align-items: center; gap: 10px; }
+.barlist-name { font-size: 12.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.barlist-track { height: 8px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; }
+.barlist-fill { height: 100%; border-radius: 999px; transition: width .5s ease; }
+.barlist-val { font-size: 12.5px; font-weight: 700; text-align: right; color: var(--muted); }

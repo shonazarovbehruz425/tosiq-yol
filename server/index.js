@@ -99,6 +99,35 @@ app.get('/api/admin/games', requireAdmin, (req, res) => {
   }
 });
 
+// Detailed drill-down for a metric card (with time series + breakdowns)
+app.get('/api/admin/metric/:name', requireAdmin, (req, res) => {
+  try {
+    const name = req.params.name;
+    if (name === 'active') {
+      const rooms = roomManager.getActiveRooms();
+      const started = rooms.filter(r => r.isStarted && !r.isFinished).length;
+      const waiting = rooms.filter(r => !r.isStarted).length;
+      return res.json({
+        metric: 'active',
+        total: rooms.length,
+        live: true,
+        breakdown: {
+          title: 'By status',
+          items: [
+            { name: 'Live', count: started },
+            { name: 'Waiting', count: waiting },
+            { name: 'Finished', count: rooms.filter(r => r.isFinished).length }
+          ]
+        },
+        rooms
+      });
+    }
+    res.json(db.getMetricDetail(name));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Serve the admin panel SPA (built React app) under a secret path
 const ADMIN_PATH = '/behruz620sh1742';
 const adminBuildPath = path.join(__dirname, 'admin', 'dist');

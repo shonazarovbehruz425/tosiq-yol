@@ -291,6 +291,118 @@ class JSONDatabase {
         created_at: g.created_at
       }));
   }
+
+  // ===== Detailed analytics for the admin metric drill-downs =====
+
+  // Helper: build a day-by-day series for the last `days` days.
+  _dailySeries(items, dateField, days = 14) {
+    const out = [];
+    const now = new Date();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - i);
+      const key = d.toISOString().slice(0, 10); // YYYY-MM-DD
+      out.push({ date: key, label: `${d.getMonth() + 1}/${d.getDate()}`, count: 0 });
+    }
+    const idx = {};
+    out.forEach((o, i) => { idx[o.date] = i; });
+    items.forEach(it => {
+      const v = it[dateField];
+      if (!v) return;
+      const key = new Date(v).toISOString().slice(0, 10);
+      if (key in idx) out[idx[key]].count += 1;
+    });
+    return out;
+  }
+
+  // Detailed view for a given metric: 'users' | 'games' | 'today' | 'active' | 'moves'
+  getMetricDetail(metric) {
+    const users = Object.values(this.data.users);
+    const games = this.data.games;
+
+    if (metric === 'users') {
+      // Country distribution
+      const byCountry = {};
+      users.forEach(u => {
+        const c = u.country_name || u.country_code || 'Unknown';
+        byCountry[c] = (byCountry[c] || 0) + 1;
+      });
+      const countries = Object.entries(byCountry)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count);
+
+      return {
+        metric,
+        total: users.length,
+        series: this._dailySeries(users, 'created_at'),       // new users/day
+        breakdown: { title: 'By country', items: countries }
+      };
+    }
+
+    if (metric === 'games' || metric === 'today') {
+      const modeCount = {};
+      const sizeCount = {};
+      let totalMoves = 0;
+      games.forEach(g => {
+        const m = g.mode || 'duel';
+        modeCount[m] = (modeCount[m] || 0) + 1;
+        const sz = `${g.boardSize || '?'}×${g.boardSize || '?'}`;
+        sizeCount[sz] = (sizeCount[sz] || 0) + 1;
+        totalMoves += Array.isArray(g.moves) ? g.moves.length : 0;
+      });
+      return {
+        metric,
+        total: games.length,
+        series: this._dailySeries(games, 'created_at'),       // games/day
+        breakdown: {
+          title: 'By mode',
+          items: Object.entries(modeCount).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count)
+        },
+        breakdown2: {
+          title: 'By board size',
+          items: Object.entries(sizeCount).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count)
+        },
+        avgMoves: games.length ? Math.round(totalMoves / games.length) : 0
+      };
+    }
+
+    if (metric === 'moves') {
+      // Moves-per-game distribution buckets
+      const buckets = [
+        { name: '1–10', min: 1, max: 10, count: 0 },
+        { name: '11–20', min: 11, max: 20, count: 0 },
+        { name: '21–40', min: 21, max: 40, count: 0 },
+        { name: '41–70', min: 41, max: 70, count: 0 },
+        { name: '70+', min: 71, max: Infinity, count: 0 }
+      ];
+      let totalMoves = 0;
+      games.forEach(g => {
+        const m = Array.isArray(g.moves) ? g.moves.length : 0;
+        totalMoves += m;
+        const b = buckets.find(b => m >= b.min && m <= b.max);
+        if (b) b.count += 1;
+      });
+      return {
+        metric,
+        total: games.length ? Math.round(totalMoves / games.length) : 0,
+        // Series: average moves per day
+        series: (() => {
+          const days = this._dailySeries(games, 'created_at');
+          const sums = {};
+          days.forEach(d => { sums[d.date] = { total: 0, n: 0 }; });
+          games.forEach(g => {
+            const key = g.created_at ? new Date(g.created_at).toISOString().slice(0, 10) : null;
+            if (key && sums[key]) { sums[key].total += (Array.isArray(g.moves) ? g.moves.length : 0); sums[key].n += 1; }
+          });
+          return days.map(d => ({ ...d, count: sums[d.date].n ? Math.round(sums[d.date].total / sums[d.date].n) : 0 }));
+        })(),
+        breakdown: { title: 'Games by length', items: buckets.map(b => ({ name: b.name, count: b.count })) }
+      };
+    }
+
+    // default (active handled live on the server side)
+    return { metric, total: 0, series: this._dailySeries([], 'created_at'), breakdown: { title: '', items: [] } };
+  }
 }
 
 export const db = new JSONDatabase();

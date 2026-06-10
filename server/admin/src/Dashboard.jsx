@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { getOverview, getUsers, getGames } from './api.js';
 import { country } from './flag.js';
 import MessageModal from './MessageModal.jsx';
+import MetricModal from './MetricModal.jsx';
 
 // Tiny deterministic sparkline so cards feel alive even before real history exists.
 function Sparkline({ seed = 1, color = '#a78bfa' }) {
@@ -32,13 +33,14 @@ function Sparkline({ seed = 1, color = '#a78bfa' }) {
   );
 }
 
-function Stat({ label, value, seed, color, delay }) {
+function Stat({ label, value, seed, color, delay, metric, onOpen }) {
   return (
-    <div className={`stat ${delay}`}>
+    <button className={`stat ${delay}`} onClick={() => onOpen(metric)} title="View details">
       <span className="stat-label">{label}</span>
       <span className="stat-value grad-text">{value}</span>
       <div className="stat-spark"><Sparkline seed={seed} color={color} /></div>
-    </div>
+      <span className="stat-more">View →</span>
+    </button>
   );
 }
 
@@ -62,6 +64,7 @@ export default function Dashboard({ onLogout, onExpire }) {
   const [updated, setUpdated] = useState(null);
   const [tab, setTab] = useState('rooms');
   const [msgUser, setMsgUser] = useState(null);
+  const [metric, setMetric] = useState(null);
   const timer = useRef(null);
 
   const load = async () => {
@@ -102,11 +105,11 @@ export default function Dashboard({ onLogout, onExpire }) {
       </header>
 
       <div className="stats">
-        <Stat label="Users" value={s.totalUsers} seed={2} color="#a78bfa" delay="delay-1" />
-        <Stat label="Games" value={s.totalGames} seed={5} color="#60a5fa" delay="delay-2" />
-        <Stat label="Today" value={s.gamesToday} seed={8} color="#34d399" delay="delay-3" />
-        <Stat label="Active" value={data.activeRooms.length} seed={3} color="#fbbf24" delay="delay-4" />
-        <Stat label="Avg moves" value={s.avgMovesPerGame} seed={6} color="#22d3ee" delay="delay-5" />
+        <Stat label="Users" value={s.totalUsers} seed={2} color="#a78bfa" delay="delay-1" metric="users" onOpen={setMetric} />
+        <Stat label="Games" value={s.totalGames} seed={5} color="#60a5fa" delay="delay-2" metric="games" onOpen={setMetric} />
+        <Stat label="Today" value={s.gamesToday} seed={8} color="#34d399" delay="delay-3" metric="today" onOpen={setMetric} />
+        <Stat label="Active" value={data.activeRooms.length} seed={3} color="#fbbf24" delay="delay-4" metric="active" onOpen={setMetric} />
+        <Stat label="Avg moves" value={s.avgMovesPerGame} seed={6} color="#22d3ee" delay="delay-5" metric="moves" onOpen={setMetric} />
       </div>
 
       <div className="tabs delay-3">
@@ -242,6 +245,7 @@ export default function Dashboard({ onLogout, onExpire }) {
       </footer>
 
       {msgUser && <MessageModal user={msgUser} onClose={() => setMsgUser(null)} />}
+      {metric && <MetricModal metric={metric} onClose={() => setMetric(null)} />}
     </div>
   );
 }
