@@ -11,6 +11,7 @@ const API = (token, method) => `https://api.telegram.org/bot${token}/${method}`;
 
 let offset = 0;
 let running = false;
+let activeToken = null; // stored when the bot starts, used by admin sendToUser
 
 // ===== Localized strings =====
 const T = {
@@ -274,9 +275,23 @@ export async function startBot() {
   await call(token, 'deleteWebhook', { drop_pending_updates: false });
   await setupMenuButton(token, webAppUrl);
 
+  activeToken = token;
   running = true;
   console.log(`[bot] Started as @${me.result.username}. Polling for updates...`);
   poll(token, webAppUrl);
+}
+
+// Send an admin message to a specific user. Returns { ok, error }.
+export async function sendToUser(userId, text) {
+  if (!activeToken) return { ok: false, error: 'Bot is not running' };
+  if (!userId || !text) return { ok: false, error: 'Missing userId or text' };
+  const res = await call(activeToken, 'sendMessage', {
+    chat_id: userId,
+    text,
+    disable_web_page_preview: true
+  });
+  if (res && res.ok) return { ok: true };
+  return { ok: false, error: (res && res.description) || 'Failed to send' };
 }
 
 export function stopBot() {

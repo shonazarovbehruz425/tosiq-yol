@@ -15,7 +15,8 @@ import { db } from './db/database.js';
 import { handleWebSocketConnection } from './ws/handler.js';
 import { roomManager } from './ws/rooms.js';
 import { loginHandler, logoutHandler, requireAdmin } from './admin/auth.js';
-import { startBot } from './bot/bot.js';
+import { startBot, sendToUser } from './bot/bot.js';
+import { presence } from './ws/presence.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -62,7 +63,27 @@ app.get('/api/admin/overview', requireAdmin, (req, res) => {
 
 app.get('/api/admin/users', requireAdmin, (req, res) => {
   try {
-    res.json(db.getAllUsers());
+    const onlineIds = presence.onlineIds();
+    const users = db.getAllUsers().map(u => ({
+      ...u,
+      online: onlineIds.has(u.id)
+    }));
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Send a message to a specific user via the bot
+app.post('/api/admin/send', requireAdmin, async (req, res) => {
+  try {
+    const { userId, text } = req.body || {};
+    if (!userId || !text || !String(text).trim()) {
+      return res.status(400).json({ error: 'userId and text are required' });
+    }
+    const result = await sendToUser(Number(userId), String(text));
+    if (result.ok) return res.json({ ok: true });
+    return res.status(502).json({ error: result.error });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

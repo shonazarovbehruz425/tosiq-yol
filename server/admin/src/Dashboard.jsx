@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { getOverview, getUsers, getGames } from './api.js';
+import { country } from './flag.js';
+import MessageModal from './MessageModal.jsx';
 
 // Tiny deterministic sparkline so cards feel alive even before real history exists.
 function Sparkline({ seed = 1, color = '#a78bfa' }) {
@@ -59,6 +61,7 @@ export default function Dashboard({ onLogout, onExpire }) {
   const [games, setGames] = useState([]);
   const [updated, setUpdated] = useState(null);
   const [tab, setTab] = useState('rooms');
+  const [msgUser, setMsgUser] = useState(null);
   const timer = useRef(null);
 
   const load = async () => {
@@ -200,18 +203,32 @@ export default function Dashboard({ onLogout, onExpire }) {
             : (
               <div className="panel-scroll">
                 <table>
-                  <thead><tr><th>#</th><th>Name</th><th>Username</th><th>Rating</th><th>W</th><th>L</th></tr></thead>
+                  <thead><tr><th>Name</th><th>Username</th><th>Telegram ID</th><th>Country</th><th>Status</th><th></th></tr></thead>
                   <tbody>
-                    {users.map((u, i) => (
-                      <tr key={u.id}>
-                        <td className="muted">{i + 1}</td>
-                        <td>{u.first_name || '—'}</td>
-                        <td className="muted">{u.username ? '@' + u.username : '—'}</td>
-                        <td className="mono">{u.rating}</td>
-                        <td className="green">{u.wins}</td>
-                        <td className="red">{u.losses}</td>
-                      </tr>
-                    ))}
+                    {users.map((u) => {
+                      const c = country(u.language_code);
+                      return (
+                        <tr key={u.id}>
+                          <td>{u.first_name || '—'}</td>
+                          <td className="muted">{u.username ? '@' + u.username : '—'}</td>
+                          <td className="mono">{u.id}</td>
+                          <td><span className="country">{c.flag} <span className="muted">{c.name}</span></span></td>
+                          <td>
+                            {u.online
+                              ? <span className="status-online"><span className="odot" /> Online</span>
+                              : <span className="status-offline">Offline</span>}
+                          </td>
+                          <td>
+                            <button className="msg-btn" onClick={() => setMsgUser(u)} title="Send message">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M22 2 11 13" />
+                                <path d="M22 2 15 22l-4-9-9-4 20-7z" />
+                              </svg>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -223,6 +240,8 @@ export default function Dashboard({ onLogout, onExpire }) {
         Updated {updated ? updated.toLocaleTimeString() : '—'} · auto-refresh 5s
         <span className="spinner tiny" />
       </footer>
+
+      {msgUser && <MessageModal user={msgUser} onClose={() => setMsgUser(null)} />}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { db } from '../db/database.js';
 import { roomManager } from './rooms.js';
 import { matchmaking } from './matchmaking.js';
 import { QuoridorEngine } from '../game/quoridor.js';
+import { presence } from './presence.js';
 
 // Send active online count to everyone
 function broadcastOnlineCount(wss) {
@@ -66,8 +67,11 @@ export function handleWebSocketConnection(ws, wss) {
         userProfile = authResult.user;
         console.log(`Auth success for user: ${userProfile.first_name} (ID: ${userProfile.id})`);
         
-        // Save user to database
+        // Save user to database (includes language_code -> country/flag)
         db.saveUser(userProfile.id, userProfile);
+
+        // Mark user online
+        presence.add(userProfile.id);
 
         // check if user has an active room to reconnect to!
         const existingRoom = roomManager.getRoomByPlayerId(userProfile.id);
@@ -292,6 +296,9 @@ export function handleWebSocketConnection(ws, wss) {
     console.log('WebSocket connection closed.');
     
     if (userProfile) {
+      // 0. Mark offline
+      presence.remove(userProfile.id);
+
       // 1. Remove from matchmaking queue
       matchmaking.leave(userProfile.id);
       

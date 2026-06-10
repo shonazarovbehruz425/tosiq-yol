@@ -38,3 +38,13 @@ export async function getGames(limit = 30) {
   if (!r.ok) throw new Error('unauthorized');
   return r.json();
 }
+
+export async function sendMessage(userId, text) {
+  const r = await fetch('/api/admin/send', opts({
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, text })
+  }));
+  const data = await r.json().catch(() => ({}));
+  return { ok: r.ok, error: data.error };
+}

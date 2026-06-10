@@ -4,7 +4,12 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.join(__dirname, '../db.json');
+
+// Persist data outside the (ephemeral) deploy directory when DATA_DIR is set.
+// On Render, attach a Persistent Disk and set DATA_DIR=/data so the database
+// survives redeploys/restarts. Without it, falls back to the local file.
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..');
+const DB_PATH = path.join(DATA_DIR, 'db.json');
 
 class JSONDatabase {
   constructor() {
@@ -17,11 +22,17 @@ class JSONDatabase {
 
   init() {
     try {
+      // Ensure the data directory exists (e.g. a freshly mounted disk)
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
       if (fs.existsSync(DB_PATH)) {
         const fileContent = fs.readFileSync(DB_PATH, 'utf8');
         this.data = JSON.parse(fileContent);
+        console.log(`[db] Loaded ${Object.keys(this.data.users || {}).length} users from ${DB_PATH}`);
       } else {
         this.save();
+        console.log(`[db] Created new database at ${DB_PATH}`);
       }
     } catch (err) {
       console.error('Failed to initialize JSON database, resetting:', err);
@@ -44,22 +55,28 @@ class JSONDatabase {
 
   saveUser(telegramId, userProfile) {
     const existing = this.data.users[telegramId];
+    // Telegram provides language_code (e.g. "uz", "en", "ru") — use it for country/flag
+    const langCode = userProfile.language_code || userProfile.lang || '';
     if (!existing) {
       this.data.users[telegramId] = {
         id: telegramId,
         username: userProfile.username || '',
         first_name: userProfile.first_name || 'Anonymous',
         lang: userProfile.lang || 'en',
+        language_code: langCode,
         rating: 1000,
         wins: 0,
         losses: 0,
         draws: 0,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        last_seen: new Date().toISOString()
       };
     } else {
       // Update names (preserve lang and stats)
       this.data.users[telegramId].username = userProfile.username || existing.username;
       this.data.users[telegramId].first_name = userProfile.first_name || existing.first_name;
+      if (langCode) this.data.users[telegramId].language_code = langCode;
+      this.data.users[telegramId].last_seen = new Date().toISOString();
     }
     this.save();
     return this.data.users[telegramId];
@@ -172,19 +189,21 @@ class JSONDatabase {
     };
   }
 
-  // All users sorted by rating (full list for the admin table).
+  // All users sorted by most recently seen (full list for the admin table).
   getAllUsers() {
     return Object.values(this.data.users)
-      .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+      .sort((a, b) => new Date(b.last_seen || b.created_at || 0) - new Date(a.last_seen || a.created_at || 0))
       .map(u => ({
         id: u.id,
         first_name: u.first_name,
         username: u.username,
+        language_code: u.language_code || u.lang || '',
         rating: u.rating,
         wins: u.wins,
         losses: u.losses,
         draws: u.draws,
-        created_at: u.created_at
+        created_at: u.created_at,
+        last_seen: u.last_seen
       }));
   }
 
