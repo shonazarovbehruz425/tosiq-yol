@@ -61,7 +61,11 @@ async function call(token, method, payload) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    return await res.json();
+    const data = await res.json();
+    if (!data.ok) {
+      console.warn(`[bot] ${method} not ok: ${data.error_code} ${data.description}`);
+    }
+    return data;
   } catch (err) {
     console.error(`[bot] ${method} failed:`, err.message);
     return null;
@@ -92,6 +96,17 @@ function playKeyboard(lang, webAppUrl) {
   }
 
   return undefined;
+}
+
+// A Play button safe for editMessageText (web_app buttons are rejected there).
+// Uses a t.me deep link which still opens the Mini App natively in Telegram.
+function playKeyboardEditable(lang) {
+  if (!BOT_USERNAME) return undefined;
+  return {
+    inline_keyboard: [[
+      { text: tr(lang).play, url: `https://t.me/${BOT_USERNAME}/${APP_SHORT_NAME}` }
+    ]]
+  };
 }
 
 // Language picker keyboard.
@@ -182,18 +197,18 @@ async function handleCallback(token, cb, webAppUrl) {
     // Acknowledge the button tap (removes the loading spinner)
     await call(token, 'answerCallbackQuery', { callback_query_id: cb.id, text: s.langSet });
 
-    // Edit the language-picker message in place into the localized welcome
-    // (with an inline Play button) instead of sending a new message.
+    // Edit the language-picker message IN PLACE into the localized welcome.
+    // Use a t.me deep-link Play button (web_app buttons can't be used in edits).
     const name = from.first_name || 'there';
     const edited = await call(token, 'editMessageText', {
       chat_id: chatId,
       message_id: cb.message.message_id,
       text: s.welcome(name),
       parse_mode: 'Markdown',
-      reply_markup: playKeyboard(valid, webAppUrl)
+      reply_markup: playKeyboardEditable(valid)
     });
 
-    // Fallback: if the edit failed (e.g. message too old), send a fresh message.
+    // Only if the edit truly failed (e.g. message deleted), send a fresh one.
     if (!edited || !edited.ok) {
       await call(token, 'sendMessage', {
         chat_id: chatId,
