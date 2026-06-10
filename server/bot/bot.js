@@ -308,6 +308,43 @@ export async function sendToUser(userId, text) {
   return { ok: false, error: (res && res.description) || 'Failed to send' };
 }
 
+// Broadcast a message to every user in the database.
+// Returns { ok, sent, failed, total }. Throttled to stay within Telegram limits
+// (~30 messages/second), so large audiences are delivered gradually.
+export async function broadcastToAll(text) {
+  if (!activeToken) return { ok: false, error: 'Bot is not running' };
+  if (!text || !String(text).trim()) return { ok: false, error: 'Message text is required' };
+
+  const users = db.getAllUsers();
+  let sent = 0;
+  let failed = 0;
+
+  for (const u of users) {
+    if (!u || !u.id) { failed++; continue; }
+    const res = await call(activeToken, 'sendMessage', {
+      chat_id: u.id,
+      text,
+      disable_web_page_preview: true
+    });
+    if (res && res.ok) {
+      sent++;
+    } else {
+      failed++;
+      // If Telegram asks us to back off, honour the retry_after hint.
+      const retry = res && res.parameters && res.parameters.retry_after;
+      if (retry) await sleep((retry + 1) * 1000);
+    }
+    // Throttle: ~25 messages/second keeps us safely under Telegram's cap.
+    await sleep(40);
+  }
+
+  return { ok: true, sent, failed, total: users.length };
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function stopBot() {
   running = false;
 }

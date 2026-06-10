@@ -3,6 +3,7 @@ import { getOverview, getUsers, getGames, deleteUser } from './api.js';
 import { country } from './flag.js';
 import MessageModal from './MessageModal.jsx';
 import MetricModal from './MetricModal.jsx';
+import BroadcastModal from './BroadcastModal.jsx';
 
 // Tiny deterministic sparkline so cards feel alive even before real history exists.
 function Sparkline({ seed = 1, color = '#a78bfa' }) {
@@ -67,6 +68,7 @@ export default function Dashboard({ onLogout, onExpire }) {
   const [metric, setMetric] = useState(null);
   const [delUser, setDelUser] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [broadcasting, setBroadcasting] = useState(false);
   const timer = useRef(null);
 
   const load = async () => {
@@ -211,6 +213,15 @@ export default function Dashboard({ onLogout, onExpire }) {
 
       {tab === 'users' && (
         <div className="panel delay-4">
+          <div className="panel-toolbar">
+            <span className="panel-toolbar-title">All users <span className="muted">({users.length})</span></span>
+            <button className="btn-broadcast" onClick={() => setBroadcasting(true)} disabled={users.length === 0} title="Send a message to every user">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 11l19-9-9 19-2-8-8-2z" />
+              </svg>
+              Broadcast
+            </button>
+          </div>
           {users.length === 0
             ? (
               <div className="empty">
@@ -271,6 +282,7 @@ export default function Dashboard({ onLogout, onExpire }) {
 
       {msgUser && <MessageModal user={msgUser} onClose={() => setMsgUser(null)} />}
       {metric && <MetricModal metric={metric} onClose={() => setMetric(null)} />}
+      {broadcasting && <BroadcastModal totalUsers={users.length} onClose={() => setBroadcasting(false)} />}
 
       {delUser && (
         <div className="modal-overlay" onClick={() => !deleting && setDelUser(null)}>

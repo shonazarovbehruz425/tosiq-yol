@@ -16,7 +16,7 @@ import { initTelegramStore } from './db/telegram-store.js';
 import { handleWebSocketConnection } from './ws/handler.js';
 import { roomManager } from './ws/rooms.js';
 import { loginHandler, logoutHandler, requireAdmin } from './admin/auth.js';
-import { startBot, sendToUser } from './bot/bot.js';
+import { startBot, sendToUser, broadcastToAll } from './bot/bot.js';
 import { presence } from './ws/presence.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -84,6 +84,23 @@ app.post('/api/admin/send', requireAdmin, async (req, res) => {
     }
     const result = await sendToUser(Number(userId), String(text));
     if (result.ok) return res.json({ ok: true });
+    return res.status(502).json({ error: result.error });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Broadcast a message to ALL users via the bot
+app.post('/api/admin/broadcast', requireAdmin, async (req, res) => {
+  try {
+    const { text } = req.body || {};
+    if (!text || !String(text).trim()) {
+      return res.status(400).json({ error: 'text is required' });
+    }
+    const result = await broadcastToAll(String(text).trim());
+    if (result.ok) {
+      return res.json({ ok: true, sent: result.sent, failed: result.failed, total: result.total });
+    }
     return res.status(502).json({ error: result.error });
   } catch (err) {
     res.status(500).json({ error: err.message });

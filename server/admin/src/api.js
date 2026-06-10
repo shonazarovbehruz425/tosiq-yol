@@ -49,6 +49,16 @@ export async function sendMessage(userId, text) {
   return { ok: r.ok, error: data.error };
 }
 
+export async function broadcast(text) {
+  const r = await fetch('/api/admin/broadcast', opts({
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  }));
+  const data = await r.json().catch(() => ({}));
+  return { ok: r.ok, error: data.error, sent: data.sent, failed: data.failed, total: data.total };
+}
+
 export async function getMetric(name) {
   const r = await fetch(`/api/admin/metric/${name}`, opts());
   if (!r.ok) throw new Error('unauthorized');
