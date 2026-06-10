@@ -1138,3 +1138,33 @@ input:checked + .slider:before {
   color: var(--text-secondary);
   margin-top: 8px;
 }
+
+/* ===== Master & Grandmaster difficulty cards ===== */
+.diff-card.master-card { border-left: 5px solid #8b5cf6; }
+.diff-card.master-card:hover, .diff-card.master-card.active {
+  border-color: #8b5cf6;
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.18);
+}
+
+.diff-card.grand-card { border-left: 5px solid #fbbf24; }
+.diff-card.grand-card:hover, .diff-card.grand-card.active {
+  border-color: #fbbf24;
+  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.22);
+}
+
+.badge-master {
+  background: linear-gradient(135deg, #a78bfa, #7c3aed);
+  box-shadow: 0 5px 14px rgba(139, 92, 246, 0.45);
+}
+.badge-grand {
+  background: linear-gradient(135deg, #fcd34d, #f59e0b);
+  box-shadow: 0 5px 16px rgba(245, 158, 11, 0.5);
+}
+
+.diff-level .lvl.on.purple { background: #a78bfa; }
+.diff-level .lvl.on.gold { background: #fbbf24; }
+
+/* Support a 4th & 5th signal bar */
+.diff-level .lvl:nth-child(4) { height: 24px; }
+.diff-level .lvl:nth-child(5) { height: 28px; }
+.diff-level { height: 28px; }

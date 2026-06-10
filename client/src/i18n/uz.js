@@ -52,6 +52,10 @@ export const uz = {
   normalDesc: "Muvozanatli qiyinlik, biroz o'ylantiradi",
   hard: "Qiyin",
   hardDesc: "Tajribali o'yinchilar uchun, jiddiy raqib",
+  master: "Master",
+  masterDesc: "Kuchli strateg, Qiyin'dan ham zo'r",
+  grandmaster: "Grandmaster",
+  grandmasterDesc: "Eng kuchli raqib, deyarli mukammal o'ynaydi",
 
   // Mode Settings
   settingsTitle: "Rejim Sozlamalari",

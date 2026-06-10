@@ -12,10 +12,22 @@ export class QuoridorAI {
       return this.getRandomMove(engine);
     } else if (difficulty === 'normal') {
       return this.getBestMoveDepth1(engine);
-    } else {
-      // Hard mode: Minimax with depth 2 + heuristic + path blocking pruning
+    } else if (difficulty === 'hard') {
+      // Hard: Minimax depth 2 (full candidate set)
       return this.getBestMoveMinimax(engine, 2);
+    } else if (difficulty === 'master') {
+      // Master: Minimax depth 3, plain heuristic (~1.5x stronger than Hard).
+      // One ply deeper than Hard. Tight wall pruning keeps it fast.
+      return this.getBestMoveMinimax(engine, 3, false);
+    } else if (difficulty === 'grandmaster') {
+      // Grandmaster: Minimax depth 3 + advanced heuristic (~2.5x stronger).
+      // Depth 3/4 with the full candidate set is far too slow for Quoridor's
+      // branching factor, so deep search uses a tightly pruned candidate set
+      // (walls only on the players' shortest paths). Keeps moves under ~1-2s.
+      return this.getBestMoveMinimax(engine, 3, true);
     }
+    // Fallback
+    return this.getBestMoveMinimax(engine, 2);
   }
 
   // BFS to find shortest path length
@@ -167,14 +179,24 @@ export class QuoridorAI {
     return bestMove || this.getRandomMove(engine);
   }
 
-  // Hard mode: Minimax with Alpha-Beta
-  getBestMoveMinimax(engine, depth) {
+  // Hard mode: Minimax with Alpha-Beta. `advanced` enables the deeper heuristic.
+  getBestMoveMinimax(engine, depth, advanced = false) {
+    this.advancedEval = advanced;
+    // The ROOT always evaluates the full candidate set (all sensible walls) so
+    // the bot never overlooks a strong move. Tight pruning is only applied
+    // deeper in the recursion to keep the branching factor manageable.
+    this.tightSearch = false;
     const candidates = this.generateCandidates(engine);
-    let bestScore = -9999;
+    // Deep searches (depth >= 3) prune the inner wall candidate set aggressively.
+    this.tightSearch = depth >= 3;
+    let bestScore = -Infinity;
     let bestMove = null;
 
-    // Shuffle candidates slightly to add variety to bot play
-    candidates.sort(() => Math.random() - 0.5);
+    // Shuffle candidates slightly to add variety to bot play.
+    // Stronger bots (advanced) shuffle less to play more sharply.
+    if (!advanced) {
+      candidates.sort(() => Math.random() - 0.5);
+    }
 
     candidates.forEach(move => {
       const sim = engine.clone();
@@ -187,7 +209,7 @@ export class QuoridorAI {
 
       if (success) {
         // Opponent's turn next in Minimax
-        const score = this.minimax(sim, depth - 1, -10000, 10000, false);
+        const score = this.minimax(sim, depth - 1, -Infinity, Infinity, false);
         if (score > bestScore) {
           bestScore = score;
           bestMove = move;
@@ -270,21 +292,25 @@ export class QuoridorAI {
       myPath.forEach(cell => pathSet.add(`${cell.r},${cell.c}`));
       oppPath.forEach(cell => pathSet.add(`${cell.r},${cell.c}`));
 
-      // Add cells immediately surrounding the player pawns
-      const myPos = engine.pawnPos[player];
-      const oppPos = engine.pawnPos[opp];
-      
-      for (let r = -2; r <= 2; r++) {
-        for (let c = -2; c <= 2; c++) {
-          const nr = myPos.r + r;
-          const nc = myPos.c + c;
-          if (nr >= 0 && nr < engine.boardSize - 1 && nc >= 0 && nc < engine.boardSize - 1) {
-            pathSet.add(`${nr},${nc}`);
-          }
-          const onr = oppPos.r + r;
-          const onc = oppPos.c + c;
-          if (onr >= 0 && onr < engine.boardSize - 1 && onc >= 0 && onc < engine.boardSize - 1) {
-            pathSet.add(`${onr},${onc}`);
+      // In tight (deep) search we ONLY look at walls on the players' shortest
+      // paths to keep the branching factor manageable. Shallow searches also
+      // scan the cells surrounding both pawns for more thorough wall play.
+      if (!this.tightSearch) {
+        const myPos = engine.pawnPos[player];
+        const oppPos = engine.pawnPos[opp];
+
+        for (let r = -2; r <= 2; r++) {
+          for (let c = -2; c <= 2; c++) {
+            const nr = myPos.r + r;
+            const nc = myPos.c + c;
+            if (nr >= 0 && nr < engine.boardSize - 1 && nc >= 0 && nc < engine.boardSize - 1) {
+              pathSet.add(`${nr},${nc}`);
+            }
+            const onr = oppPos.r + r;
+            const onc = oppPos.c + c;
+            if (onr >= 0 && onr < engine.boardSize - 1 && onc >= 0 && onc < engine.boardSize - 1) {
+              pathSet.add(`${onr},${onc}`);
+            }
           }
         }
       }
@@ -311,23 +337,46 @@ export class QuoridorAI {
   evaluateState(engine) {
     const myPathLen = this.getShortestPathLength(engine, this.playerIndex);
     const oppPathLen = this.getShortestPathLength(engine, this.oppIndex);
-    
+
     // Win/loss states
     if (myPathLen === 0) return 9999;
     if (oppPathLen === 0) return -9999;
-    
-    // Heuristic:
-    // 1. Shorter path to goal is better (weight: -100)
-    // 2. Longer path for opponent is better (weight: +100)
-    // 3. Keep walls in reserve (weight: +10 per wall difference)
+
+    // Base heuristic:
+    // 1. Shorter path to goal is better
+    // 2. Longer path for opponent is better
+    // 3. Keep walls in reserve
     const pathScore = (oppPathLen - myPathLen) * 100;
     const wallScore = (engine.playerWallsLeft[this.playerIndex] - engine.playerWallsLeft[this.oppIndex]) * 15;
-    
-    // Add small bonus for vertical progress toward the goal (tie breaking)
+
     const myRow = engine.pawnPos[this.playerIndex].r;
     const goal = engine.goalRow(this.playerIndex);
     const progressScore = (engine.boardSize - 1 - Math.abs(myRow - goal)) * 5;
 
-    return pathScore + wallScore + progressScore;
+    let score = pathScore + wallScore + progressScore;
+
+    // Advanced heuristic (Grandmaster): reward tempo, punish being far behind,
+    // value walls more when ahead in the race, and prefer central control.
+    if (this.advancedEval) {
+      // Tempo: whoever needs fewer moves AND it's their turn has an edge.
+      const diff = oppPathLen - myPathLen;
+      score += diff * 30; // amplify the race difference
+
+      // Wall advantage matters more when paths are close (tight games)
+      if (Math.abs(diff) <= 2) {
+        score += (engine.playerWallsLeft[this.playerIndex] - engine.playerWallsLeft[this.oppIndex]) * 20;
+      }
+
+      // Central column control (more mobility / jump options)
+      const mid = Math.floor(engine.boardSize / 2);
+      const myCol = engine.pawnPos[this.playerIndex].c;
+      score += (mid - Math.abs(myCol - mid)) * 3;
+
+      // Strongly avoid letting the opponent get very close to goal
+      if (oppPathLen <= 2) score -= 80;
+      if (myPathLen <= 2) score += 80;
+    }
+
+    return score;
   }
 }

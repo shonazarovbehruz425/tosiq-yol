@@ -52,6 +52,10 @@ export const en = {
   normalDesc: "Balanced difficulty, requires some thinking",
   hard: "Hard",
   hardDesc: "For experienced players, serious opponent",
+  master: "Master",
+  masterDesc: "Strong strategist, tougher than Hard",
+  grandmaster: "Grandmaster",
+  grandmasterDesc: "The strongest rival, plays near-perfectly",
 
   // Mode Settings
   settingsTitle: "Game Mode Settings",

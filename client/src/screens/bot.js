@@ -70,6 +70,38 @@ export class BotScreen {
               <span class="lvl on red"></span><span class="lvl on red"></span><span class="lvl on red"></span>
             </div>
           </div>
+
+          <div class="diff-card master-card" data-diff="master">
+            <div class="diff-badge badge-master">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11z"/>
+                <path d="M5 20h14" stroke-width="2.4"/>
+              </svg>
+            </div>
+            <div class="diff-info">
+              <span class="diff-name" style="color: #a78bfa;">${t('master')}</span>
+              <span class="diff-desc">${t('masterDesc')}</span>
+            </div>
+            <div class="diff-level">
+              <span class="lvl on purple"></span><span class="lvl on purple"></span><span class="lvl on purple"></span><span class="lvl on purple"></span>
+            </div>
+          </div>
+
+          <div class="diff-card grand-card" data-diff="grandmaster">
+            <div class="diff-badge badge-grand">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11z" fill="currentColor" stroke="none"/>
+                <path d="M5 20h14" stroke="#fff" stroke-width="2.4"/>
+              </svg>
+            </div>
+            <div class="diff-info">
+              <span class="diff-name" style="color: #fbbf24;">${t('grandmaster')}</span>
+              <span class="diff-desc">${t('grandmasterDesc')}</span>
+            </div>
+            <div class="diff-level">
+              <span class="lvl on gold"></span><span class="lvl on gold"></span><span class="lvl on gold"></span><span class="lvl on gold"></span><span class="lvl on gold"></span>
+            </div>
+          </div>
         </div>
 
         <button class="btn btn-secondary" id="back-btn" style="margin-top: auto;">
