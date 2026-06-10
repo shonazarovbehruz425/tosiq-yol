@@ -2,8 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  // Served from /admin on the same origin as the API
-  base: '/admin/',
+  // Served from a secret path on the same origin as the API
+  base: '/behruz620sh1742/',
   plugins: [react()],
   server: {
     port: 5174,

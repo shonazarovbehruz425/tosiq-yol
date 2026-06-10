@@ -98,15 +98,16 @@ app.get('/api/admin/games', requireAdmin, (req, res) => {
   }
 });
 
-// Serve the admin panel SPA (built React app) under /admin
+// Serve the admin panel SPA (built React app) under a secret path
+const ADMIN_PATH = '/behruz620sh1742';
 const adminBuildPath = path.join(__dirname, 'admin', 'dist');
 if (fs.existsSync(adminBuildPath)) {
-  app.use('/admin', express.static(adminBuildPath));
-  app.get('/admin/*', (req, res) => {
+  app.use(ADMIN_PATH, express.static(adminBuildPath));
+  app.get(`${ADMIN_PATH}/*`, (req, res) => {
     res.sendFile(path.join(adminBuildPath, 'index.html'));
   });
 } else {
-  app.get('/admin', (req, res) => {
+  app.get(ADMIN_PATH, (req, res) => {
     res.status(503).send('Admin panel not built. Run: npm run build --prefix server/admin');
   });
 }
