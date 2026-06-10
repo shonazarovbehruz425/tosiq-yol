@@ -169,7 +169,11 @@ export class ReplayScreen {
       }
     }
 
-    // Refresh Board DOM elements
+    // Refresh Board DOM elements.
+    // ReplayManager rebuilds a fresh engine on every step, so re-point the
+    // renderer to the current engine before redrawing (otherwise it shows the
+    // stale initial state and pawns never move).
+    this.boardRenderer.engine = this.replay.engine;
     this.boardRenderer.updatePawns();
     this.boardRenderer.drawWalls();
   }
