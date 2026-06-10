@@ -68,14 +68,30 @@ async function call(token, method, payload) {
   }
 }
 
-// Inline keyboard with a Play web_app button (localized label).
+// Inline keyboard with a Play button (localized label).
+// Prefers a web_app button (opens inside Telegram); falls back to a t.me deep
+// link to the Mini App so a button always appears even without WEBAPP_URL.
+let BOT_USERNAME = '';
+const APP_SHORT_NAME = 'play';
+
 function playKeyboard(lang, webAppUrl) {
-  if (!webAppUrl) return undefined;
-  return {
-    inline_keyboard: [[
-      { text: tr(lang).play, web_app: { url: webAppUrl } }
-    ]]
-  };
+  const label = tr(lang).play;
+
+  // web_app buttons require a valid https URL
+  if (webAppUrl && /^https:\/\//i.test(webAppUrl)) {
+    return { inline_keyboard: [[{ text: label, web_app: { url: webAppUrl } }]] };
+  }
+
+  // Fallback: open the Mini App via its t.me deep link
+  if (BOT_USERNAME) {
+    return {
+      inline_keyboard: [[
+        { text: label, url: `https://t.me/${BOT_USERNAME}/${APP_SHORT_NAME}` }
+      ]]
+    };
+  }
+
+  return undefined;
 }
 
 // Language picker keyboard.
@@ -239,6 +255,7 @@ export async function startBot() {
     console.error('[bot] Invalid BOT_TOKEN — bot not started.');
     return;
   }
+  BOT_USERNAME = me.result.username || '';
   await call(token, 'deleteWebhook', { drop_pending_updates: false });
   await setupMenuButton(token, webAppUrl);
 
