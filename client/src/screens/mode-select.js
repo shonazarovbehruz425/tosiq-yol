@@ -86,15 +86,26 @@ export class ModeSelectScreen {
         </div>
         <div class="mode-hint" id="mode-hint">${c.mode === 'duel' ? t('duelHint') : t('raceHint')}</div>
 
-        <!-- Board size -->
+        <!-- Board size (dropdown) -->
         <div class="mode-section-label">${t('boardSize')}</div>
-        <div class="size-grid">
-          ${BOARD_SIZES.map(b => `
-            <button class="size-chip ${c.size === b.size ? 'active' : ''}" data-size="${b.size}">
-              <span class="size-chip-title">${b.size}×${b.size}</span>
-              <span class="size-chip-sub">${t(b.subKey)}</span>
-            </button>
-          `).join('')}
+        <div class="bsize-select" id="bsize-select">
+          <button class="bsize-current" id="bsize-current-btn">
+            <span class="bsize-cur-title">${c.size}×${c.size}</span>
+            <span class="bsize-cur-sub">${t(sizeInfo(c.size).subKey)}</span>
+            <span class="lang-caret">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </span>
+          </button>
+          <div class="bsize-dropdown" id="bsize-dropdown">
+            ${BOARD_SIZES.map(b => `
+              <button class="bsize-option ${c.size === b.size ? 'active' : ''}" data-size="${b.size}">
+                <span class="bsize-opt-title">${b.size}×${b.size}</span>
+                <span class="bsize-opt-sub">${t(b.subKey)}</span>
+              </button>
+            `).join('')}
+          </div>
         </div>
 
         <!-- Timer -->
@@ -183,14 +194,33 @@ export class ModeSelectScreen {
       });
     });
 
-    // Board size chips
-    document.querySelectorAll('.size-chip[data-size]').forEach(card => {
-      card.addEventListener('click', () => {
-        document.querySelectorAll('.size-chip[data-size]').forEach(b => b.classList.remove('active'));
+    // Board size dropdown
+    const bsizeSelect = document.getElementById('bsize-select');
+    const bsizeCurrentBtn = document.getElementById('bsize-current-btn');
+    bsizeCurrentBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      haptic.selection();
+      bsizeSelect.classList.toggle('open');
+    });
+    this._closeBsize = () => bsizeSelect?.classList.remove('open');
+    document.addEventListener('click', this._closeBsize);
+
+    document.querySelectorAll('.bsize-option[data-size]').forEach(card => {
+      card.addEventListener('click', (e) => {
+        e.stopPropagation();
+        bsizeSelect?.classList.remove('open');
+        document.querySelectorAll('.bsize-option[data-size]').forEach(b => b.classList.remove('active'));
         card.classList.add('active');
         this.config.size = parseInt(card.dataset.size);
-        // Reset walls to the default for this board and update the max hint
         const info = sizeInfo(this.config.size);
+
+        // Update current button label
+        const curTitle = bsizeCurrentBtn.querySelector('.bsize-cur-title');
+        const curSub = bsizeCurrentBtn.querySelector('.bsize-cur-sub');
+        if (curTitle) curTitle.innerText = `${info.size}×${info.size}`;
+        if (curSub) curSub.innerText = t(info.subKey);
+
+        // Reset walls to default and update max hint
         this.config.walls = info.defWalls;
         const wv = document.getElementById('walls-val');
         if (wv) wv.innerText = this.config.walls;
@@ -342,6 +372,10 @@ export class ModeSelectScreen {
 
   destroy() {
     socket.off('match_found', this.onMatchFound);
+    if (this._closeBsize) {
+      document.removeEventListener('click', this._closeBsize);
+      this._closeBsize = null;
+    }
   }
 }
 export default ModeSelectScreen;

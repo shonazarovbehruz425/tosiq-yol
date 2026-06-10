@@ -1032,53 +1032,101 @@ input:checked + .slider:before {
   text-overflow: ellipsis;
 }
 
-/* ===== Board size compact grid (2x2 chips, like language picker) ===== */
+/* ===== Board size dropdown (like language picker) ===== */
 
-.size-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+.bsize-select {
+  position: relative;
 }
 
-.size-chip {
+.bsize-current {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 12px 8px;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
   border-radius: 13px;
   background-color: var(--pill-bg);
   border: 1.5px solid var(--pill-border);
   cursor: pointer;
   font-family: var(--font-sans);
   color: var(--text-color);
-  transition: transform var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
+  transition: border-color var(--transition-fast);
 }
 
-.size-chip:active { transform: scale(0.96); }
-
-.size-chip.active {
-  background: var(--primary-gradient);
-  border-color: transparent;
-  color: #fff;
-  box-shadow: 0 4px 14px var(--primary-glow);
-}
-
-.size-chip-title {
+.bsize-cur-title {
   font-size: 17px;
   font-weight: 800;
 }
 
-.size-chip-sub {
-  font-size: 11px;
+.bsize-cur-sub {
+  flex: 1;
+  text-align: left;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
 }
 
-.size-chip.active .size-chip-sub {
-  color: rgba(255, 255, 255, 0.85);
+.bsize-select.open .lang-caret {
+  transform: rotate(180deg);
 }
+
+.bsize-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 16px;
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  animation: langDropIn 0.18s ease;
+}
+
+.bsize-select.open .bsize-dropdown {
+  display: flex;
+}
+
+.bsize-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: 11px;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  color: var(--text-color);
+  text-align: left;
+  transition: background-color var(--transition-fast);
+}
+
+.bsize-option:hover {
+  background-color: rgba(124, 58, 237, 0.10);
+}
+
+.bsize-option.active {
+  background-color: rgba(124, 58, 237, 0.16);
+}
+
+.bsize-opt-title {
+  font-size: 16px;
+  font-weight: 800;
+  min-width: 56px;
+}
+
+.bsize-opt-sub {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.bsize-option.active .bsize-opt-title { color: var(--primary); }
 
 .walls-max-hint {
   text-align: center;
