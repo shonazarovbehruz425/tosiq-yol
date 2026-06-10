@@ -1,11 +1,41 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { getOverview, getUsers, getGames } from './api.js';
 
-function Stat({ label, value, accent }) {
+// Tiny deterministic sparkline so cards feel alive even before real history exists.
+function Sparkline({ seed = 1, color = '#a78bfa' }) {
+  const pts = [];
+  const n = 12;
+  let v = 0.5;
+  for (let i = 0; i < n; i++) {
+    // pseudo-random but stable per seed
+    v += (Math.sin(seed * 9.7 + i * 1.3) + Math.cos(seed * 3.1 + i * 0.7)) * 0.12;
+    v = Math.max(0.08, Math.min(0.92, v));
+    pts.push(v);
+  }
+  const w = 100, h = 26;
+  const step = w / (n - 1);
+  const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${(i * step).toFixed(1)} ${((1 - p) * h).toFixed(1)}`).join(' ');
+  const gid = `g${seed}`;
   return (
-    <div className="stat">
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.35" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={`${d} L ${w} ${h} L 0 ${h} Z`} fill={`url(#${gid})`} />
+      <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function Stat({ label, value, seed, color, delay }) {
+  return (
+    <div className={`stat ${delay}`}>
       <span className="stat-label">{label}</span>
-      <span className={`stat-value ${accent || ''}`}>{value}</span>
+      <span className="stat-value grad-text">{value}</span>
+      <div className="stat-spark"><Sparkline seed={seed} color={color} /></div>
     </div>
   );
 }
@@ -14,6 +44,14 @@ function fmtTime(iso) {
   if (!iso) return '—';
   return new Date(iso).toLocaleString();
 }
+
+const EmptyIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="7" width="20" height="13" rx="3" />
+    <path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2" />
+    <path d="M8 13h.01M16 13h.01M9.5 16.5a3.5 3.5 0 0 0 5 0" />
+  </svg>
+);
 
 export default function Dashboard({ onLogout, onExpire }) {
   const [data, setData] = useState(null);
@@ -51,117 +89,139 @@ export default function Dashboard({ onLogout, onExpire }) {
     <div className="dash">
       <header className="topbar">
         <div className="brand">
-          <span className="brand-dot" />
-          Wrong Way <span className="muted">Admin</span>
+          <span className="pdot" />
+          Wrong Way <span className="sub">Admin</span>
         </div>
         <div className="topbar-right">
-          <span className="online"><span className="pulse" /> {data.online} online</span>
-          <button className="ghost" onClick={onLogout}>Sign out</button>
+          <span className="online"><span className="gdot" /> {data.online} online</span>
+          <button className="signout" onClick={onLogout}>Sign out</button>
         </div>
       </header>
 
       <div className="stats">
-        <Stat label="Users" value={s.totalUsers} accent="purple" />
-        <Stat label="Games" value={s.totalGames} accent="blue" />
-        <Stat label="Today" value={s.gamesToday} accent="green" />
-        <Stat label="Active" value={data.activeRooms.length} accent="amber" />
-        <Stat label="Avg moves" value={s.avgMovesPerGame} />
+        <Stat label="Users" value={s.totalUsers} seed={2} color="#a78bfa" delay="delay-1" />
+        <Stat label="Games" value={s.totalGames} seed={5} color="#60a5fa" delay="delay-2" />
+        <Stat label="Today" value={s.gamesToday} seed={8} color="#34d399" delay="delay-3" />
+        <Stat label="Active" value={data.activeRooms.length} seed={3} color="#fbbf24" delay="delay-4" />
+        <Stat label="Avg moves" value={s.avgMovesPerGame} seed={6} color="#22d3ee" delay="delay-5" />
       </div>
 
-      <div className="tabs">
+      <div className="tabs delay-3">
         <button className={tab === 'rooms' ? 'on' : ''} onClick={() => setTab('rooms')}>
-          Active games <span className="count">{data.activeRooms.length}</span>
+          Active games <span className="badge">{data.activeRooms.length}</span>
         </button>
         <button className={tab === 'games' ? 'on' : ''} onClick={() => setTab('games')}>
           History
         </button>
         <button className={tab === 'users' ? 'on' : ''} onClick={() => setTab('users')}>
-          Users <span className="count">{users.length}</span>
+          Users <span className="badge">{users.length}</span>
         </button>
       </div>
 
       {tab === 'rooms' && (
-        <div className="card">
+        <div className="panel delay-4">
           {data.activeRooms.length === 0
-            ? <div className="empty">No active games right now</div>
+            ? (
+              <div className="empty">
+                <div className="empty-icon"><EmptyIcon /></div>
+                <div className="empty-text">No active games right now</div>
+              </div>
+            )
             : (
-              <table>
-                <thead><tr><th>Code</th><th>Type</th><th>Players</th><th>Mode</th><th>Moves</th><th>Status</th></tr></thead>
-                <tbody>
-                  {data.activeRooms.map(r => (
-                    <tr key={r.roomCode}>
-                      <td className="mono">{r.roomCode}</td>
-                      <td>{r.isPrivate ? 'Private' : 'Public'}</td>
-                      <td>{r.players.join(' vs ') || '—'} <span className="muted">({r.playerCount}/2)</span></td>
-                      <td>{r.mode} · {r.boardSize}×{r.boardSize}</td>
-                      <td>{r.moves}</td>
-                      <td>
-                        <span className={`tag ${r.isFinished ? 'gray' : r.isStarted ? 'green' : 'amber'}`}>
-                          {r.isFinished ? 'Finished' : r.isStarted ? 'Live' : 'Waiting'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="panel-scroll">
+                <table>
+                  <thead><tr><th>Code</th><th>Type</th><th>Players</th><th>Mode</th><th>Moves</th><th>Status</th></tr></thead>
+                  <tbody>
+                    {data.activeRooms.map(r => (
+                      <tr key={r.roomCode}>
+                        <td className="mono">{r.roomCode}</td>
+                        <td>{r.isPrivate ? 'Private' : 'Public'}</td>
+                        <td>{r.players.join(' vs ') || '—'} <span className="muted">({r.playerCount}/2)</span></td>
+                        <td>{r.mode} · {r.boardSize}×{r.boardSize}</td>
+                        <td>{r.moves}</td>
+                        <td>
+                          <span className={`tag ${r.isFinished ? 'gray' : r.isStarted ? 'green' : 'amber'}`}>
+                            {r.isFinished ? 'Finished' : r.isStarted ? 'Live' : 'Waiting'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
         </div>
       )}
 
       {tab === 'games' && (
-        <div className="card">
+        <div className="panel delay-4">
           {games.length === 0
-            ? <div className="empty">No games yet</div>
+            ? (
+              <div className="empty">
+                <div className="empty-icon"><EmptyIcon /></div>
+                <div className="empty-text">No games played yet</div>
+              </div>
+            )
             : (
-              <table>
-                <thead><tr><th>Red</th><th>Blue</th><th>Winner</th><th>Mode</th><th>Moves</th><th>Time</th></tr></thead>
-                <tbody>
-                  {games.map(g => (
-                    <tr key={g.id}>
-                      <td>{g.red}</td>
-                      <td>{g.blue}</td>
-                      <td>
-                        <span className={`tag ${g.winner === 'red' ? 'red' : g.winner === 'blue' ? 'blue' : 'gray'}`}>
-                          {g.winner}
-                        </span>
-                      </td>
-                      <td>{g.mode} · {g.boardSize}×{g.boardSize}</td>
-                      <td>{g.moves}</td>
-                      <td className="muted">{fmtTime(g.created_at)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="panel-scroll">
+                <table>
+                  <thead><tr><th>Red</th><th>Blue</th><th>Winner</th><th>Mode</th><th>Moves</th><th>Time</th></tr></thead>
+                  <tbody>
+                    {games.map(g => (
+                      <tr key={g.id}>
+                        <td>{g.red}</td>
+                        <td>{g.blue}</td>
+                        <td>
+                          <span className={`tag ${g.winner === 'red' ? 'red' : g.winner === 'blue' ? 'blue' : 'gray'}`}>
+                            {g.winner}
+                          </span>
+                        </td>
+                        <td>{g.mode} · {g.boardSize}×{g.boardSize}</td>
+                        <td>{g.moves}</td>
+                        <td className="muted">{fmtTime(g.created_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
         </div>
       )}
 
       {tab === 'users' && (
-        <div className="card">
+        <div className="panel delay-4">
           {users.length === 0
-            ? <div className="empty">No users yet</div>
+            ? (
+              <div className="empty">
+                <div className="empty-icon"><EmptyIcon /></div>
+                <div className="empty-text">No users yet</div>
+              </div>
+            )
             : (
-              <table>
-                <thead><tr><th>#</th><th>Name</th><th>Username</th><th>Rating</th><th>W</th><th>L</th></tr></thead>
-                <tbody>
-                  {users.map((u, i) => (
-                    <tr key={u.id}>
-                      <td className="muted">{i + 1}</td>
-                      <td>{u.first_name || '—'}</td>
-                      <td className="muted">{u.username ? '@' + u.username : '—'}</td>
-                      <td className="mono">{u.rating}</td>
-                      <td className="green">{u.wins}</td>
-                      <td className="red">{u.losses}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="panel-scroll">
+                <table>
+                  <thead><tr><th>#</th><th>Name</th><th>Username</th><th>Rating</th><th>W</th><th>L</th></tr></thead>
+                  <tbody>
+                    {users.map((u, i) => (
+                      <tr key={u.id}>
+                        <td className="muted">{i + 1}</td>
+                        <td>{u.first_name || '—'}</td>
+                        <td className="muted">{u.username ? '@' + u.username : '—'}</td>
+                        <td className="mono">{u.rating}</td>
+                        <td className="green">{u.wins}</td>
+                        <td className="red">{u.losses}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
         </div>
       )}
 
-      <footer className="foot muted">
+      <footer className="foot">
         Updated {updated ? updated.toLocaleTimeString() : '—'} · auto-refresh 5s
+        <span className="spinner tiny" />
       </footer>
     </div>
   );
