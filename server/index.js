@@ -14,11 +14,9 @@ dotenv.config();
 import { db } from './db/database.js';
 import { handleWebSocketConnection } from './ws/handler.js';
 import { roomManager } from './ws/rooms.js';
+import { loginHandler, logoutHandler, requireAdmin } from './admin/auth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// Admin access token (override via .env: ADMIN_TOKEN=...)
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'admin123';
 
 const app = express();
 app.use(cors());
@@ -27,18 +25,6 @@ app.use(express.json());
 // We attach the WebSocketServer later; expose a getter for live counts.
 let wssRef = null;
 const getOnlineCount = () => (wssRef ? wssRef.clients.size : 0);
-
-// Admin auth: token via ?token=, x-admin-token header, or Bearer token
-function adminAuth(req, res, next) {
-  const token =
-    req.query.token ||
-    req.headers['x-admin-token'] ||
-    (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-  if (token !== ADMIN_TOKEN) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
-}
 
 // API HTTP Endpoints
 app.get('/api/health', (req, res) => {
@@ -54,8 +40,13 @@ app.get('/api/leaderboard', (req, res) => {
   }
 });
 
-// ===== Admin API =====
-app.get('/api/admin/overview', adminAuth, (req, res) => {
+// ===== Admin auth (httpOnly cookie session) =====
+app.post('/api/admin/login', loginHandler);
+app.post('/api/admin/logout', logoutHandler);
+app.get('/api/admin/session', requireAdmin, (req, res) => res.json({ ok: true }));
+
+// ===== Admin API (cookie-protected) =====
+app.get('/api/admin/overview', requireAdmin, (req, res) => {
   try {
     res.json({
       summary: db.getAdminSummary(),
@@ -68,7 +59,7 @@ app.get('/api/admin/overview', adminAuth, (req, res) => {
   }
 });
 
-app.get('/api/admin/users', adminAuth, (req, res) => {
+app.get('/api/admin/users', requireAdmin, (req, res) => {
   try {
     res.json(db.getAllUsers());
   } catch (err) {
@@ -76,7 +67,7 @@ app.get('/api/admin/users', adminAuth, (req, res) => {
   }
 });
 
-app.get('/api/admin/games', adminAuth, (req, res) => {
+app.get('/api/admin/games', requireAdmin, (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 50;
     res.json(db.getRecentGames(limit));
@@ -85,10 +76,18 @@ app.get('/api/admin/games', adminAuth, (req, res) => {
   }
 });
 
-// Serve the admin panel (standalone static page)
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'admin', 'index.html'));
-});
+// Serve the admin panel SPA (built React app) under /admin
+const adminBuildPath = path.join(__dirname, 'admin', 'dist');
+if (fs.existsSync(adminBuildPath)) {
+  app.use('/admin', express.static(adminBuildPath));
+  app.get('/admin/*', (req, res) => {
+    res.sendFile(path.join(adminBuildPath, 'index.html'));
+  });
+} else {
+  app.get('/admin', (req, res) => {
+    res.status(503).send('Admin panel not built. Run: npm run build --prefix server/admin');
+  });
+}
 
 // Serve static frontend assets in production mode
 const clientBuildPath = path.join(__dirname, '../dist');
