@@ -154,6 +154,17 @@ class JSONDatabase {
     return u;
   }
 
+  // Delete a user by Telegram id. Returns true if a user was removed.
+  deleteUser(telegramId) {
+    const key = String(telegramId);
+    if (this.data.users[key]) {
+      delete this.data.users[key];
+      this.save();
+      return true;
+    }
+    return false;
+  }
+
   // Stats updates
   updateStats(winnerId, loserId, isDraw = false) {
     const winner = this.data.users[winnerId];

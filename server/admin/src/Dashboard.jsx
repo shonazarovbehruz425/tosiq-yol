@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { getOverview, getUsers, getGames } from './api.js';
+import { getOverview, getUsers, getGames, deleteUser } from './api.js';
 import { country } from './flag.js';
 import MessageModal from './MessageModal.jsx';
 import MetricModal from './MetricModal.jsx';
@@ -65,6 +65,8 @@ export default function Dashboard({ onLogout, onExpire }) {
   const [tab, setTab] = useState('rooms');
   const [msgUser, setMsgUser] = useState(null);
   const [metric, setMetric] = useState(null);
+  const [delUser, setDelUser] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const timer = useRef(null);
 
   const load = async () => {
@@ -84,6 +86,19 @@ export default function Dashboard({ onLogout, onExpire }) {
     timer.current = setInterval(load, 5000);
     return () => clearInterval(timer.current);
   }, []);
+
+  const confirmDelete = async () => {
+    if (!delUser || deleting) return;
+    setDeleting(true);
+    const res = await deleteUser(delUser.id);
+    setDeleting(false);
+    if (res.ok) {
+      setUsers((prev) => prev.filter((u) => u.id !== delUser.id));
+      setDelUser(null);
+    } else {
+      alert(res.error || 'Failed to delete');
+    }
+  };
 
   if (!data) {
     return <div className="boot"><div className="spinner" /></div>;
@@ -222,12 +237,22 @@ export default function Dashboard({ onLogout, onExpire }) {
                               : <span className="status-offline">Offline</span>}
                           </td>
                           <td>
-                            <button className="msg-btn" onClick={() => setMsgUser(u)} title="Send message">
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M22 2 11 13" />
-                                <path d="M22 2 15 22l-4-9-9-4 20-7z" />
-                              </svg>
-                            </button>
+                            <div className="row-actions">
+                              <button className="msg-btn" onClick={() => setMsgUser(u)} title="Send message">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M22 2 11 13" />
+                                  <path d="M22 2 15 22l-4-9-9-4 20-7z" />
+                                </svg>
+                              </button>
+                              <button className="del-btn" onClick={() => setDelUser(u)} title="Delete user">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M3 6h18" />
+                                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                                  <path d="M10 11v6M14 11v6" />
+                                </svg>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -246,6 +271,27 @@ export default function Dashboard({ onLogout, onExpire }) {
 
       {msgUser && <MessageModal user={msgUser} onClose={() => setMsgUser(null)} />}
       {metric && <MetricModal metric={metric} onClose={() => setMetric(null)} />}
+
+      {delUser && (
+        <div className="modal-overlay" onClick={() => !deleting && setDelUser(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <div className="modal-title">Delete user?</div>
+                <div className="modal-sub">{delUser.first_name || 'user'} · ID {delUser.id}</div>
+              </div>
+              <button className="modal-x" onClick={() => !deleting && setDelUser(null)}>✕</button>
+            </div>
+            <p className="del-warn">This permanently removes the user and their stats. This cannot be undone.</p>
+            <div className="modal-actions">
+              <button className="btn-ghost" onClick={() => setDelUser(null)} disabled={deleting}>Cancel</button>
+              <button className="btn-danger" onClick={confirmDelete} disabled={deleting}>
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

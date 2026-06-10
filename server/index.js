@@ -90,6 +90,19 @@ app.post('/api/admin/send', requireAdmin, async (req, res) => {
   }
 });
 
+// Delete a user
+app.post('/api/admin/delete-user', requireAdmin, (req, res) => {
+  try {
+    const { userId } = req.body || {};
+    if (!userId) return res.status(400).json({ error: 'userId is required' });
+    const removed = db.deleteUser(userId);
+    if (removed) return res.json({ ok: true });
+    return res.status(404).json({ error: 'User not found' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/admin/games', requireAdmin, (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 50;
