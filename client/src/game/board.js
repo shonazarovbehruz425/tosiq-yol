@@ -242,10 +242,13 @@ export class BoardRenderer {
     if (!this.dragging) return;
     e.preventDefault();
 
-    this.moveGhost(e.clientX, e.clientY);
+    // Offset the snap point ABOVE the finger so the wall isn't hidden under it.
+    const offsetY = this.fingerOffsetY();
 
-    // Find the nearest valid wall slot for the current pointer position
-    const slot = this.findNearestSlot(e.clientX, e.clientY, this.dragType);
+    // Float the ghost above the finger too, so it matches the snap preview.
+    this.moveGhost(e.clientX, e.clientY - offsetY);
+
+    const slot = this.findNearestSlot(e.clientX, e.clientY - offsetY, this.dragType);
 
     // Haptic tick when the snapped target changes
     const prev = this.dragTargetSlot;
@@ -263,6 +266,17 @@ export class BoardRenderer {
     if (slot) {
       this.renderPreviewAt(slot.r, slot.c, this.dragType, slot.valid);
     }
+  }
+
+  // Vertical lift (px) applied to the pointer when locating the target slot,
+  // so the placed wall appears above the finger instead of under it.
+  fingerOffsetY() {
+    const cell = this.cellElements['0,0'];
+    if (cell) {
+      const h = cell.getBoundingClientRect().height;
+      if (h > 0) return h * 0.9;
+    }
+    return 36; // sensible fallback
   }
 
   onDragEnd() {
