@@ -134,7 +134,9 @@ export class ResultScreen {
         moveHistory: this.params.moveHistory,
         boardSize: this.params.boardSize,
         initialWalls: this.params.initialWalls,
-        mode: this.params.mode
+        mode: this.params.mode,
+        // Snapshot so the replay screen can return to this result screen
+        resultParams: this.params
       });
     });
 

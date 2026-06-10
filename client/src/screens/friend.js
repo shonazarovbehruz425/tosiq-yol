@@ -125,7 +125,7 @@ export class FriendScreen {
     const backBtn = document.getElementById('back-btn');
     backBtn.addEventListener('click', () => {
       haptic.impact('light');
-      this.router.navigate('home');
+      this.router.back();
     });
 
     // Code digit auto-focusing

@@ -431,6 +431,36 @@ export class GameScreen {
     this.handleGameFinished('lose');
   }
 
+  // Intercept the router/Telegram back button while in a game.
+  // Returns true to signal we've handled it (router won't pop).
+  onBack() {
+    if (this.engine.winner !== -1) return false; // game over — allow normal back
+
+    if (this.vs === 'bot') {
+      // Local game — confirm leaving (no penalty)
+      Modal.show({
+        title: t('surrender'),
+        message: t('surrenderConfirm'),
+        confirmText: t('confirm'),
+        cancelText: t('cancel'),
+        onConfirm: () => {
+          this.timer.destroy();
+          this.router.navigate('home');
+        }
+      });
+    } else {
+      // Online/friend — leaving means surrender
+      Modal.show({
+        title: t('surrender'),
+        message: t('surrenderConfirm'),
+        confirmText: t('confirm'),
+        cancelText: t('cancel'),
+        onConfirm: () => this.surrender()
+      });
+    }
+    return true;
+  }
+
   // Timers UI updates
   updateTimerUI(state) {
     const redTime = document.getElementById('player-time-0');

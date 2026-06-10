@@ -117,7 +117,12 @@ export class ReplayScreen {
     backBtn.addEventListener('click', () => {
       haptic.impact('light');
       this.replay.stopAutoplay();
-      this.router.back();
+      // If we came from a result screen, return to it; otherwise normal back.
+      if (this.params && this.params.resultParams) {
+        this.router.navigate('result', this.params.resultParams);
+      } else {
+        this.router.back();
+      }
     });
 
     // Draw initial state

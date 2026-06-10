@@ -137,7 +137,7 @@ export class OnlineScreen {
     const backBtn = document.getElementById('back-btn');
     backBtn?.addEventListener('click', () => {
       haptic.impact('light');
-      this.router.navigate('home');
+      this.router.back();
     });
 
     document.querySelectorAll('.lobby-join-btn').forEach(btn => {
