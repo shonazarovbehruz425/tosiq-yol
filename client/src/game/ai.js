@@ -16,18 +16,95 @@ export class QuoridorAI {
       // Hard: Minimax depth 2 (full candidate set)
       return this.getBestMoveMinimax(engine, 2);
     } else if (difficulty === 'master') {
-      // Master: Minimax depth 3, plain heuristic (~1.5x stronger than Hard).
-      // One ply deeper than Hard. Tight wall pruning keeps it fast.
-      return this.getBestMoveMinimax(engine, 3, false);
+      // Master: iterative-deepening, advanced heuristic, reliably reaches depth 3.
+      // Smarter than the old Master (which used the plain heuristic).
+      return this.getBestMoveTimed(engine, { maxDepth: 3, timeMs: 900, advanced: true });
     } else if (difficulty === 'grandmaster') {
-      // Grandmaster: Minimax depth 3 + advanced heuristic (~2.5x stronger).
-      // Depth 3/4 with the full candidate set is far too slow for Quoridor's
-      // branching factor, so deep search uses a tightly pruned candidate set
-      // (walls only on the players' shortest paths). Keeps moves under ~1-2s.
-      return this.getBestMoveMinimax(engine, 3, true);
+      // Grandmaster: iterative-deepening, advanced heuristic, reliably reaches
+      // depth 4 — a full ply deeper than Master for genuinely strong play.
+      return this.getBestMoveTimed(engine, { maxDepth: 4, timeMs: 1800, advanced: true });
     }
     // Fallback
     return this.getBestMoveMinimax(engine, 2);
+  }
+
+  // ---- Iterative deepening with a time budget --------------------------------
+  // Searches progressively deeper (2,3,4,...) until the time budget runs out,
+  // always keeping the best move from the last fully-completed depth. Combined
+  // with move ordering this lets the bot play much deeper, hence much stronger.
+  getBestMoveTimed(engine, { maxDepth, timeMs, advanced }) {
+    this.advancedEval = advanced;
+    this.deadline = Date.now() + timeMs;
+    this.aborted = false;
+
+    // Guaranteed-valid fallback so we never return null.
+    let bestMove = this.getBestMoveDepth1(engine);
+
+    for (let depth = 2; depth <= maxDepth; depth++) {
+      const result = this.searchRoot(engine, depth);
+      if (this.aborted) break;        // ran out of time mid-search → discard
+      if (result) bestMove = result;  // completed this depth → adopt it
+    }
+    return bestMove;
+  }
+
+  searchRoot(engine, depth) {
+    // The root always sees the FULL candidate set (every sensible wall) so the
+    // bot never overlooks a key move. Deeper nodes prune walls tightly.
+    this.tightSearch = false;
+    const candidates = this.orderCandidates(engine, this.generateCandidates(engine));
+    this.tightSearch = depth >= 3;
+
+    let bestScore = -Infinity;
+    let bestMove = null;
+    let alpha = -Infinity;
+    const beta = Infinity;
+
+    for (const move of candidates) {
+      if (this.timeUp()) { this.aborted = true; return bestMove; }
+      const sim = engine.clone();
+      const success = move.type === 'move'
+        ? sim.movePawn(move.r, move.c, this.playerIndex)
+        : sim.placeWall(move.r, move.c, move.wallType, this.playerIndex);
+      if (!success) continue;
+
+      const score = this.minimax(sim, depth - 1, alpha, beta, false);
+      if (this.aborted) return bestMove;
+      if (score > bestScore) {
+        bestScore = score;
+        bestMove = move;
+      }
+      alpha = Math.max(alpha, score);
+    }
+    return bestMove;
+  }
+
+  timeUp() {
+    return this.deadline && Date.now() > this.deadline;
+  }
+
+  // Cheap move ordering to maximise alpha-beta pruning: advance the pawn toward
+  // the goal first, then walls. Better ordering = far fewer nodes searched.
+  orderCandidates(engine, candidates) {
+    const myTurn = engine.currentPlayer === this.playerIndex;
+    const player = myTurn ? this.playerIndex : this.oppIndex;
+    const goal = engine.goalRow(player);
+    return candidates
+      .map(m => {
+        let priority;
+        if (m.type === 'move') {
+          // Closer to the goal row sorts first (big base so pawn moves lead).
+          priority = 1000 - Math.abs(m.r - goal) * 10;
+        } else if (m.onOppPath) {
+          // Walls that block the opponent's shortest path are the most forcing.
+          priority = 500;
+        } else {
+          priority = 0; // other walls explored last
+        }
+        return { m, priority };
+      })
+      .sort((a, b) => b.priority - a.priority)
+      .map(x => x.m);
   }
 
   // BFS to find shortest path length
@@ -182,6 +259,8 @@ export class QuoridorAI {
   // Hard mode: Minimax with Alpha-Beta. `advanced` enables the deeper heuristic.
   getBestMoveMinimax(engine, depth, advanced = false) {
     this.advancedEval = advanced;
+    this.deadline = null;   // no time budget for the fixed-depth path
+    this.aborted = false;
     // The ROOT always evaluates the full candidate set (all sensible walls) so
     // the bot never overlooks a strong move. Tight pruning is only applied
     // deeper in the recursion to keep the branching factor manageable.
@@ -228,10 +307,13 @@ export class QuoridorAI {
       return this.evaluateState(engine);
     }
 
-    const candidates = this.generateCandidates(engine);
+    // Time-budget abort: bail out of the deep search if we've run out of time.
+    if (this.timeUp()) { this.aborted = true; return this.evaluateState(engine); }
+
+    const candidates = this.orderCandidates(engine, this.generateCandidates(engine));
     
     if (isMaximizing) {
-      let maxEval = -9999;
+      let maxEval = -Infinity;
       for (const move of candidates) {
         const sim = engine.clone();
         const success = move.type === 'move' 
@@ -241,13 +323,14 @@ export class QuoridorAI {
         if (!success) continue;
 
         const evaluation = this.minimax(sim, depth - 1, alpha, beta, false);
+        if (this.aborted) return maxEval === -Infinity ? evaluation : maxEval;
         maxEval = Math.max(maxEval, evaluation);
         alpha = Math.max(alpha, evaluation);
         if (beta <= alpha) break; // Pruning
       }
       return maxEval;
     } else {
-      let minEval = 9999;
+      let minEval = Infinity;
       for (const move of candidates) {
         const sim = engine.clone();
         const success = move.type === 'move'
@@ -257,6 +340,7 @@ export class QuoridorAI {
         if (!success) continue;
 
         const evaluation = this.minimax(sim, depth - 1, alpha, beta, true);
+        if (this.aborted) return minEval === Infinity ? evaluation : minEval;
         minEval = Math.min(minEval, evaluation);
         beta = Math.min(beta, evaluation);
         if (beta <= alpha) break; // Pruning
@@ -287,6 +371,9 @@ export class QuoridorAI {
       const oppPath = this.getShortestPath(engine, opp);
       
       const pathSet = new Set();
+      // Cells on the opponent's path → walls here are the impactful blocking moves.
+      const oppPathSet = new Set();
+      oppPath.forEach(cell => oppPathSet.add(`${cell.r},${cell.c}`));
       
       // Add path cells
       myPath.forEach(cell => pathSet.add(`${cell.r},${cell.c}`));
@@ -320,11 +407,12 @@ export class QuoridorAI {
       pathSet.forEach(key => {
         const [r, c] = key.split(',').map(Number);
         if (r >= 0 && r < size && c >= 0 && c < size) {
+          const onOppPath = oppPathSet.has(key);
           if (engine.isValidWall(r, c, 'H')) {
-            candidates.push({ type: 'wall', r, c, wallType: 'H' });
+            candidates.push({ type: 'wall', r, c, wallType: 'H', onOppPath });
           }
           if (engine.isValidWall(r, c, 'V')) {
-            candidates.push({ type: 'wall', r, c, wallType: 'V' });
+            candidates.push({ type: 'wall', r, c, wallType: 'V', onOppPath });
           }
         }
       });
@@ -355,26 +443,33 @@ export class QuoridorAI {
 
     let score = pathScore + wallScore + progressScore;
 
-    // Advanced heuristic (Grandmaster): reward tempo, punish being far behind,
-    // value walls more when ahead in the race, and prefer central control.
+    // Advanced heuristic (Master/Grandmaster): reward tempo, value walls
+    // dynamically, prefer central control, and play sharper around the goals.
     if (this.advancedEval) {
-      // Tempo: whoever needs fewer moves AND it's their turn has an edge.
       const diff = oppPathLen - myPathLen;
-      score += diff * 30; // amplify the race difference
 
-      // Wall advantage matters more when paths are close (tight games)
-      if (Math.abs(diff) <= 2) {
-        score += (engine.playerWallsLeft[this.playerIndex] - engine.playerWallsLeft[this.oppIndex]) * 20;
-      }
+      // Tempo: amplify the race difference, with a turn-to-move bonus.
+      score += diff * 35;
+      const sideToMove = engine.currentPlayer === this.playerIndex ? 1 : -1;
+      score += sideToMove * 6; // having the move is a small concrete edge
 
-      // Central column control (more mobility / jump options)
+      // Wall advantage matters more when paths are close (tight games),
+      // and is nearly worthless once the race is clearly decided.
+      const wallDelta = engine.playerWallsLeft[this.playerIndex] - engine.playerWallsLeft[this.oppIndex];
+      if (Math.abs(diff) <= 2) score += wallDelta * 22;
+      else score += wallDelta * 8;
+
+      // Hoarding caution: keep at least a couple of walls for defence early on.
+      if (engine.playerWallsLeft[this.playerIndex] === 0 && diff <= 1) score -= 25;
+
+      // Central column control (more mobility / jump options).
       const mid = Math.floor(engine.boardSize / 2);
       const myCol = engine.pawnPos[this.playerIndex].c;
-      score += (mid - Math.abs(myCol - mid)) * 3;
+      score += (mid - Math.abs(myCol - mid)) * 4;
 
-      // Strongly avoid letting the opponent get very close to goal
-      if (oppPathLen <= 2) score -= 80;
-      if (myPathLen <= 2) score += 80;
+      // Endgame sharpness: react strongly when either pawn is near its goal.
+      if (oppPathLen <= 3) score -= (4 - oppPathLen) * 45;
+      if (myPathLen <= 3) score += (4 - myPathLen) * 45;
     }
 
     return score;

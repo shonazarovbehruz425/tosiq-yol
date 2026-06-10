@@ -316,7 +316,7 @@ export class GameScreen {
     if (this.vs === 'bot' && this.engine.currentPlayer !== this.mySide) {
       setTimeout(() => {
         this.runBotAI();
-      }, 600); // 600ms artificial delay to look human
+      }, 250); // small delay so the player's move renders before the bot replies
     }
   }
 
