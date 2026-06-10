@@ -3,6 +3,10 @@ import { socket } from '../core/websocket.js';
 import { haptic, isTelegram } from '../core/telegram.js';
 import { Toast } from '../components/toast.js';
 
+// Telegram bot username and Mini App short name (must match @BotFather setup)
+const BOT_USERNAME = 'WrongWayGameBot';
+const APP_SHORT_NAME = 'play';
+
 export class FriendScreen {
   constructor(router, params) {
     this.router = router;
@@ -17,8 +21,7 @@ export class FriendScreen {
   render() {
     if (this.isWaiting) {
       // Waiting room for private friend match
-      const botName = 'WrongWayAppBot'; // Mock or actual telegram bot name
-      const joinLink = `https://t.me/${botName}/game?startapp=join_${this.roomCode}`;
+      const joinLink = `https://t.me/${BOT_USERNAME}/${APP_SHORT_NAME}?startapp=join_${this.roomCode}`;
       
       return `
         <div class="screen screen-enter" style="justify-content: center; align-items: center; text-align: center;">
@@ -88,8 +91,7 @@ export class FriendScreen {
       const shareBtn = document.getElementById('share-link-btn');
       shareBtn.addEventListener('click', () => {
         haptic.impact('medium');
-        const botName = 'WrongWayAppBot';
-        const joinLink = `https://t.me/${botName}/game?startapp=join_${this.roomCode}`;
+        const joinLink = `https://t.me/${BOT_USERNAME}/${APP_SHORT_NAME}?startapp=join_${this.roomCode}`;
         
         if (isTelegram() && window.Telegram.WebApp.shareToStory) {
           // Can share link directly in Telegram

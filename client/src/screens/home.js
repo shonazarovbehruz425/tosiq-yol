@@ -96,7 +96,7 @@ export class HomeScreen {
         </div>
 
         <div class="menu-footer">
-          <a href="https://t.me/WrongWayApp" class="menu-link" target="_blank">
+          <a href="https://t.me/WrongWayGame" class="menu-link" target="_blank">
             📢 ${t('channel')}
           </a>
           <a href="https://t.me/WrongWaySupportBot" class="menu-link" target="_blank">
