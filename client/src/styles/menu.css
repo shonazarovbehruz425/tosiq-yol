@@ -1193,7 +1193,7 @@ input:checked + .slider:before {
   background-size: 42px 42px;
   -webkit-mask-image: radial-gradient(130% 90% at 50% 30%, #000 55%, transparent 100%);
   mask-image: radial-gradient(130% 90% at 50% 30%, #000 55%, transparent 100%);
-  animation: qbgGridDrift 60s linear infinite;
+  animation: qbgGridDrift 35s linear infinite;
 }
 
 @keyframes qbgGridDrift {

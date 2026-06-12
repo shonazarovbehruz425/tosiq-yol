@@ -37,6 +37,12 @@ export const uz = {
   // Private Room / Friend
   privateTitle: "Do'st bilan O'ynash",
   createPrivate: "Xususiy Xona Yaratish",
+  inviteFriend: "Do'st Chaqirish",
+  inviteFriendDesc: "Telegramdagi do'stingizga o'yin taklifini yuboring",
+  inviteSent: "Taklif ochildi! Do'stingizni tanlab yuboring.",
+  inviteCopied: "Taklif havolasi nusxalandi!",
+  inviteFailed: "Taklifni ulashib bo'lmadi.",
+  inviteMessage: "Men bilan 'To'siq Yo'l' o'ynaymizmi? O'yinga qo'shilish uchun bosing:",
   orEnterCode: "Yoki kod orqali qo'shiling",
   enterCodeHint: "4 xonali kodni kiriting",
   invalidCode: "Noto'g'ri kod! Qayta urinib ko'ring.",

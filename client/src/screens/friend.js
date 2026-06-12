@@ -1,6 +1,6 @@
 import { t } from '../core/i18n.js';
 import { socket } from '../core/websocket.js';
-import { haptic, isTelegram } from '../core/telegram.js';
+import { haptic, shareInvite } from '../core/telegram.js';
 import { Toast } from '../components/toast.js';
 
 // Telegram bot username and Mini App short name (must match @BotFather setup)
@@ -49,8 +49,17 @@ export class FriendScreen {
     return `
       <div class="screen screen-enter">
         <h2 class="menu-title" style="margin-top: 20px;">${t('privateTitle')}</h2>
-        
-        <button class="btn btn-primary" id="create-private-btn" style="margin: 24px 0 30px; padding: 16px;">
+
+        <button class="btn btn-primary invite-friend-btn" id="invite-friend-btn" style="margin: 24px 0 14px; padding: 16px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;flex-shrink:0;">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M19 8v6M22 11h-6"/>
+          </svg>
+          &nbsp; ${t('inviteFriend')}
+        </button>
+
+        <button class="btn btn-secondary" id="create-private-btn" style="margin: 0 0 26px; padding: 16px;">
           🔒 &nbsp; ${t('createPrivate')}
         </button>
 
@@ -89,19 +98,12 @@ export class FriendScreen {
     if (this.isWaiting) {
       // 1. Share/Copy Link Event
       const shareBtn = document.getElementById('share-link-btn');
-      shareBtn.addEventListener('click', () => {
+      shareBtn.addEventListener('click', async () => {
         haptic.impact('medium');
         const joinLink = `https://t.me/${BOT_USERNAME}/${APP_SHORT_NAME}?startapp=join_${this.roomCode}`;
-        
-        if (isTelegram() && window.Telegram.WebApp.shareToStory) {
-          // Can share link directly in Telegram
-          window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(joinLink)}&text=${encodeURIComponent("Men bilan 'To'siq Yo'l' o'yinini o'ynang! Xona kodi: " + this.roomCode)}`);
-        } else {
-          // Clipboard fallback
-          navigator.clipboard.writeText(joinLink)
-            .then(() => Toast.success("Havola buferga nusxalandi!"))
-            .catch(() => Toast.error("Nusxalash imkoni bo'lmadi."));
-        }
+        const result = await shareInvite(joinLink, t('inviteMessage'));
+        if (result === 'copied') Toast.success(t('inviteCopied'));
+        else if (result === 'failed') Toast.error(t('inviteFailed'));
       });
 
       // 2. Cancel Room Event
@@ -116,6 +118,14 @@ export class FriendScreen {
     }
 
     // Bind non-waiting elements
+    const inviteBtn = document.getElementById('invite-friend-btn');
+    if (inviteBtn) {
+      inviteBtn.addEventListener('click', () => {
+        haptic.impact('medium');
+        this.inviteFriend();
+      });
+    }
+
     const createBtn = document.getElementById('create-private-btn');
     createBtn.addEventListener('click', () => {
       haptic.impact('medium');
@@ -178,6 +188,37 @@ export class FriendScreen {
       } else {
         Toast.error(t('error'));
       }
+    };
+    socket.on('room_created', onRoomCreated);
+
+    const send = () => socket.send('create_private_room', config);
+    if (socket.isConnected) {
+      send();
+    } else {
+      socket.connect();
+      const onConnect = () => { socket.off('connect', onConnect); send(); };
+      socket.on('connect', onConnect);
+    }
+  }
+
+  // Create a private room, open Telegram's friend picker with the invite link,
+  // then drop into the waiting room until the friend joins.
+  inviteFriend() {
+    Toast.info(t('loading'));
+    const config = { mode: 'duel', boardSize: 9, totalTime: 300, blitzTime: 0, wallsCount: 10 };
+
+    const onRoomCreated = async (data) => {
+      socket.off('room_created', onRoomCreated);
+      if (!data || !data.roomCode) {
+        Toast.error(t('error'));
+        return;
+      }
+      const joinLink = `https://t.me/${BOT_USERNAME}/${APP_SHORT_NAME}?startapp=join_${data.roomCode}`;
+      const result = await shareInvite(joinLink, t('inviteMessage'));
+      if (result === 'copied') Toast.success(t('inviteCopied'));
+      else if (result === 'failed') Toast.error(t('inviteFailed'));
+      // Go to the waiting room so the friend can join via the link.
+      this.router.navigate('friend', { isWaiting: true, roomCode: data.roomCode });
     };
     socket.on('room_created', onRoomCreated);
 

@@ -16,21 +16,21 @@ export class HomeScreen {
   renderBackground() {
     const walls = [
       // type, color, left%, top%, drift duration(s), delay(s)
-      ['h', 'red',  12, 14, 26, 0],
-      ['h', 'blue', 64, 9,  32, -6],
-      ['v', 'blue', 8,  52, 30, -3],
-      ['h', 'red',  78, 60, 28, -10],
-      ['h', 'blue', 22, 82, 34, -14],
-      ['v', 'red',  88, 30, 24, -8],
-      ['v', 'blue', 44, 70, 36, -18],
-      ['h', 'red',  52, 38, 30, -22],
+      ['h', 'red',  12, 14, 16, 0],
+      ['h', 'blue', 64, 9,  19, -5],
+      ['v', 'blue', 8,  52, 18, -3],
+      ['h', 'red',  78, 60, 17, -7],
+      ['h', 'blue', 22, 82, 20, -9],
+      ['v', 'red',  88, 30, 15, -6],
+      ['v', 'blue', 44, 70, 21, -11],
+      ['h', 'red',  52, 38, 18, -13],
     ];
     const pawns = [
       // color, left%, top%, float duration(s), delay(s)
-      ['red',  56, 68, 12, 0],
-      ['blue', 30, 26, 14, -4],
-      ['red',  82, 46, 16, -7],
-      ['blue', 16, 74, 13, -2],
+      ['red',  56, 68, 8,  0],
+      ['blue', 30, 26, 9,  -3],
+      ['red',  82, 46, 10, -5],
+      ['blue', 16, 74, 8.5, -2],
     ];
 
     const wallEls = walls.map(([type, color, l, t, dur, delay]) =>

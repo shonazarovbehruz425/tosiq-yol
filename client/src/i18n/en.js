@@ -37,6 +37,12 @@ export const en = {
   // Private Room / Friend
   privateTitle: "Play with Friend",
   createPrivate: "Create Private Room",
+  inviteFriend: "Invite a Friend",
+  inviteFriendDesc: "Send a game invite to a friend in Telegram",
+  inviteSent: "Invite opened! Pick a friend to send it.",
+  inviteCopied: "Invite link copied!",
+  inviteFailed: "Could not share the invite.",
+  inviteMessage: "Let's play Wrong Way! Tap to join my game:",
   orEnterCode: "Or enter code to join",
   enterCodeHint: "Enter 4-digit code",
   invalidCode: "Invalid code! Please try again.",

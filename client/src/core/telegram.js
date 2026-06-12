@@ -70,6 +70,25 @@ export const getTelegramUser = () => {
   };
 };
 
+// Open Telegram's native "share to a chat" picker with the given invite link
+// and message, so the user can pick a specific friend. Falls back to copying
+// the link outside Telegram. Returns 'shared' | 'copied' | 'failed'.
+export const shareInvite = async (url, text = '') => {
+  if (tg && typeof tg.openTelegramLink === 'function') {
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+    try {
+      tg.openTelegramLink(shareUrl);
+      return 'shared';
+    } catch (e) { /* fall through to clipboard */ }
+  }
+  try {
+    await navigator.clipboard.writeText(`${text} ${url}`.trim());
+    return 'copied';
+  } catch (e) {
+    return 'failed';
+  }
+};
+
 const applyTheme = () => {
   if (!tg) return;
   const root = document.documentElement;
