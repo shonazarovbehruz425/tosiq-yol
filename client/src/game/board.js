@@ -39,7 +39,12 @@ export class BoardRenderer {
     
     const N = this.engine.boardSize;
     const gridDim = N * 2 - 1; // 17 for 9x9, 13 for 7x7
-    
+
+    // Wall gaps are thinner on bigger boards so the cells stay large enough to
+    // tap comfortably (11x11 / 13x13 otherwise get tiny cells).
+    if (N >= 13) boardDiv.classList.add('gap-xs');
+    else if (N >= 11) boardDiv.classList.add('gap-sm');
+
     // Set up grid rows & columns dynamically
     const gridStyles = [];
     for (let i = 0; i < N; i++) {
@@ -269,14 +274,15 @@ export class BoardRenderer {
   }
 
   // Vertical lift (px) applied to the pointer when locating the target slot,
-  // so the placed wall appears above the finger instead of under it.
+  // so the placed wall appears clearly above the finger instead of under it.
   fingerOffsetY() {
     const cell = this.cellElements['0,0'];
     if (cell) {
       const h = cell.getBoundingClientRect().height;
-      if (h > 0) return h * 0.9;
+      // Lift by ~1.6 cells, but never less than a comfortable fingertip height.
+      if (h > 0) return Math.max(h * 1.6, 64);
     }
-    return 36; // sensible fallback
+    return 64; // sensible fallback
   }
 
   onDragEnd() {
