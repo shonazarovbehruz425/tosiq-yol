@@ -13,11 +13,27 @@ export function initSocial() {
   if (installed) return;
   installed = true;
 
-  // Someone sent me a friend request
+  // Someone sent me a friend request -> show accept/decline prompt
   socket.on('friend_request_received', (data) => {
-    const name = (data && data.from && data.from.name) || 'Player';
+    if (!data || !data.from) return;
+    const name = data.from.name || 'Player';
+    const fromId = data.from.id;
     haptic.notification('warning');
-    Toast.info(t('friendRequestFrom', { name }));
+    Modal.show({
+      icon: '👋',
+      title: t('addFriend'),
+      message: t('friendRequestFrom', { name }),
+      confirmText: t('accept'),
+      cancelText: t('decline'),
+      barrierDismissible: false,
+      onConfirm: () => {
+        if (fromId != null) socket.send('accept_friend_request', { userId: fromId });
+        Toast.success(t('friendAdded'));
+      },
+      onCancel: () => {
+        if (fromId != null) socket.send('decline_friend_request', { userId: fromId });
+      }
+    });
   });
 
   // Someone accepted my friend request

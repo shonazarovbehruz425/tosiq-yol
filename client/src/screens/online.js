@@ -81,6 +81,15 @@ export class OnlineScreen {
           </button>
         </div>
 
+        <button class="btn btn-secondary" id="mode-btn" style="margin-bottom: 10px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;vertical-align:-3px;">
+            <circle cx="12" cy="12" r="9"/>
+            <circle cx="12" cy="12" r="5"/>
+            <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+          </svg>
+          &nbsp; ${t('modeCardTitle')}
+        </button>
+
         <div class="section-title">${t('openGames')}</div>
         ${lobbiesHtml}
 
@@ -138,6 +147,12 @@ export class OnlineScreen {
     backBtn?.addEventListener('click', () => {
       haptic.impact('light');
       this.router.back();
+    });
+
+    const modeBtn = document.getElementById('mode-btn');
+    modeBtn?.addEventListener('click', () => {
+      haptic.impact('medium');
+      this.router.navigate('mode-select', { vs: 'online' });
     });
 
     document.querySelectorAll('.lobby-join-btn').forEach(btn => {

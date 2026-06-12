@@ -107,22 +107,6 @@ export class HomeScreen {
             <span class="menu-pill-label">${t('playFriend')}</span>
           </button>
 
-          <button class="menu-pill menu-pill-mode" id="duel-mode-card">
-            <span class="menu-pill-icon icon-mode">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="9"/>
-                <circle cx="12" cy="12" r="5"/>
-                <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
-              </svg>
-            </span>
-            <span class="menu-pill-label">${t('modeCardTitle')}</span>
-            <span class="menu-pill-chevron">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 6l6 6-6 6"/>
-              </svg>
-            </span>
-          </button>
-
           <button class="menu-pill" id="leaderboard-btn">
             <span class="menu-pill-icon icon-leaderboard">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -199,15 +183,6 @@ export class HomeScreen {
       haptic.impact('medium');
       this.router.navigate('settings');
     });
-
-    // Mode card -> open game mode settings for an ONLINE match
-    const modeCard = document.getElementById('duel-mode-card');
-    if (modeCard) {
-      modeCard.addEventListener('click', () => {
-        haptic.impact('medium');
-        this.router.navigate('mode-select', { vs: 'online' });
-      });
-    }
   }
 
   onUsersCount(data) {

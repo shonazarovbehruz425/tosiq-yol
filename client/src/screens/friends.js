@@ -14,8 +14,7 @@ export class FriendsScreen {
   constructor(router, params) {
     this.router = router;
     this.params = params || {};
-    this.tab = this.params.tab || 'friends';
-    this.data = null; // { friends, incoming, outgoing, suggestions }
+    this.data = null; // { friends, suggestions }
     this.loaded = false;
     this._bound = false;
 
@@ -25,7 +24,6 @@ export class FriendsScreen {
   }
 
   render() {
-    const incomingCount = this.data ? this.data.incoming.length : 0;
     return `
       <div class="screen screen-enter">
         <div class="menu-header" style="margin-top: 18px;">
@@ -38,13 +36,6 @@ export class FriendsScreen {
           </div>
           <h2 class="menu-title">${t('friendsTitle')}</h2>
           <p class="menu-slogan">${t('friendsSubtitle')}</p>
-        </div>
-
-        <div class="fr-tabs">
-          <button class="fr-tab ${this.tab === 'friends' ? 'on' : ''}" data-tab="friends">${t('tabFriends')}</button>
-          <button class="fr-tab ${this.tab === 'requests' ? 'on' : ''}" data-tab="requests">
-            ${t('tabRequests')}${incomingCount ? ` <span class="fr-badge">${incomingCount}</span>` : ''}
-          </button>
         </div>
 
         <div id="fr-body" class="fr-body">
@@ -62,10 +53,6 @@ export class FriendsScreen {
     if (!this.loaded) {
       return `<div class="fr-empty"><div class="loader"></div></div>`;
     }
-    return this.tab === 'friends' ? this.renderFriends() : this.renderRequests();
-  }
-
-  renderFriends() {
     const friends = this.data.friends || [];
     const suggestions = this.data.suggestions || [];
     let html = '';
@@ -73,6 +60,7 @@ export class FriendsScreen {
     if (friends.length === 0) {
       html += `<div class="fr-empty">${t('noFriends')}</div>`;
     } else {
+      html += `<div class="fr-section-title">${t('myFriends')}</div>`;
       html += `<div class="fr-list">${friends.map(f => this.friendRow(f)).join('')}</div>`;
     }
 
@@ -130,51 +118,6 @@ export class FriendsScreen {
     `;
   }
 
-  renderRequests() {
-    const incoming = this.data.incoming || [];
-    const outgoing = this.data.outgoing || [];
-    if (incoming.length === 0 && outgoing.length === 0) {
-      return `<div class="fr-empty">${t('noRequests')}</div>`;
-    }
-    let html = '';
-    if (incoming.length) {
-      html += `<div class="fr-section-title">${t('incomingRequests')}</div>`;
-      html += `<div class="fr-list">${incoming.map(r => this.incomingRow(r)).join('')}</div>`;
-    }
-    if (outgoing.length) {
-      html += `<div class="fr-section-title">${t('outgoingRequests')}</div>`;
-      html += `<div class="fr-list">${outgoing.map(r => this.outgoingRow(r)).join('')}</div>`;
-    }
-    return html;
-  }
-
-  incomingRow(r) {
-    const flag = flagFromCode(r.country_code);
-    return `
-      <div class="fr-row">
-        <span class="fr-avatar">${this.initial(r.name)}</span>
-        <span class="fr-meta">
-          <span class="fr-name">${this.esc(r.name)} ${flag ? `<span class="fr-flag">${flag}</span>` : ''}</span>
-        </span>
-        <button class="fr-accept-btn" data-accept="${r.id}">${t('accept')}</button>
-        <button class="fr-decline-btn" data-decline="${r.id}">${t('decline')}</button>
-      </div>
-    `;
-  }
-
-  outgoingRow(r) {
-    const flag = flagFromCode(r.country_code);
-    return `
-      <div class="fr-row">
-        <span class="fr-avatar">${this.initial(r.name)}</span>
-        <span class="fr-meta">
-          <span class="fr-name">${this.esc(r.name)} ${flag ? `<span class="fr-flag">${flag}</span>` : ''}</span>
-          <span class="fr-status">${t('pending')}</span>
-        </span>
-      </div>
-    `;
-  }
-
   initial(name) {
     const n = (name || '?').trim();
     return this.esc(n.charAt(0).toUpperCase() || '?');
@@ -187,7 +130,7 @@ export class FriendsScreen {
   }
 
   afterRender() {
-    // Bind socket listeners only once (reRenderActiveScreen re-runs afterRender).
+    // Bind socket listeners only once (refreshBody re-renders the list in place).
     if (!this._bound) {
       socket.on('friend_data', this.onFriendData);
       socket.on('invite_result', this.onInviteResult);
@@ -201,30 +144,13 @@ export class FriendsScreen {
     const backBtn = document.getElementById('back-btn');
     if (backBtn) backBtn.addEventListener('click', () => { haptic.impact('light'); this.router.back(); });
 
-    document.querySelectorAll('.fr-tab').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (this.tab === btn.dataset.tab) return;
-        this.tab = btn.dataset.tab;
-        haptic.selection();
-        this.refreshBody();
-      });
-    });
-
     this.bindRowActions();
   }
 
-  // Re-render just the body + tabs without re-running socket setup.
+  // Re-render just the list body without re-running socket setup.
   refreshBody() {
     const body = document.getElementById('fr-body');
     if (body) body.innerHTML = this.renderBody();
-    // Update tab active state + badge
-    const incomingCount = this.data ? this.data.incoming.length : 0;
-    document.querySelectorAll('.fr-tab').forEach(btn => {
-      btn.classList.toggle('on', btn.dataset.tab === this.tab);
-      if (btn.dataset.tab === 'requests') {
-        btn.innerHTML = `${t('tabRequests')}${incomingCount ? ` <span class="fr-badge">${incomingCount}</span>` : ''}`;
-      }
-    });
     this.bindRowActions();
   }
 
@@ -245,18 +171,6 @@ export class FriendsScreen {
         btn.disabled = true;
       });
     });
-    document.querySelectorAll('[data-accept]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        haptic.impact('medium');
-        socket.send('accept_friend_request', { userId: btn.dataset.accept });
-      });
-    });
-    document.querySelectorAll('[data-decline]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        haptic.impact('light');
-        socket.send('decline_friend_request', { userId: btn.dataset.decline });
-      });
-    });
     document.querySelectorAll('[data-remove]').forEach(btn => {
       btn.addEventListener('click', () => {
         haptic.impact('light');
@@ -266,9 +180,8 @@ export class FriendsScreen {
   }
 
   onFriendData(data) {
-    this.data = data || { friends: [], incoming: [], outgoing: [], suggestions: [] };
+    this.data = data || { friends: [], suggestions: [] };
     this.loaded = true;
-    // Refresh only the body (don't re-run socket setup → avoids duplicate listeners).
     this.refreshBody();
   }
 

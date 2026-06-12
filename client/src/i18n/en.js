@@ -184,6 +184,7 @@ export const en = {
   inviteToPlay: "Invite to play",
   noFriends: "No friends yet. Add some from the leaderboard!",
   noRequests: "No new requests",
+  myFriends: "My friends",
   suggestions: "Suggested players",
   incomingRequests: "Incoming requests",
   outgoingRequests: "Sent requests",
