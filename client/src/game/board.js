@@ -160,6 +160,17 @@ export class BoardRenderer {
 
     if (!isMyTurn || this.engine.winner !== -1) return;
 
+    // Fog of War: offer "blind" moves (all neighbours, walls hidden) so the
+    // player must explore and may bump into hidden walls.
+    if (this.fogMode) {
+      const moves = this.engine.getBlindMoves(this.engine.currentPlayer);
+      moves.forEach(m => {
+        const cell = this.cellElements[`${m.r},${m.c}`];
+        if (cell) cell.classList.add('valid-move');
+      });
+      return;
+    }
+
     const moves = this.engine.getValidMoves(this.engine.currentPlayer);
     moves.forEach(m => {
       const cell = this.cellElements[`${m.r},${m.c}`];

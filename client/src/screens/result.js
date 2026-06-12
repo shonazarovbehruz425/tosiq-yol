@@ -168,7 +168,8 @@ export class ResultScreen {
         totalTime: this.params.totalTime,
         blitzTime: this.params.blitzTime,
         wallsCount: this.params.initialWalls,
-        mode: this.params.mode
+        mode: this.params.mode,
+        fog: this.params.fog
       });
     } else {
       // Online rematch request
@@ -208,6 +209,7 @@ export class ResultScreen {
       blitzTime: this.params.blitzTime,
       wallsCount: this.params.initialWalls,
       mode: this.params.mode,
+      fog: this.params.fog,
       opponent: this.params.opponent
     });
   }

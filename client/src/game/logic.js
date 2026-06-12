@@ -125,6 +125,56 @@ export class QuoridorEngine {
     return moves;
   }
 
+  // Fog of War: the cells a player MAY try to step into (all orthogonal
+  // neighbours + the opponent's cell for a possible jump), ignoring walls.
+  // Each entry is tagged with whether a wall actually blocks that step, so the
+  // UI can offer "blind" moves and the caller can detect a bump.
+  getBlindMoves(playerIndex) {
+    if (this.winner !== -1) return [];
+    const me = this.pawnPos[playerIndex];
+    const opp = this.pawnPos[1 - playerIndex];
+    const dirs = [
+      { dr: -1, dc: 0 }, { dr: 1, dc: 0 },
+      { dr: 0, dc: -1 }, { dr: 0, dc: 1 }
+    ];
+    const out = [];
+    for (const d of dirs) {
+      const nr = me.r + d.dr;
+      const nc = me.c + d.dc;
+      if (nr < 0 || nr >= this.boardSize || nc < 0 || nc >= this.boardSize) continue;
+      const blocked = this.isWallBlocking(me.r, me.c, nr, nc);
+      // Stepping onto the opponent isn't a normal move; skip (jump is rare).
+      if (opp.r === nr && opp.c === nc) continue;
+      out.push({ r: nr, c: nc, blocked });
+    }
+    return out;
+  }
+
+  // Apply a Fog-of-War blind move attempt. If a wall blocks it, the move fails
+  // (turn is forfeited) and we report the bump so the wall can be revealed.
+  // Returns { moved, bumped, wall } .
+  tryBlindMove(r, c, playerIndex) {
+    if (this.winner !== -1) return { moved: false, bumped: false };
+    if (this.currentPlayer !== playerIndex) return { moved: false, bumped: false };
+    const me = this.pawnPos[playerIndex];
+    const isNeighbour = Math.abs(me.r - r) + Math.abs(me.c - c) === 1;
+    if (!isNeighbour) return { moved: false, bumped: false };
+
+    if (this.isWallBlocking(me.r, me.c, r, c)) {
+      // Bumped into a hidden wall — forfeit the turn, reveal the wall.
+      this.moveHistory.push({ player: playerIndex, type: 'bump', r, c });
+      this.currentPlayer = 1 - this.currentPlayer;
+      return { moved: false, bumped: true };
+    }
+
+    // Clear move
+    this.pawnPos[playerIndex] = { r, c };
+    this.moveHistory.push({ player: playerIndex, type: 'move', r, c });
+    this.checkWinner();
+    this.currentPlayer = 1 - this.currentPlayer;
+    return { moved: true, bumped: false };
+  }
+
   // Check if a wall blocks movement from (r1, c1) to (r2, c2)
   isWallBlocking(r1, c1, r2, c2) {
     // Determine connection: vertical or horizontal movement

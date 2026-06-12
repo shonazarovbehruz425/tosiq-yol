@@ -24,6 +24,7 @@ export class GameScreen {
     this.mode = this.params.mode || 'duel';
     this.fog = this.params.fog === true; // Fog of War visibility overlay
     this.fogRadius = 2; // reveal a 5x5 area around my pawn
+    this.revealedWalls = new Set(); // walls permanently revealed after a bump
     this.soundEnabled = true;
     
     // Engine & Board Renderer
@@ -181,6 +182,18 @@ export class GameScreen {
       onPlaceWall: this.onPlaceWall,
       canDragWall: () => this.canPlaceWallNow()
     });
+    // Fog of War uses blind-move highlights (all neighbours, walls hidden).
+    this.boardRenderer.fogMode = this.fog;
+    if (this.fog) this.boardRenderer.updateValidMoves(true);
+
+    // Perspective: the "top" player (side 1 in duel/fog) controls a pawn that
+    // starts at the top — awkward to play. Flip the board 180° so their own
+    // pawn always sits at the bottom, moving upward. Race mode starts both at
+    // the bottom already, so no flip is needed there.
+    if (this.shouldFlipBoard()) {
+      const wrap = document.getElementById('game-board-container');
+      if (wrap) wrap.classList.add('board-flipped');
+    }
 
     // 2. Setup Timer
     this.timer = new GameTimer({
@@ -361,6 +374,38 @@ export class GameScreen {
     }
 
     const playerIndex = this.engine.currentPlayer;
+
+    // Fog of War: blind move — may bump into a hidden wall (turn forfeited).
+    if (this.fog) {
+      const from = { ...this.engine.pawnPos[playerIndex] };
+      const res = this.engine.tryBlindMove(r, c, playerIndex);
+      if (res.bumped) {
+        Sound.error();
+        haptic.notification('warning');
+        Toast.warning("To'siqqa urildingiz! Navbat o'tdi.");
+        // Permanently reveal the wall(s) sitting between `from` and the target.
+        this.revealWallBetween(from, { r, c });
+        this.boardRenderer.drawWalls();
+        if (this.vs !== 'bot') {
+          socket.send('game_move', { roomCode: this.params.roomCode, r, c, bump: true });
+        }
+        this.afterTurnChange();
+        return;
+      }
+      if (res.moved) {
+        Sound.move();
+        haptic.impact('light');
+        this.boardRenderer.updatePawns();
+        if (this.vs !== 'bot') {
+          socket.send('game_move', { roomCode: this.params.roomCode, r, c });
+        }
+        this.afterTurnChange();
+        return;
+      }
+      Sound.error();
+      return;
+    }
+
     const success = this.engine.movePawn(r, c, playerIndex);
 
     if (success) {
@@ -471,11 +516,36 @@ export class GameScreen {
 
     // Walls: hide any wall whose spanned cells are all outside the visible window.
     this.boardRenderer.setWallVisibility((w) => {
+      // Once bumped, a wall stays revealed for the rest of the game.
+      if (this.revealedWalls.has(`${w.type}${w.r},${w.c}`)) return true;
       if (w.type === 'H') {
         return visible(w.r, w.c) || visible(w.r, w.c + 1) || visible(w.r + 1, w.c) || visible(w.r + 1, w.c + 1);
       }
       return visible(w.r, w.c) || visible(w.r + 1, w.c) || visible(w.r, w.c + 1) || visible(w.r + 1, w.c + 1);
     });
+  }
+
+  // Mark the wall(s) between two adjacent cells as permanently revealed.
+  revealWallBetween(from, to) {
+    this.engine.walls.forEach(w => {
+      let blocks = false;
+      if (w.type === 'H') {
+        const row = Math.min(from.r, to.r);
+        blocks = from.c === to.c && w.r === row && (w.c === from.c || w.c === from.c - 1);
+      } else {
+        const col = Math.min(from.c, to.c);
+        blocks = from.r === to.r && w.c === col && (w.r === from.r || w.r === from.r - 1);
+      }
+      if (blocks) this.revealedWalls.add(`${w.type}${w.r},${w.c}`);
+    });
+  }
+
+  // Should the board be rotated 180° so my pawn sits at the bottom?
+  // Only for the "top" player (side 1) in duel/fog. Race starts both at the
+  // bottom, so it never needs flipping. Bot games keep the human as side 0.
+  shouldFlipBoard() {
+    if (this.mode === 'race') return false;
+    return this.mySide === 1;
   }
 
   // Can the local player place a wall right now?
@@ -531,6 +601,15 @@ export class GameScreen {
   // WebSocket event: opponent moved
   onOpponentMoved(data) {
     const oppSide = 1 - this.mySide;
+    // Fog of War: a bump means the opponent forfeited their turn on a hidden wall.
+    if (this.fog && data && data.bump) {
+      const from = { ...this.engine.pawnPos[oppSide] };
+      this.engine.tryBlindMove(data.r, data.c, oppSide);
+      this.revealWallBetween(from, { r: data.r, c: data.c });
+      this.boardRenderer.drawWalls();
+      this.afterTurnChange();
+      return;
+    }
     this.engine.movePawn(data.r, data.c, oppSide);
     Sound.move();
     this.boardRenderer.updatePawns();
@@ -703,6 +782,7 @@ export class GameScreen {
       boardSize: this.boardSize,
       initialWalls: this.wallsCount,
       mode: this.mode,
+      fog: this.fog,
       totalTime: this.params.totalTime || 0,
       blitzTime: this.params.blitzTime || 0,
       difficulty: this.params.difficulty,
