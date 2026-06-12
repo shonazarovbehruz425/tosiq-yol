@@ -11,25 +11,23 @@ export class FriendScreen {
   constructor(router, params) {
     this.router = router;
     this.params = params || {}; // e.g. { isWaiting: true, roomCode: '1234' }
-    
+
     this.isWaiting = this.params.isWaiting || false;
     this.roomCode = this.params.roomCode || '';
-    
+
     this.onMatchFound = this.onMatchFound.bind(this);
   }
 
   render() {
     if (this.isWaiting) {
       // Waiting room for private friend match
-      const joinLink = `https://t.me/${BOT_USERNAME}/${APP_SHORT_NAME}?startapp=join_${this.roomCode}`;
-      
       return `
         <div class="screen screen-enter" style="justify-content: center; align-items: center; text-align: center;">
           <div class="card" style="width: 100%; max-width: 340px; padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 20px;">
             <div class="loader" style="width: 48px; height: 48px;"></div>
             <h2>${t('privateTitle')}</h2>
             <p>${t('waitingFriend', { code: '' })}</p>
-            
+
             <div style="font-size: 36px; font-weight: 800; letter-spacing: 4px; background-color: rgba(255,255,255,0.05); padding: 10px 20px; border-radius: 12px; border: 1px dashed var(--primary); margin: 10px 0;">
               ${this.roomCode}
             </div>
@@ -57,15 +55,6 @@ export class FriendScreen {
             <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
           </svg>
           &nbsp; ${t('friends')}
-        </button>
-
-        <button class="btn btn-secondary invite-friend-btn" id="invite-friend-btn" style="margin: 0 0 14px; padding: 16px;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;flex-shrink:0;">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M19 8v6M22 11h-6"/>
-          </svg>
-          &nbsp; ${t('inviteFriend')}
         </button>
 
         <button class="btn btn-secondary" id="create-private-btn" style="margin: 0 0 26px; padding: 16px;">
@@ -122,7 +111,7 @@ export class FriendScreen {
         socket.send('leave_private_room', { roomCode: this.roomCode });
         this.router.navigate('friend');
       });
-      
+
       return;
     }
 
@@ -132,14 +121,6 @@ export class FriendScreen {
       friendsListBtn.addEventListener('click', () => {
         haptic.impact('medium');
         this.router.navigate('friends');
-      });
-    }
-
-    const inviteBtn = document.getElementById('invite-friend-btn');
-    if (inviteBtn) {
-      inviteBtn.addEventListener('click', () => {
-        haptic.impact('medium');
-        this.inviteFriend();
       });
     }
 
@@ -218,41 +199,10 @@ export class FriendScreen {
     }
   }
 
-  // Create a private room, open Telegram's friend picker with the invite link,
-  // then drop into the waiting room until the friend joins.
-  inviteFriend() {
-    Toast.info(t('loading'));
-    const config = { mode: 'duel', boardSize: 9, totalTime: 300, blitzTime: 0, wallsCount: 10 };
-
-    const onRoomCreated = async (data) => {
-      socket.off('room_created', onRoomCreated);
-      if (!data || !data.roomCode) {
-        Toast.error(t('error'));
-        return;
-      }
-      const joinLink = `https://t.me/${BOT_USERNAME}/${APP_SHORT_NAME}?startapp=join_${data.roomCode}`;
-      const result = await shareInvite(joinLink, t('inviteMessage'));
-      if (result === 'copied') Toast.success(t('inviteCopied'));
-      else if (result === 'failed') Toast.error(t('inviteFailed'));
-      // Go to the waiting room so the friend can join via the link.
-      this.router.navigate('friend', { isWaiting: true, roomCode: data.roomCode });
-    };
-    socket.on('room_created', onRoomCreated);
-
-    const send = () => socket.send('create_private_room', config);
-    if (socket.isConnected) {
-      send();
-    } else {
-      socket.connect();
-      const onConnect = () => { socket.off('connect', onConnect); send(); };
-      socket.on('connect', onConnect);
-    }
-  }
-
   onMatchFound(data) {
     haptic.notification('success');
     Toast.success("Do'stingiz ulandi! O'yin boshlanmoqda.");
-    
+
     this.router.navigate('game', {
       vs: 'friend',
       roomCode: data.roomCode,
