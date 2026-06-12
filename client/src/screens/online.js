@@ -9,7 +9,6 @@ export class OnlineScreen {
     this.params = params || {};
 
     this.lobbies = [];
-    this.searchActive = false;   // matchmaking queue
     this.waitingLobby = false;   // created a public lobby, waiting for someone
 
     this.onLobbiesList = this.onLobbiesList.bind(this);
@@ -21,14 +20,13 @@ export class OnlineScreen {
   }
 
   render() {
-    // Searching / waiting view
-    if (this.searchActive || this.waitingLobby) {
-      const title = this.searchActive ? t('searchingMatch') : t('waitingOpponent');
+    // Waiting view (after creating a public lobby)
+    if (this.waitingLobby) {
       return `
         <div class="screen screen-enter" style="justify-content: center; align-items: center; text-align: center;">
           <div class="card" style="width: 100%; max-width: 340px; padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 18px;">
             <div class="loader" style="width: 52px; height: 52px; border-width: 4px;"></div>
-            <h2 style="margin-bottom: 0;">${title}</h2>
+            <h2 style="margin-bottom: 0;">${t('waitingOpponent')}</h2>
             <p class="muted" style="font-size: 14px;">${t('modeDuellDesc')}</p>
             <button class="btn btn-secondary" id="cancel-search-btn" style="margin-top: 6px; width: 100%;">
               ${t('cancel')}
@@ -89,19 +87,7 @@ export class OnlineScreen {
         </div>
 
         <div class="online-actions">
-          <button class="play-action play-action-primary" id="quick-play-btn">
-            <span class="play-action-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" fill="currentColor" stroke="none"/>
-              </svg>
-            </span>
-            <span class="play-action-text">
-              <span class="play-action-title">${t('quickPlay')}</span>
-              <span class="play-action-desc">${t('quickPlayDesc')}</span>
-            </span>
-          </button>
-
-          <button class="play-action" id="create-lobby-btn">
+          <button class="play-action play-action-primary" id="create-lobby-btn">
             <span class="play-action-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="9"/>
@@ -146,12 +132,11 @@ export class OnlineScreen {
 
   afterRender() {
     // Bind UI for the current view. Socket listeners are registered once in onMount.
-    if (this.searchActive || this.waitingLobby) {
+    if (this.waitingLobby) {
       const cancelBtn = document.getElementById('cancel-search-btn');
       cancelBtn?.addEventListener('click', () => {
         haptic.impact('light');
         socket.send('cancel_search');
-        this.searchActive = false;
         this.waitingLobby = false;
         socket.send('get_lobbies');
         this.router.reRenderActiveScreen();
@@ -165,17 +150,6 @@ export class OnlineScreen {
 
   // Bind buttons on the lobby-list view
   rebindList() {
-    const quickBtn = document.getElementById('quick-play-btn');
-    quickBtn?.addEventListener('click', () => {
-      haptic.impact('medium');
-      this.searchActive = true;
-      this.router.reRenderActiveScreen();
-      this.afterRender();
-      this.whenConnected(() => socket.send('enter_matchmaking', {
-        mode: 'duel', boardSize: 9, totalTime: 300, blitzTime: 0, wallsCount: 10
-      }));
-    });
-
     const createBtn = document.getElementById('create-lobby-btn');
     createBtn?.addEventListener('click', () => {
       haptic.impact('medium');
@@ -220,7 +194,7 @@ export class OnlineScreen {
 
   onConnect() {
     // (Re)request the lobby list after a (re)connection if we're browsing
-    if (!this.searchActive && !this.waitingLobby) socket.send('get_lobbies');
+    if (!this.waitingLobby) socket.send('get_lobbies');
   }
 
   whenConnected(fn) {
@@ -233,8 +207,8 @@ export class OnlineScreen {
   }
 
   onLobbiesList(data) {
-    // Ignore list updates while we're in a searching/waiting view
-    if (this.searchActive || this.waitingLobby) return;
+    // Ignore list updates while we're in a waiting view
+    if (this.waitingLobby) return;
     this.lobbies = data || [];
     this.router.reRenderActiveScreen();
     this.rebindList();
