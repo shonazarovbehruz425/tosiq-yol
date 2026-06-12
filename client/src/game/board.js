@@ -179,7 +179,9 @@ export class BoardRenderer {
       const wallEl = document.createElement('div');
       const ownerColor = w.player === 0 ? 'red' : 'blue'; // Engine stores who placed it
       wallEl.className = `wall wall-${ownerColor || 'red'}`;
-      
+      // Remember which wall this element represents (used by Fog of War).
+      wallEl._wall = w;
+
       if (w.type === 'H') {
         wallEl.style.gridRow = `${w.r * 2 + 2}`;
         wallEl.style.gridColumn = `${w.c * 2 + 1} / span 3`;
@@ -189,6 +191,21 @@ export class BoardRenderer {
       }
       
       boardDiv.appendChild(wallEl);
+    });
+
+    // Re-apply any active fog filter so newly drawn walls respect visibility.
+    if (this._wallVisibility) this.setWallVisibility(this._wallVisibility);
+  }
+
+  // Fog of War: hide walls for which `predicate(wall)` returns false.
+  // Pass null to clear the filter and show everything.
+  setWallVisibility(predicate) {
+    this._wallVisibility = predicate || null;
+    const boardDiv = this.container.querySelector('.board');
+    if (!boardDiv) return;
+    boardDiv.querySelectorAll('.wall:not(.wall-preview)').forEach(el => {
+      if (!predicate || !el._wall) { el.classList.remove('wall-hidden'); return; }
+      el.classList.toggle('wall-hidden', !predicate(el._wall));
     });
   }
 

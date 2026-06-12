@@ -822,3 +822,22 @@
 }
 .chat-send svg { width: 18px; height: 18px; }
 .chat-send:active { transform: scale(0.94); }
+
+/* ===== Fog of War ===== */
+.board.fog-on .cell.fogged {
+  background-color: rgba(0, 0, 0, 0.55);
+  box-shadow: inset 0 0 0 9999px rgba(8, 10, 20, 0.55);
+  transition: background-color 0.25s ease;
+}
+.board.fog-on .cell.fogged > * {
+  opacity: 0;             /* hide goal indicators in fog */
+}
+/* The pawn sitting in fog (opponent) is hidden until you get close. */
+.board.fog-on .cell.fogged .pawn {
+  opacity: 0;
+}
+.wall.wall-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}

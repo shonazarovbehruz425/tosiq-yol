@@ -14,6 +14,21 @@ const BOARD_SIZES = [
 
 const sizeInfo = (size) => BOARD_SIZES.find(b => b.size === size) || BOARD_SIZES[1];
 
+// Selectable game modes. `available: false` modes show a "coming soon" hint
+// and can't be started yet (e.g. networked 2v2 needs more work).
+const GAME_MODES = [
+  { id: 'duel',  icon: '⚔️', available: true },
+  { id: 'race',  icon: '🏁', available: true },
+  { id: 'fog',   icon: '🌫️', available: true },
+  { id: 'chaos', icon: '✨', available: false },
+  { id: 'team',  icon: '👥', available: false }
+];
+
+const modeInfo = (id) => GAME_MODES.find(m => m.id === id) || GAME_MODES[0];
+const modeName = (id) => ({ duel: 'modeDuel', race: 'modeRace', fog: 'modeFog', chaos: 'modeChaos', team: 'modeTeam' }[id]);
+const modeSub = (id) => ({ duel: 'duelSub', race: 'raceSub', fog: 'fogSub', chaos: 'chaosSub', team: 'teamSub' }[id]);
+const modeHint = (id) => ({ duel: 'duelHint', race: 'raceHint', fog: 'fogHint', chaos: 'chaosHint', team: 'teamHint' }[id]);
+
 export class ModeSelectScreen {
   constructor(router, params) {
     this.router = router;
@@ -35,13 +50,13 @@ export class ModeSelectScreen {
 
   // Short summary badges (e.g. "Duell · 5 min")
   summaryBadges() {
-    const modeLabel = this.config.mode === 'duel' ? t('modeDuel') : t('modeRace');
+    const modeLabel = t(modeName(this.config.mode));
     let timeLabel;
     if (this.config.timer === 0) timeLabel = t('noTimer');
     else timeLabel = `${this.config.timer / 60} min`;
     return `
       <div class="mode-badges">
-        <span class="mode-badge">⚔️ ${modeLabel}</span>
+        <span class="mode-badge">${modeInfo(this.config.mode).icon} ${modeLabel}</span>
         <span class="mode-badge">⏱️ ${timeLabel}</span>
         <span class="mode-badge">🚧 ${this.config.walls}</span>
       </div>
@@ -65,26 +80,32 @@ export class ModeSelectScreen {
           ${this.summaryBadges()}
         </div>
 
-        <!-- Game type: Duell vs Race -->
+        <!-- Game mode (dropdown, like the language picker) -->
         <div class="mode-section-label">${t('fieldLabel')}</div>
-        <div class="big-card-grid">
-          <button class="big-card ${c.mode === 'duel' ? 'active' : ''}" data-mode="duel">
-            <div class="big-card-visual visual-duel">
-              <span class="bc-dot bc-dot-red"></span>
-              <span class="bc-dot bc-dot-blue"></span>
-            </div>
-            <span class="big-card-title">${t('modeDuel')}</span>
-            <span class="big-card-sub">${t('duelSub')}</span>
+        <div class="bsize-select mode-select" id="mode-select">
+          <button class="bsize-current" id="mode-current-btn">
+            <span class="mode-cur-emoji">${modeInfo(c.mode).icon}</span>
+            <span class="bsize-cur-title">${t(modeName(c.mode))}</span>
+            <span class="bsize-cur-sub">${t(modeSub(c.mode))}</span>
+            <span class="lang-caret">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </span>
           </button>
-          <button class="big-card ${c.mode === 'race' ? 'active' : ''}" data-mode="race">
-            <div class="big-card-visual visual-race">
-              <span class="bc-flag">🏁</span>
-            </div>
-            <span class="big-card-title">${t('modeRace')}</span>
-            <span class="big-card-sub">${t('raceSub')}</span>
-          </button>
+          <div class="bsize-dropdown" id="mode-dropdown">
+            ${GAME_MODES.map(m => `
+              <button class="bsize-option mode-option ${c.mode === m.id ? 'active' : ''} ${m.available ? '' : 'soon'}" data-mode="${m.id}">
+                <span class="mode-cur-emoji">${m.icon}</span>
+                <span class="mode-opt-text">
+                  <span class="bsize-opt-title">${t(modeName(m.id))}${m.available ? '' : ' · soon'}</span>
+                  <span class="bsize-opt-sub">${t(modeSub(m.id))}</span>
+                </span>
+              </button>
+            `).join('')}
+          </div>
         </div>
-        <div class="mode-hint" id="mode-hint">${c.mode === 'duel' ? t('duelHint') : t('raceHint')}</div>
+        <div class="mode-hint" id="mode-hint">${t(modeHint(c.mode))}</div>
 
         <!-- Board size (dropdown) -->
         <div class="mode-section-label">${t('boardSize')}</div>
@@ -181,14 +202,42 @@ export class ModeSelectScreen {
       return;
     }
 
-    // Game type cards (Duell / Race)
-    document.querySelectorAll('.big-card[data-mode]').forEach(card => {
-      card.addEventListener('click', () => {
-        document.querySelectorAll('.big-card[data-mode]').forEach(b => b.classList.remove('active'));
+    // Game mode dropdown (styled like the language picker)
+    const modeSelect = document.getElementById('mode-select');
+    const modeCurrentBtn = document.getElementById('mode-current-btn');
+    modeCurrentBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      haptic.selection();
+      modeSelect.classList.toggle('open');
+    });
+    this._closeMode = () => modeSelect?.classList.remove('open');
+    document.addEventListener('click', this._closeMode);
+
+    document.querySelectorAll('.mode-option[data-mode]').forEach(card => {
+      card.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = card.dataset.mode;
+        const info = modeInfo(id);
+        if (!info.available) {
+          haptic.notification('warning');
+          Toast.info(t('teamHint'));
+          return;
+        }
+        modeSelect?.classList.remove('open');
+        document.querySelectorAll('.mode-option[data-mode]').forEach(b => b.classList.remove('active'));
         card.classList.add('active');
-        this.config.mode = card.dataset.mode;
+        this.config.mode = id;
+
+        // Update the current button label
+        const emoji = modeCurrentBtn.querySelector('.mode-cur-emoji');
+        const title = modeCurrentBtn.querySelector('.bsize-cur-title');
+        const sub = modeCurrentBtn.querySelector('.bsize-cur-sub');
+        if (emoji) emoji.innerText = info.icon;
+        if (title) title.innerText = t(modeName(id));
+        if (sub) sub.innerText = t(modeSub(id));
+
         const hint = document.getElementById('mode-hint');
-        if (hint) hint.innerText = this.config.mode === 'duel' ? t('duelHint') : t('raceHint');
+        if (hint) hint.innerText = t(modeHint(id));
         haptic.selection();
         this.refreshBadges();
       });
@@ -295,8 +344,11 @@ export class ModeSelectScreen {
   }
 
   baseConfig() {
+    // Fog of War plays by Duel rules; the fog is a presentation layer.
+    const engineMode = this.config.mode === 'fog' ? 'duel' : this.config.mode;
     return {
-      mode: this.config.mode,
+      mode: engineMode,
+      fog: this.config.mode === 'fog',
       boardSize: this.config.size,
       totalTime: this.config.timer,
       blitzTime: this.config.blitz,
@@ -375,6 +427,10 @@ export class ModeSelectScreen {
     if (this._closeBsize) {
       document.removeEventListener('click', this._closeBsize);
       this._closeBsize = null;
+    }
+    if (this._closeMode) {
+      document.removeEventListener('click', this._closeMode);
+      this._closeMode = null;
     }
   }
 }

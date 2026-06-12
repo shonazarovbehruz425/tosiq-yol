@@ -1767,3 +1767,16 @@ html.light-mode .qbg-grid {
   font-size: 13.5px; color: var(--text-secondary);
   line-height: 1.5; max-width: 240px;
 }
+
+/* ===== Game mode picker (dropdown, like language picker) ===== */
+.mode-select .bsize-current,
+.mode-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mode-cur-emoji { font-size: 20px; flex-shrink: 0; }
+.mode-option { width: 100%; text-align: left; }
+.mode-opt-text { display: flex; flex-direction: column; gap: 1px; flex: 1 1 auto; min-width: 0; }
+.mode-option.soon { opacity: 0.55; }
+.mode-select .bsize-cur-sub { margin-left: auto; }

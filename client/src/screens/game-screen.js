@@ -22,6 +22,8 @@ export class GameScreen {
     this.boardSize = this.params.boardSize || 9;
     this.wallsCount = this.params.wallsCount || 10;
     this.mode = this.params.mode || 'duel';
+    this.fog = this.params.fog === true; // Fog of War visibility overlay
+    this.fogRadius = 2; // reveal a 5x5 area around my pawn
     this.soundEnabled = true;
     
     // Engine & Board Renderer
@@ -194,6 +196,7 @@ export class GameScreen {
     // 3. Update active player panels
     this.updateActivePlayerPanel();
     this.updateStatusBanner();
+    this.applyFog();
 
     // 4. Bind Wall Drag Chips (drag-and-drop wall placement)
     const chipH = document.getElementById('wall-chip-h');
@@ -430,12 +433,49 @@ export class GameScreen {
     const myTurn = this.vs === 'bot' || this.engine.currentPlayer === this.mySide;
     this.boardRenderer.updateValidMoves(myTurn);
 
+    // Fog of War: refresh the visible area around the controlled pawn.
+    this.applyFog();
+
     // 4. Trigger AI bot if vs bot
     if (this.vs === 'bot' && this.engine.currentPlayer !== this.mySide) {
       setTimeout(() => {
         this.runBotAI();
       }, 250); // small delay so the player's move renders before the bot replies
     }
+  }
+
+  // ===== Fog of War =====
+  // Reveal only the cells (and walls) within `fogRadius` of the pawn the local
+  // player controls. Everything else is dimmed/hidden. In a bot game we follow
+  // whichever pawn the human controls (mySide); online we follow our own pawn.
+  applyFog() {
+    if (!this.fog || !this.boardRenderer) return;
+    const N = this.engine.boardSize;
+    const focus = this.engine.pawnPos[this.mySide];
+    if (!focus) return;
+
+    const board = this.boardRenderer.boardDiv;
+    if (!board) return;
+    board.classList.add('fog-on');
+
+    const R = this.fogRadius;
+    const visible = (r, c) => Math.abs(r - focus.r) <= R && Math.abs(c - focus.c) <= R;
+
+    // Cells: toggle a 'fogged' class for those outside the visible window.
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const cell = this.boardRenderer.cellElements[`${r},${c}`];
+        if (cell) cell.classList.toggle('fogged', !visible(r, c));
+      }
+    }
+
+    // Walls: hide any wall whose spanned cells are all outside the visible window.
+    this.boardRenderer.setWallVisibility((w) => {
+      if (w.type === 'H') {
+        return visible(w.r, w.c) || visible(w.r, w.c + 1) || visible(w.r + 1, w.c) || visible(w.r + 1, w.c + 1);
+      }
+      return visible(w.r, w.c) || visible(w.r + 1, w.c) || visible(w.r, w.c + 1) || visible(w.r + 1, w.c + 1);
+    });
   }
 
   // Can the local player place a wall right now?
