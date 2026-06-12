@@ -163,7 +163,7 @@
 .board-wrapper {
   width: 100%;
   aspect-ratio: 1 / 1;
-  max-width: min(100%, calc(var(--app-height) - 175px));
+  max-width: min(100%, calc(var(--app-height) - 150px));
   margin: 0 auto;
   position: relative;
   background-color: var(--board-bg);
@@ -676,7 +676,7 @@
 
   .board-wrapper {
     padding: 6px;
-    max-width: min(100%, calc(var(--app-height) - 185px));
+    max-width: min(100%, calc(var(--app-height) - 160px));
   }
 }
 

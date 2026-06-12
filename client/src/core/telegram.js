@@ -28,6 +28,9 @@ export const initTelegram = () => {
     // Recompute the layout when entering/leaving full screen.
     try { tg.onEvent('fullscreenChanged', onFullscreenChanged); } catch (e) { /* ignore */ }
     try { tg.onEvent('fullscreenFailed', applyViewportHeight); } catch (e) { /* ignore */ }
+    // Safe-area changes (system bars / fullscreen controls) — keep header clear.
+    try { tg.onEvent('safeAreaChanged', applyTopInset); } catch (e) { /* ignore */ }
+    try { tg.onEvent('contentSafeAreaChanged', applyTopInset); } catch (e) { /* ignore */ }
   }
 
   applyViewportHeight();
@@ -57,16 +60,31 @@ const onFullscreenChanged = () => {
 };
 
 // Write Telegram's top safe-area inset into a CSS variable so the header clears
-// the fullscreen system controls. Falls back to the env() value when unset.
+// the fullscreen system controls. Combines the device safe area with the
+// content safe area (Telegram's close/menu buttons), with a sane minimum when
+// in full screen so the header never hides behind the controls.
 const applyTopInset = () => {
-  let top = 0;
+  let deviceTop = 0;
+  let contentTop = 0;
   try {
+    if (tg && tg.safeAreaInset && typeof tg.safeAreaInset.top === 'number') {
+      deviceTop = tg.safeAreaInset.top;
+    }
     if (tg && tg.contentSafeAreaInset && typeof tg.contentSafeAreaInset.top === 'number') {
-      top = tg.contentSafeAreaInset.top;
-    } else if (tg && tg.safeAreaInset && typeof tg.safeAreaInset.top === 'number') {
-      top = tg.safeAreaInset.top;
+      contentTop = tg.contentSafeAreaInset.top;
     }
   } catch (e) { /* ignore */ }
+
+  let top = deviceTop + contentTop;
+
+  // In full screen Telegram overlays round close/menu buttons at the top-right.
+  // Guarantee enough clearance even if the client reports a small/zero inset.
+  try {
+    if (tg && tg.isFullscreen) {
+      top = Math.max(top, 56);
+    }
+  } catch (e) { /* ignore */ }
+
   document.documentElement.style.setProperty('--tg-content-top', `${top || 0}px`);
 };
 
