@@ -167,7 +167,7 @@ export class ModeSelectScreen {
   }
 
   startLabel() {
-    if (this.params.vs === 'online') return `🌐 ${t('findOpponent')}`;
+    if (this.params.vs === 'online') return `🌐 ${t('createLobby')}`;
     if (this.params.vs === 'friend') return `🔒 ${t('createPrivate')}`;
     return `🚀 ${t('startGame')}`;
   }
@@ -177,7 +177,7 @@ export class ModeSelectScreen {
       <div class="screen screen-enter" style="justify-content: center; align-items: center; text-align: center;">
         <div class="card" style="width: 100%; max-width: 340px; padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 18px;">
           <div class="loader" style="width: 52px; height: 52px; border-width: 4px;"></div>
-          <h2 style="margin-bottom: 0;">${t('searchingMatch')}</h2>
+          <h2 style="margin-bottom: 0;">${t('waitingOpponent')}</h2>
           ${this.summaryBadges()}
           <button class="btn btn-secondary" id="cancel-search-btn" style="margin-top: 6px; width: 100%;">
             ${t('cancel')}
@@ -389,11 +389,12 @@ export class ModeSelectScreen {
       return;
     }
 
-    // Online: enter matchmaking and show an in-place waiting view (own screen)
+    // Online: create a PUBLIC lobby (visible in Open Games) and wait in-place
+    // until someone joins. match_found then drops both into the game.
     this.searching = true;
     this.router.reRenderActiveScreen();
     this.whenConnected(() => {
-      socket.send('enter_matchmaking', this.baseConfig());
+      socket.send('create_public_lobby', this.baseConfig());
     });
   }
 

@@ -98,20 +98,6 @@ export class OnlineScreen {
               <span class="play-action-title">${t('createLobby')}</span>
               <span class="play-action-desc">${t('createLobbyDesc')}</span>
             </span>
-          </button>
-
-          <button class="play-action play-action-mode" id="mode-btn">
-            <span class="play-action-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="9"/>
-                <circle cx="12" cy="12" r="5"/>
-                <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
-              </svg>
-            </span>
-            <span class="play-action-text">
-              <span class="play-action-title">${t('modeCardTitle')}</span>
-              <span class="play-action-desc">${t('modeCardDesc')}</span>
-            </span>
             <span class="play-action-chevron">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M9 6l6 6-6 6"/>
@@ -153,24 +139,15 @@ export class OnlineScreen {
     const createBtn = document.getElementById('create-lobby-btn');
     createBtn?.addEventListener('click', () => {
       haptic.impact('medium');
-      this.waitingLobby = true;
-      this.router.reRenderActiveScreen();
-      this.afterRender();
-      this.whenConnected(() => socket.send('create_public_lobby', {
-        mode: 'duel', boardSize: 9, totalTime: 300, blitzTime: 0, wallsCount: 10
-      }));
+      // Open the mode/board settings; from there the player creates a public
+      // lobby and waits inside the game.
+      this.router.navigate('mode-select', { vs: 'online' });
     });
 
     const backBtn = document.getElementById('back-btn');
     backBtn?.addEventListener('click', () => {
       haptic.impact('light');
       this.router.back();
-    });
-
-    const modeBtn = document.getElementById('mode-btn');
-    modeBtn?.addEventListener('click', () => {
-      haptic.impact('medium');
-      this.router.navigate('mode-select', { vs: 'online' });
     });
 
     document.querySelectorAll('.lobby-join-btn').forEach(btn => {
