@@ -106,11 +106,23 @@ export class GameScreen {
 
         <!-- Bottom Actions -->
         <div class="game-controls">
-          <div class="emoji-reactions">
-            <button class="emoji-btn" data-emoji="😠">😠</button>
-            <button class="emoji-btn" data-emoji="😂">😂</button>
-            <button class="emoji-btn" data-emoji="😱">😱</button>
-            <button class="emoji-btn" data-emoji="🤯">🤯</button>
+          <div class="emoji-reactions" id="emoji-reactions">
+            <button class="emoji-toggle" id="emoji-toggle" title="Reaksiya">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M8.5 14.5a4 4 0 0 0 7 0"/>
+                <circle cx="9" cy="9.5" r="1.2" fill="currentColor" stroke="none"/>
+                <circle cx="15" cy="9.5" r="1.2" fill="currentColor" stroke="none"/>
+              </svg>
+            </button>
+            <div class="emoji-popup" id="emoji-popup">
+              <button class="emoji-btn" data-emoji="😠">😠</button>
+              <button class="emoji-btn" data-emoji="😂">😂</button>
+              <button class="emoji-btn" data-emoji="😱">😱</button>
+              <button class="emoji-btn" data-emoji="🤯">🤯</button>
+              <button class="emoji-btn" data-emoji="👏">👏</button>
+              <button class="emoji-btn" data-emoji="🔥">🔥</button>
+            </div>
           </div>
 
           <div class="wall-tray" id="wall-tray">
@@ -192,20 +204,37 @@ export class GameScreen {
       });
     });
 
-    // 6. Bind Emoji Buttons
+    // 6. Bind Emoji Buttons (popup that opens on the toggle button)
+    const emojiReactions = document.getElementById('emoji-reactions');
+    const emojiToggle = document.getElementById('emoji-toggle');
+    if (emojiToggle && emojiReactions) {
+      emojiToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        haptic.impact('light');
+        emojiReactions.classList.toggle('open');
+      });
+      // Close the popup when tapping elsewhere
+      this._closeEmoji = () => emojiReactions.classList.remove('open');
+      document.addEventListener('click', this._closeEmoji);
+    }
+
     const emojiBtns = document.querySelectorAll('.emoji-btn');
     emojiBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
         const emoji = btn.dataset.emoji;
         haptic.impact('light');
-        
+
         // Spawn locally
         FloatingEmoji.spawn(emoji, document.getElementById('game-page-container'), btn.getBoundingClientRect());
-        
+
         if (this.vs !== 'bot') {
           // Send to opponent online
           socket.send('game_emoji', { roomCode: this.params.roomCode, emoji });
         }
+
+        // Collapse the popup after picking
+        if (emojiReactions) emojiReactions.classList.remove('open');
       });
     });
 
@@ -560,6 +589,10 @@ export class GameScreen {
     }
     if (this.boardRenderer && typeof this.boardRenderer.destroy === 'function') {
       this.boardRenderer.destroy();
+    }
+    if (this._closeEmoji) {
+      document.removeEventListener('click', this._closeEmoji);
+      this._closeEmoji = null;
     }
     
     // Turn off sockets
