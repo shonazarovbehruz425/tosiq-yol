@@ -5,8 +5,8 @@
   flex-direction: column;
   height: 100%;
   max-height: 100%;
-  padding: calc(8px + var(--safe-top)) calc(12px + var(--safe-right)) calc(12px + var(--safe-bottom)) calc(12px + var(--safe-left));
-  gap: 10px;
+  padding: calc(6px + var(--safe-top)) calc(12px + var(--safe-right)) calc(10px + var(--safe-bottom)) calc(12px + var(--safe-left));
+  gap: 6px;
   justify-content: space-between;
   overflow: hidden;
 }
@@ -16,30 +16,35 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 0;
+  padding: 0;
+  gap: 10px;
 }
 
 .game-logo-btn {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 800;
   color: var(--text-color);
   background: none;
   border: none;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .surrender-btn {
-  padding: 6px 12px;
+  padding: 7px 14px;
   font-size: 12px;
   font-weight: 700;
+  width: auto;
+  flex: 0 0 auto;
 }
 
 /* Player Panels */
 .players-status {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 4px;
+  gap: 8px;
+  margin-bottom: 0;
 }
 
 .player-panel {
@@ -49,7 +54,7 @@
   background-color: var(--card-bg);
   border: 1.5px solid var(--card-border);
   border-radius: var(--border-radius-md);
-  padding: 10px 12px;
+  padding: 6px 10px;
   position: relative;
   transition: all var(--transition-normal);
 }
@@ -73,19 +78,19 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .player-avatar {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background-color: rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  font-size: 13px;
+  font-size: 12px;
   color: white;
 }
 
@@ -142,9 +147,9 @@
 /* Turn Banner */
 .turn-banner {
   text-align: center;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
-  padding: 4px;
+  padding: 2px;
   border-radius: var(--border-radius-sm);
   background-color: rgba(255, 255, 255, 0.02);
 }
@@ -157,7 +162,7 @@
 .board-wrapper {
   width: 100%;
   aspect-ratio: 1 / 1;
-  max-width: min(100%, calc(var(--app-height) - 270px));
+  max-width: min(100%, calc(var(--app-height) - 220px));
   margin: 0 auto;
   position: relative;
   background-color: var(--board-bg);
@@ -572,18 +577,18 @@
   }
 
   .player-panel {
-    padding: 8px 10px;
+    padding: 6px 10px;
   }
 
   .game-logo-btn {
-    font-size: 15px;
+    font-size: 14px;
   }
 }
 
 /* Short viewports (small phones / landscape): compress vertical chrome */
 @media (max-height: 700px) {
   .game-container {
-    gap: 6px;
+    gap: 5px;
   }
 
   .players-status {
@@ -591,16 +596,17 @@
   }
 
   .player-info-top {
-    margin-bottom: 3px;
+    margin-bottom: 2px;
   }
 
   .turn-banner {
-    padding: 2px;
-    font-size: 13px;
+    padding: 1px;
+    font-size: 12px;
   }
 
   .board-wrapper {
     padding: 6px;
+    max-width: min(100%, calc(var(--app-height) - 200px));
   }
 }
 

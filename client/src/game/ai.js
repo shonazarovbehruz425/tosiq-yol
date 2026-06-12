@@ -13,16 +13,16 @@ export class QuoridorAI {
     } else if (difficulty === 'normal') {
       return this.getBestMoveDepth1(engine);
     } else if (difficulty === 'hard') {
-      // Hard: Minimax depth 2 (full candidate set)
-      return this.getBestMoveMinimax(engine, 2);
+      // Hard: iterative-deepening to depth 3 with the SMART evaluation, so it
+      // already reads the opponent's plan instead of just racing. No weakening
+      // random shuffle — it plays its best move every time.
+      return this.getBestMoveTimed(engine, { maxDepth: 3, timeMs: 1200, advanced: true });
     } else if (difficulty === 'master') {
-      // Master: iterative-deepening, advanced heuristic, reliably reaches depth 3.
-      // Smarter than the old Master (which used the plain heuristic).
-      return this.getBestMoveTimed(engine, { maxDepth: 3, timeMs: 900, advanced: true });
+      // Master: a full ply deeper than Hard (depth 4) — sees wall combinations.
+      return this.getBestMoveTimed(engine, { maxDepth: 4, timeMs: 2500, advanced: true });
     } else if (difficulty === 'grandmaster') {
-      // Grandmaster: iterative-deepening, advanced heuristic, reliably reaches
-      // depth 4 — a full ply deeper than Master for genuinely strong play.
-      return this.getBestMoveTimed(engine, { maxDepth: 4, timeMs: 1800, advanced: true });
+      // Grandmaster: depth 5 search — plans several moves ahead, near-optimal.
+      return this.getBestMoveTimed(engine, { maxDepth: 5, timeMs: 4500, advanced: true });
     }
     // Fallback
     return this.getBestMoveMinimax(engine, 2);
@@ -408,6 +408,9 @@ export class QuoridorAI {
         const [r, c] = key.split(',').map(Number);
         if (r >= 0 && r < size && c >= 0 && c < size) {
           const onOppPath = oppPathSet.has(key);
+          // In tight (deep) search, only keep the FORCING walls — those that sit
+          // on the opponent's shortest path. Everything else explodes the tree.
+          if (this.tightSearch && !onOppPath) return;
           if (engine.isValidWall(r, c, 'H')) {
             candidates.push({ type: 'wall', r, c, wallType: 'H', onOppPath });
           }
