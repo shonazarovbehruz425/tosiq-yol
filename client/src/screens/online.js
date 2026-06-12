@@ -41,9 +41,13 @@ export class OnlineScreen {
     let lobbiesHtml;
     if (this.lobbies.length === 0) {
       lobbiesHtml = `
-        <div class="card" style="text-align: center; padding: 30px; color: var(--text-secondary);">
-          <span style="font-size: 40px; display: block; margin-bottom: 12px;">🏟️</span>
-          <p>${t('noLobbies')}</p>
+        <div class="empty-lobbies">
+          <div class="empty-lobbies-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 12h4l2-6 4 12 2-6h8"/>
+            </svg>
+          </div>
+          <p class="empty-lobbies-text">${t('noLobbies')}</p>
         </div>
       `;
     } else {
@@ -52,11 +56,11 @@ export class OnlineScreen {
           ${this.lobbies.map(lobby => `
             <div class="lobby-card">
               <div class="lobby-info">
-                <span class="lobby-name">🏆 #${String(lobby.id).slice(0, 4).toUpperCase()}</span>
+                <span class="lobby-name">#${String(lobby.id).slice(0, 4).toUpperCase()}</span>
                 <div class="lobby-meta">
-                  <span class="badge" style="font-size: 11px;">🧭 ${lobby.boardSize}x${lobby.boardSize}</span>
-                  <span class="badge" style="font-size: 11px;">⏱️ ${lobby.totalTime ? lobby.totalTime/60 + 'm' : '∞'}</span>
-                  <span class="badge" style="font-size: 11px;">🚧 ${lobby.wallsCount}</span>
+                  <span class="lobby-chip">${lobby.boardSize}×${lobby.boardSize}</span>
+                  <span class="lobby-chip">${lobby.totalTime ? lobby.totalTime / 60 + 'm' : '∞'}</span>
+                  <span class="lobby-chip">${lobby.wallsCount} 🚧</span>
                 </div>
               </div>
               <button class="btn lobby-join-btn" data-lobby-id="${lobby.id}">
@@ -69,26 +73,66 @@ export class OnlineScreen {
     }
 
     return `
-      <div class="screen screen-enter">
-        <h2 class="menu-title" style="margin-top: 20px;">${t('onlineTitle')}</h2>
-
-        <div style="display: flex; gap: 10px; margin: 20px 0 10px;">
-          <button class="btn btn-primary" id="quick-play-btn" style="flex: 1;">
-            ⚡ ${t('quickPlay')}
-          </button>
-          <button class="btn btn-secondary" id="create-lobby-btn" style="flex: 1;">
-            ➕ ${t('createLobby')}
-          </button>
+      <div class="screen screen-enter online-screen">
+        <div class="online-header">
+          <div class="online-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M3 12h18"/>
+              <path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/>
+            </svg>
+          </div>
+          <div>
+            <h2 class="online-title">${t('onlineTitle')}</h2>
+            <p class="online-sub">${t('modeDuellDesc')}</p>
+          </div>
         </div>
 
-        <button class="btn btn-secondary" id="mode-btn" style="margin-bottom: 10px;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;vertical-align:-3px;">
-            <circle cx="12" cy="12" r="9"/>
-            <circle cx="12" cy="12" r="5"/>
-            <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
-          </svg>
-          &nbsp; ${t('modeCardTitle')}
-        </button>
+        <div class="online-actions">
+          <button class="play-action play-action-primary" id="quick-play-btn">
+            <span class="play-action-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" fill="currentColor" stroke="none"/>
+              </svg>
+            </span>
+            <span class="play-action-text">
+              <span class="play-action-title">${t('quickPlay')}</span>
+              <span class="play-action-desc">${t('quickPlayDesc')}</span>
+            </span>
+          </button>
+
+          <button class="play-action" id="create-lobby-btn">
+            <span class="play-action-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M12 8v8M8 12h8"/>
+              </svg>
+            </span>
+            <span class="play-action-text">
+              <span class="play-action-title">${t('createLobby')}</span>
+              <span class="play-action-desc">${t('createLobbyDesc')}</span>
+            </span>
+          </button>
+
+          <button class="play-action play-action-mode" id="mode-btn">
+            <span class="play-action-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"/>
+                <circle cx="12" cy="12" r="5"/>
+                <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+              </svg>
+            </span>
+            <span class="play-action-text">
+              <span class="play-action-title">${t('modeCardTitle')}</span>
+              <span class="play-action-desc">${t('modeCardDesc')}</span>
+            </span>
+            <span class="play-action-chevron">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 6l6 6-6 6"/>
+              </svg>
+            </span>
+          </button>
+        </div>
 
         <div class="section-title">${t('openGames')}</div>
         ${lobbiesHtml}

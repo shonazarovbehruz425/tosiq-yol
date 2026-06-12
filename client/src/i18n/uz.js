@@ -25,6 +25,8 @@ export const uz = {
   onlineTitle: "Onlayn Arena",
   createLobby: "Lobby Yaratish",
   quickPlay: "Tezkor O'yin",
+  quickPlayDesc: "Darhol raqib toping",
+  createLobbyDesc: "Ochiq xona ochib kutib turing",
   openGames: "Ochiq O'yinlar",
   waitingOpponent: "Raqib kutilmoqda...",
   join: "Qo'shilish",
