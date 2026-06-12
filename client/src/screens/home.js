@@ -139,22 +139,6 @@ export class HomeScreen {
             </span>
           </button>
 
-          <button class="menu-pill" id="friends-btn">
-            <span class="menu-pill-icon icon-friends">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
-            </span>
-            <span class="menu-pill-label">${t('friends')}</span>
-            <span class="menu-pill-chevron">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 6l6 6-6 6"/>
-              </svg>
-            </span>
-          </button>
-
           <button class="menu-pill" id="settings-btn">
             <span class="menu-pill-icon icon-settings">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -207,14 +191,6 @@ export class HomeScreen {
       leaderboardBtn.addEventListener('click', () => {
         haptic.impact('medium');
         this.router.navigate('leaderboard');
-      });
-    }
-
-    const friendsBtn = document.getElementById('friends-btn');
-    if (friendsBtn) {
-      friendsBtn.addEventListener('click', () => {
-        haptic.impact('medium');
-        this.router.navigate('friends');
       });
     }
 

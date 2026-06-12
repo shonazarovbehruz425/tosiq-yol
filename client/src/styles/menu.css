@@ -1625,6 +1625,20 @@ html.light-mode .qbg-grid {
 }
 .fr-remove-btn svg { width: 15px; height: 15px; }
 
+.fr-add-btn {
+  flex-shrink: 0;
+  width: 36px; height: 36px; border-radius: 10px;
+  display: grid; place-items: center;
+  background: rgba(52, 211, 153, 0.14);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  color: #34d399;
+  cursor: pointer;
+  transition: transform 0.12s ease, opacity var(--transition-fast);
+}
+.fr-add-btn svg { width: 17px; height: 17px; }
+.fr-add-btn:active { transform: scale(0.9); }
+.fr-add-btn.sent { opacity: 0.4; }
+
 .fr-accept-btn, .fr-decline-btn {
   flex-shrink: 0;
   padding: 7px 12px; border-radius: 10px;

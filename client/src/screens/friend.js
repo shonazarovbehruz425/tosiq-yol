@@ -50,7 +50,16 @@ export class FriendScreen {
       <div class="screen screen-enter">
         <h2 class="menu-title" style="margin-top: 20px;">${t('privateTitle')}</h2>
 
-        <button class="btn btn-primary invite-friend-btn" id="invite-friend-btn" style="margin: 24px 0 14px; padding: 16px;">
+        <button class="btn btn-primary friend-list-btn" id="friends-list-btn" style="margin: 24px 0 14px; padding: 16px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;flex-shrink:0;">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          &nbsp; ${t('friends')}
+        </button>
+
+        <button class="btn btn-secondary invite-friend-btn" id="invite-friend-btn" style="margin: 0 0 14px; padding: 16px;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;flex-shrink:0;">
             <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
             <circle cx="9" cy="7" r="4"/>
@@ -118,6 +127,14 @@ export class FriendScreen {
     }
 
     // Bind non-waiting elements
+    const friendsListBtn = document.getElementById('friends-list-btn');
+    if (friendsListBtn) {
+      friendsListBtn.addEventListener('click', () => {
+        haptic.impact('medium');
+        this.router.navigate('friends');
+      });
+    }
+
     const inviteBtn = document.getElementById('invite-friend-btn');
     if (inviteBtn) {
       inviteBtn.addEventListener('click', () => {

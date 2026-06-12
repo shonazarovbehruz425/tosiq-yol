@@ -184,6 +184,7 @@ export const uz = {
   inviteToPlay: "O'ynashga taklif",
   noFriends: "Hali do'stlaringiz yo'q. Reytingdan qo'shing!",
   noRequests: "Yangi so'rovlar yo'q",
+  suggestions: "Tavsiya etilgan o'yinchilar",
   incomingRequests: "Kelgan so'rovlar",
   outgoingRequests: "Yuborilgan so'rovlar",
   online: "Onlayn",

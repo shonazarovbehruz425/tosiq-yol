@@ -274,7 +274,7 @@ class JSONDatabase {
   // public profiles. `onlineIds` is an optional Set of online user ids.
   getFriendData(meId, onlineIds = null) {
     const me = this.data.users[String(meId)];
-    if (!me) return { friends: [], incoming: [], outgoing: [] };
+    if (!me) return { friends: [], incoming: [], outgoing: [], suggestions: [] };
     this._ensureFriendFields(me);
     const mark = (id) => {
       const p = this.publicProfile(id);
@@ -284,8 +284,33 @@ class JSONDatabase {
     return {
       friends: me.friends.map(mark),
       incoming: me.friendRequests.incoming.map(mark),
-      outgoing: me.friendRequests.outgoing.map(mark)
+      outgoing: me.friendRequests.outgoing.map(mark),
+      suggestions: this.getFriendSuggestions(meId, 10, onlineIds)
     };
+  }
+
+  // Up to `limit` random users to suggest as friends — excludes self, current
+  // friends, and anyone with a pending request either way.
+  getFriendSuggestions(meId, limit = 10, onlineIds = null) {
+    const me = this.data.users[String(meId)];
+    if (!me) return [];
+    this._ensureFriendFields(me);
+    const exclude = new Set([String(meId)]);
+    me.friends.forEach(id => exclude.add(String(id)));
+    me.friendRequests.incoming.forEach(id => exclude.add(String(id)));
+    me.friendRequests.outgoing.forEach(id => exclude.add(String(id)));
+
+    const pool = Object.values(this.data.users).filter(u => !exclude.has(String(u.id)));
+    // Fisher–Yates shuffle, then take `limit`.
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, limit).map(u => {
+      const p = this.publicProfile(u.id);
+      p.online = onlineIds ? (onlineIds.has(Number(u.id)) || onlineIds.has(String(u.id))) : false;
+      return p;
+    });
   }
 
   // Set the user's country resolved from their IP (code: ISO-2, e.g. "UZ")

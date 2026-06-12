@@ -15,11 +15,13 @@ export class FriendsScreen {
     this.router = router;
     this.params = params || {};
     this.tab = this.params.tab || 'friends';
-    this.data = null; // { friends, incoming, outgoing }
+    this.data = null; // { friends, incoming, outgoing, suggestions }
     this.loaded = false;
+    this._bound = false;
 
     this.onFriendData = this.onFriendData.bind(this);
     this.onInviteResult = this.onInviteResult.bind(this);
+    this.onFriendResult = this.onFriendResult.bind(this);
   }
 
   render() {
@@ -65,10 +67,44 @@ export class FriendsScreen {
 
   renderFriends() {
     const friends = this.data.friends || [];
+    const suggestions = this.data.suggestions || [];
+    let html = '';
+
     if (friends.length === 0) {
-      return `<div class="fr-empty">${t('noFriends')}</div>`;
+      html += `<div class="fr-empty">${t('noFriends')}</div>`;
+    } else {
+      html += `<div class="fr-list">${friends.map(f => this.friendRow(f)).join('')}</div>`;
     }
-    return `<div class="fr-list">${friends.map(f => this.friendRow(f)).join('')}</div>`;
+
+    // Random people-you-may-know suggestions from the bot's users.
+    if (suggestions.length > 0) {
+      html += `<div class="fr-section-title">${t('suggestions')}</div>`;
+      html += `<div class="fr-list">${suggestions.map(s => this.suggestionRow(s)).join('')}</div>`;
+    }
+    return html;
+  }
+
+  suggestionRow(s) {
+    const flag = flagFromCode(s.country_code);
+    const status = s.online
+      ? `<span class="fr-status on"><span class="odot"></span>${t('online')}</span>`
+      : `<span class="fr-status">${t('offline')}</span>`;
+    return `
+      <div class="fr-row">
+        <span class="fr-avatar">${this.initial(s.name)}</span>
+        <span class="fr-meta">
+          <span class="fr-name">${this.esc(s.name)} ${flag ? `<span class="fr-flag">${flag}</span>` : ''}</span>
+          ${status}
+        </span>
+        <button class="fr-add-btn" data-add="${s.id}" title="${t('addFriend')}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M19 8v6M22 11h-6"/>
+          </svg>
+        </button>
+      </div>
+    `;
   }
 
   friendRow(f) {
@@ -151,23 +187,44 @@ export class FriendsScreen {
   }
 
   afterRender() {
-    socket.on('friend_data', this.onFriendData);
-    socket.on('invite_result', this.onInviteResult);
-    socket.connect();
-    socket.send('get_friends');
-    this._retry = setTimeout(() => socket.send('get_friends'), 800);
+    // Bind socket listeners only once (reRenderActiveScreen re-runs afterRender).
+    if (!this._bound) {
+      socket.on('friend_data', this.onFriendData);
+      socket.on('invite_result', this.onInviteResult);
+      socket.on('friend_request_result', this.onFriendResult);
+      this._bound = true;
+      socket.connect();
+      socket.send('get_friends');
+      this._retry = setTimeout(() => socket.send('get_friends'), 800);
+    }
 
     const backBtn = document.getElementById('back-btn');
     if (backBtn) backBtn.addEventListener('click', () => { haptic.impact('light'); this.router.back(); });
 
     document.querySelectorAll('.fr-tab').forEach(btn => {
       btn.addEventListener('click', () => {
+        if (this.tab === btn.dataset.tab) return;
         this.tab = btn.dataset.tab;
         haptic.selection();
-        this.router.reRenderActiveScreen();
+        this.refreshBody();
       });
     });
 
+    this.bindRowActions();
+  }
+
+  // Re-render just the body + tabs without re-running socket setup.
+  refreshBody() {
+    const body = document.getElementById('fr-body');
+    if (body) body.innerHTML = this.renderBody();
+    // Update tab active state + badge
+    const incomingCount = this.data ? this.data.incoming.length : 0;
+    document.querySelectorAll('.fr-tab').forEach(btn => {
+      btn.classList.toggle('on', btn.dataset.tab === this.tab);
+      if (btn.dataset.tab === 'requests') {
+        btn.innerHTML = `${t('tabRequests')}${incomingCount ? ` <span class="fr-badge">${incomingCount}</span>` : ''}`;
+      }
+    });
     this.bindRowActions();
   }
 
@@ -178,6 +235,14 @@ export class FriendsScreen {
         haptic.impact('medium');
         socket.send('invite_to_game', { userId: btn.dataset.id });
         Toast.info(t('waitingFriendAccept'));
+      });
+    });
+    document.querySelectorAll('.fr-add-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        haptic.impact('medium');
+        socket.send('send_friend_request', { userId: btn.dataset.add });
+        btn.classList.add('sent');
+        btn.disabled = true;
       });
     });
     document.querySelectorAll('[data-accept]').forEach(btn => {
@@ -201,10 +266,17 @@ export class FriendsScreen {
   }
 
   onFriendData(data) {
-    this.data = data || { friends: [], incoming: [], outgoing: [] };
+    this.data = data || { friends: [], incoming: [], outgoing: [], suggestions: [] };
     this.loaded = true;
-    // Re-render to refresh tab badge counts and lists.
-    this.router.reRenderActiveScreen();
+    // Refresh only the body (don't re-run socket setup → avoids duplicate listeners).
+    this.refreshBody();
+  }
+
+  onFriendResult(res) {
+    if (!res) return;
+    if (res.status === 'already_friends') Toast.info(t('alreadyFriends'));
+    else if (res.status === 'accepted') Toast.success(t('friendAdded'));
+    else if (res.status === 'sent') Toast.success(t('friendRequestSent'));
   }
 
   onInviteResult(res) {
@@ -213,7 +285,7 @@ export class FriendsScreen {
       return;
     }
     if (res && res.ok && res.roomCode) {
-      // Wait in a lightweight waiting room until the friend accepts.
+      // Wait until the friend accepts; then drop into the game.
       const onMatch = (m) => {
         socket.off('match_found', onMatch);
         this.router.navigate('game', {
@@ -235,6 +307,7 @@ export class FriendsScreen {
   destroy() {
     socket.off('friend_data', this.onFriendData);
     socket.off('invite_result', this.onInviteResult);
+    socket.off('friend_request_result', this.onFriendResult);
     if (this._retry) { clearTimeout(this._retry); this._retry = null; }
   }
 }
