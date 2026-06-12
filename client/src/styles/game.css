@@ -5,8 +5,8 @@
   flex-direction: column;
   height: 100%;
   max-height: 100%;
-  padding: calc(6px + var(--safe-top)) calc(12px + var(--safe-right)) calc(10px + var(--safe-bottom)) calc(12px + var(--safe-left));
-  gap: 6px;
+  padding: calc(6px + var(--safe-top)) calc(6px + var(--safe-right)) calc(8px + var(--safe-bottom)) calc(6px + var(--safe-left));
+  gap: 5px;
   justify-content: space-between;
   overflow: hidden;
 }
@@ -16,12 +16,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0;
+  padding: 0 4px;
   gap: 10px;
 }
 
 .game-logo-btn {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 800;
   color: var(--text-color);
   background: none;
@@ -32,7 +32,7 @@
 }
 
 .surrender-btn {
-  padding: 7px 14px;
+  padding: 6px 14px;
   font-size: 12px;
   font-weight: 700;
   width: auto;
@@ -45,6 +45,7 @@
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 0;
+  padding: 0 2px;
 }
 
 .player-panel {
@@ -54,7 +55,7 @@
   background-color: var(--card-bg);
   border: 1.5px solid var(--card-border);
   border-radius: var(--border-radius-md);
-  padding: 6px 10px;
+  padding: 5px 9px;
   position: relative;
   transition: all var(--transition-normal);
 }
@@ -77,20 +78,20 @@
 .player-info-top {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: 7px;
+  margin-bottom: 3px;
 }
 
 .player-avatar {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background-color: rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  font-size: 12px;
+  font-size: 11px;
   color: white;
 }
 
@@ -162,14 +163,14 @@
 .board-wrapper {
   width: 100%;
   aspect-ratio: 1 / 1;
-  max-width: min(100%, calc(var(--app-height) - 220px));
+  max-width: min(100%, calc(var(--app-height) - 195px));
   margin: 0 auto;
   position: relative;
   background-color: var(--board-bg);
   border-radius: var(--border-radius-md);
   border: 2px solid var(--board-border);
   box-shadow: var(--board-shadow);
-  padding: 8px;
+  padding: 7px;
   overflow: hidden;
 }
 
@@ -234,8 +235,8 @@
 
 /* Pawns */
 .pawn {
-  width: 70%;
-  height: 70%;
+  width: 82%;
+  height: 82%;
   border-radius: 50%;
   position: absolute;
   z-index: 10;
@@ -612,6 +613,6 @@
 
 /* Pawns get a touch-friendly minimum but scale with cell */
 .pawn {
-  min-width: 18px;
-  min-height: 18px;
+  min-width: 22px;
+  min-height: 22px;
 }
