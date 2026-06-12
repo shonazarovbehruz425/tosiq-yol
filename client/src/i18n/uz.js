@@ -212,5 +212,20 @@ export const uz = {
   // In-game chat
   chat: "Chat",
   typeMessage: "Xabar yozing...",
-  send: "Yuborish"
+  send: "Yuborish",
+
+  // Shop
+  shop: "Do'kon",
+  shopTitle: "Jamoa Do'koni",
+  shopSubtitle: "Sevimli jamoangiz krestini tanlang",
+  coins: "Tangalar",
+  buy: "Sotib olish",
+  owned: "Sotib olingan",
+  equip: "Tanlash",
+  equipped: "Tanlangan",
+  buySuccess: "Sotib olindi!",
+  equipSuccess: "Jihozlandi!",
+  notEnoughCoins: "Tangalar yetarli emas",
+  shopNotRegistered: "Avval botga kirib Start bosing",
+  shopHint: "Onlayn o'yinda yutib tanga ishlang"
 };

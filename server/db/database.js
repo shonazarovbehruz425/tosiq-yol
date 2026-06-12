@@ -155,6 +155,60 @@ class JSONDatabase {
     return u;
   }
 
+  // ===== Shop: coins & pawn skins =====
+
+  _ensureShopFields(u) {
+    if (!u) return;
+    if (typeof u.coins !== 'number') u.coins = 100; // small starting balance
+    if (!Array.isArray(u.ownedSkins)) u.ownedSkins = ['default_red', 'default_blue'];
+    if (!u.equippedSkin) u.equippedSkin = '';
+  }
+
+  getShopState(telegramId) {
+    const u = this.data.users[String(telegramId)];
+    if (!u) return null;
+    this._ensureShopFields(u);
+    return {
+      coins: u.coins,
+      owned: u.ownedSkins.slice(),
+      equipped: u.equippedSkin || ''
+    };
+  }
+
+  // Award coins (e.g. for winning). Returns the new balance, or null if unknown.
+  addCoins(telegramId, amount) {
+    const u = this.data.users[String(telegramId)];
+    if (!u) return null;
+    this._ensureShopFields(u);
+    u.coins = Math.max(0, u.coins + (amount | 0));
+    this.save();
+    return u.coins;
+  }
+
+  // Buy a skin. Returns { ok, error, coins, owned }.
+  buySkin(telegramId, skinId, price) {
+    const u = this.data.users[String(telegramId)];
+    if (!u) return { ok: false, error: 'not_registered' };
+    this._ensureShopFields(u);
+    if (u.ownedSkins.includes(skinId)) return { ok: false, error: 'owned', coins: u.coins, owned: u.ownedSkins };
+    if (u.coins < price) return { ok: false, error: 'insufficient', coins: u.coins, owned: u.ownedSkins };
+    u.coins -= price;
+    u.ownedSkins.push(skinId);
+    this.save();
+    return { ok: true, coins: u.coins, owned: u.ownedSkins.slice() };
+  }
+
+  // Equip an owned skin. Returns { ok, error, equipped }.
+  equipSkin(telegramId, skinId) {
+    const u = this.data.users[String(telegramId)];
+    if (!u) return { ok: false, error: 'not_registered' };
+    this._ensureShopFields(u);
+    if (skinId && !u.ownedSkins.includes(skinId)) return { ok: false, error: 'not_owned' };
+    u.equippedSkin = skinId || '';
+    this.save();
+    return { ok: true, equipped: u.equippedSkin };
+  }
+
   // ===== Friend system =====
   // Each user gets: friends: [ids], friendRequests: { incoming: [ids], outgoing: [ids] }
 

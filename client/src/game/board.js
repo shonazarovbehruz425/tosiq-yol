@@ -147,6 +147,12 @@ export class BoardRenderer {
       if (cell) {
         const pawn = document.createElement('div');
         pawn.className = `pawn pawn-${colors[i]}`;
+        // Equipped team crest (if any) for this side.
+        const skinId = this.pawnSkins && this.pawnSkins[i];
+        if (skinId && this._crestSvg) {
+          pawn.classList.add('pawn-skinned');
+          pawn.innerHTML = this._crestSvg(skinId, 999); // size via CSS (100%)
+        }
         cell.appendChild(pawn);
         this.pawnElements[i] = pawn;
       }

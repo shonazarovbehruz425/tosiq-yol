@@ -9,6 +9,7 @@ import { BoardRenderer } from '../game/board.js';
 import { GameTimer } from '../game/timer.js';
 import { FloatingEmoji } from '../game/animations.js';
 import { REACTIONS, reactionArt } from '../game/reactions.js';
+import { crestSvg } from '../game/skins.js';
 import { Modal } from '../components/modal.js';
 import { Toast } from '../components/toast.js';
 
@@ -189,6 +190,21 @@ export class GameScreen {
     // Fog of War uses blind-move highlights (all neighbours, walls hidden).
     this.boardRenderer.fogMode = this.fog;
     if (this.fog) this.boardRenderer.updateValidMoves(true);
+
+    // Pawn skins: render team crests. Hook the crest renderer and ask the
+    // server for the local player's equipped skin.
+    this.boardRenderer._crestSvg = crestSvg;
+    this.boardRenderer.pawnSkins = [null, null];
+    this._onShopState = (data) => {
+      if (data && data.equipped) {
+        this.boardRenderer.pawnSkins[this.mySide] = data.equipped;
+        this.boardRenderer.updatePawns();
+        this.applyFog();
+      }
+    };
+    socket.on('shop_state', this._onShopState);
+    socket.connect();
+    socket.send('get_shop');
 
     // Chaos: draw the power-up tiles.
     if (this.chaos) this.boardRenderer.drawPowerups();
@@ -830,6 +846,10 @@ export class GameScreen {
     if (this._closeEmoji) {
       document.removeEventListener('click', this._closeEmoji);
       this._closeEmoji = null;
+    }
+    if (this._onShopState) {
+      socket.off('shop_state', this._onShopState);
+      this._onShopState = null;
     }
     
     // Turn off sockets

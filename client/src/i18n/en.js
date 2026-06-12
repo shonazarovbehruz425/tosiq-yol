@@ -212,5 +212,20 @@ export const en = {
   // In-game chat
   chat: "Chat",
   typeMessage: "Type a message...",
-  send: "Send"
+  send: "Send",
+
+  // Shop
+  shop: "Shop",
+  shopTitle: "Team Shop",
+  shopSubtitle: "Pick your favorite team crest",
+  coins: "Coins",
+  buy: "Buy",
+  owned: "Owned",
+  equip: "Equip",
+  equipped: "Equipped",
+  buySuccess: "Purchased!",
+  equipSuccess: "Equipped!",
+  notEnoughCoins: "Not enough coins",
+  shopNotRegistered: "Open the bot and press Start first",
+  shopHint: "Win online games to earn coins"
 };

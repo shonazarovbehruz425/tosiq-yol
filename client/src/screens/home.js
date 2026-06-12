@@ -123,6 +123,21 @@ export class HomeScreen {
             </span>
           </button>
 
+          <button class="menu-pill" id="shop-btn">
+            <span class="menu-pill-icon icon-shop">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 2 3 6v14a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V6l-3-4z"/>
+                <path d="M3 6h18M16 10a4 4 0 0 1-8 0"/>
+              </svg>
+            </span>
+            <span class="menu-pill-label">${t('shop')}</span>
+            <span class="menu-pill-chevron">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 6l6 6-6 6"/>
+              </svg>
+            </span>
+          </button>
+
           <button class="menu-pill" id="settings-btn">
             <span class="menu-pill-icon icon-settings">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -175,6 +190,14 @@ export class HomeScreen {
       leaderboardBtn.addEventListener('click', () => {
         haptic.impact('medium');
         this.router.navigate('leaderboard');
+      });
+    }
+
+    const shopBtn = document.getElementById('shop-btn');
+    if (shopBtn) {
+      shopBtn.addEventListener('click', () => {
+        haptic.impact('medium');
+        this.router.navigate('shop');
       });
     }
 

@@ -141,6 +141,25 @@ export function handleWebSocketConnection(ws, wss, request) {
         return;
       }
 
+      // ===== Shop: coins & pawn skins =====
+      if (type === 'get_shop') {
+        const state = db.getShopState(userProfile.id);
+        ws.send(JSON.stringify({ type: 'shop_state', payload: state || { coins: 0, owned: [], equipped: '' } }));
+        return;
+      }
+
+      if (type === 'buy_skin') {
+        const res = db.buySkin(userProfile.id, payload && payload.skinId, (payload && payload.price) | 0);
+        ws.send(JSON.stringify({ type: 'shop_result', payload: { action: 'buy', skinId: payload && payload.skinId, ...res } }));
+        return;
+      }
+
+      if (type === 'equip_skin') {
+        const res = db.equipSkin(userProfile.id, payload && payload.skinId);
+        ws.send(JSON.stringify({ type: 'shop_result', payload: { action: 'equip', skinId: payload && payload.skinId, ...res } }));
+        return;
+      }
+
       // ===== Friend system =====
       const pushFriendData = (uid) => {
         const data = db.getFriendData(uid, presence.onlineIds());

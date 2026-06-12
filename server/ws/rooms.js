@@ -130,6 +130,13 @@ export class Room {
     // Save to DB
     if (winningPlayer && losingPlayer) {
       db.updateStats(winningPlayer.id, losingPlayer.id, false);
+      // Reward coins for the shop: winner gets more, loser a small consolation.
+      try {
+        db.addCoins(winningPlayer.id, 30);
+        db.addCoins(losingPlayer.id, 10);
+        this.sendTo(winningPlayer.id, 'coins_awarded', { amount: 30 });
+        this.sendTo(losingPlayer.id, 'coins_awarded', { amount: 10 });
+      } catch (e) { /* ignore */ }
       db.saveGame({
         playerRed: this.players.find(p => this.playerSides[p.id] === 0).id,
         playerBlue: this.players.find(p => this.playerSides[p.id] === 1).id,
