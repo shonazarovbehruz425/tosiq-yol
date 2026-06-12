@@ -3,6 +3,7 @@ import { socket } from '../core/websocket.js';
 import { haptic } from '../core/telegram.js';
 import { Toast } from '../components/toast.js';
 import { shopSkins, crestSvg, getSkin } from '../game/skins.js';
+import { coinSvg, CURRENCY } from '../game/currency.js';
 
 export class ShopScreen {
   constructor(router, params) {
@@ -33,8 +34,9 @@ export class ShopScreen {
             </div>
           </div>
           <div class="coin-badge" id="coin-badge">
-            <span class="coin-ico">🪙</span>
+            ${coinSvg(20)}
             <span id="coin-amount">—</span>
+            <span class="coin-code">${CURRENCY.code}</span>
           </div>
         </div>
 
@@ -72,7 +74,7 @@ export class ShopScreen {
       action = `<button class="shop-btn shop-equip" data-equip="${s.id}">${t('equip')}</button>`;
     } else {
       action = `<button class="shop-btn shop-buy" data-buy="${s.id}" data-price="${s.price}">
-        <span class="coin-ico">🪙</span> ${s.price}
+        ${coinSvg(15)} ${s.price}
       </button>`;
     }
     return `

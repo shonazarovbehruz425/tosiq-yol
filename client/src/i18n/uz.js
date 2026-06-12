@@ -218,14 +218,14 @@ export const uz = {
   shop: "Do'kon",
   shopTitle: "Jamoa Do'koni",
   shopSubtitle: "Sevimli jamoangiz krestini tanlang",
-  coins: "Tangalar",
+  coins: "WAYZ",
   buy: "Sotib olish",
   owned: "Sotib olingan",
   equip: "Tanlash",
   equipped: "Tanlangan",
   buySuccess: "Sotib olindi!",
   equipSuccess: "Jihozlandi!",
-  notEnoughCoins: "Tangalar yetarli emas",
+  notEnoughCoins: "WAYZ yetarli emas",
   shopNotRegistered: "Avval botga kirib Start bosing",
-  shopHint: "Onlayn o'yinda yutib tanga ishlang"
+  shopHint: "Onlayn o'yinda yutib WAYZ ishlang"
 };

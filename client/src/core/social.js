@@ -6,6 +6,7 @@ import { Modal } from '../components/modal.js';
 import { haptic } from './telegram.js';
 import { t } from './i18n.js';
 import { router } from './router.js';
+import { CURRENCY } from '../game/currency.js';
 
 let installed = false;
 
@@ -87,6 +88,12 @@ export function initSocial() {
     const name = (data && data.by && data.by.name) || 'Player';
     haptic.notification('error');
     Toast.warning(t('inviteDeclined', { name }));
+  });
+
+  // WAYZ awarded (e.g. after an online game)
+  socket.on('coins_awarded', (data) => {
+    const amount = data && data.amount;
+    if (amount) Toast.success(`+${amount} ${CURRENCY.code}`);
   });
 }
 

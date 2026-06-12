@@ -218,14 +218,14 @@ export const en = {
   shop: "Shop",
   shopTitle: "Team Shop",
   shopSubtitle: "Pick your favorite team crest",
-  coins: "Coins",
+  coins: "WAYZ",
   buy: "Buy",
   owned: "Owned",
   equip: "Equip",
   equipped: "Equipped",
   buySuccess: "Purchased!",
   equipSuccess: "Equipped!",
-  notEnoughCoins: "Not enough coins",
+  notEnoughCoins: "Not enough WAYZ",
   shopNotRegistered: "Open the bot and press Start first",
-  shopHint: "Win online games to earn coins"
+  shopHint: "Win online games to earn WAYZ"
 };
