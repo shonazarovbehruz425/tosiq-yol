@@ -191,12 +191,16 @@ export class GameScreen {
     this.boardRenderer.fogMode = this.fog;
     if (this.fog) this.boardRenderer.updateValidMoves(true);
 
-    // Pawn skins: render team crests. Hook the crest renderer and ask the
-    // server for the local player's equipped skin.
+    // Pawn skins: render team crests. Apply skins passed in (online opponent +
+    // me), and also ask the server for my equipped skin (bot games / fallback).
     this.boardRenderer._crestSvg = crestSvg;
     this.boardRenderer.pawnSkins = [null, null];
+    if (this.params.mySkin) this.boardRenderer.pawnSkins[this.mySide] = this.params.mySkin;
+    if (this.params.opponentSkin) this.boardRenderer.pawnSkins[1 - this.mySide] = this.params.opponentSkin;
+    if (this.params.mySkin || this.params.opponentSkin) this.boardRenderer.updatePawns();
+
     this._onShopState = (data) => {
-      if (data && data.equipped) {
+      if (data && data.equipped && !this.boardRenderer.pawnSkins[this.mySide]) {
         this.boardRenderer.pawnSkins[this.mySide] = data.equipped;
         this.boardRenderer.updatePawns();
         this.applyFog();
@@ -827,6 +831,8 @@ export class GameScreen {
       fog: this.fog,
       chaos: this.chaos,
       seed: this.params.seed,
+      mySkin: this.params.mySkin,
+      opponentSkin: this.params.opponentSkin,
       totalTime: this.params.totalTime || 0,
       blitzTime: this.params.blitzTime || 0,
       difficulty: this.params.difficulty,

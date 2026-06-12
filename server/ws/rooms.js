@@ -60,6 +60,14 @@ export class Room {
 
     this.isStarted = true;
 
+    // Resolve each player's equipped pawn skin from the DB (for online crests).
+    const skinOf = (id) => {
+      try {
+        const st = db.getShopState(id);
+        return (st && st.equipped) || '';
+      } catch (e) { return ''; }
+    };
+
     // Notify players that game starts
     this.players.forEach(player => {
       const mySide = this.playerSides[player.id];
@@ -69,10 +77,12 @@ export class Room {
         roomCode: this.roomCode,
         side: mySide,
         config: this.config,
+        mySkin: skinOf(player.id),
         opponent: {
           id: opponent.id,
           first_name: opponent.first_name,
-          username: opponent.username
+          username: opponent.username,
+          skin: skinOf(opponent.id)
         }
       });
     });

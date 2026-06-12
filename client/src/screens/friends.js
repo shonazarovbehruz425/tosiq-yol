@@ -210,6 +210,8 @@ export class FriendsScreen {
           blitzTime: m.config.blitzTime,
           wallsCount: m.config.wallsCount,
           mode: m.config.mode,
+          mySkin: m.mySkin,
+          opponentSkin: m.opponent && m.opponent.skin,
           opponent: m.opponent
         });
       };

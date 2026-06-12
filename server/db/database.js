@@ -159,7 +159,7 @@ class JSONDatabase {
 
   _ensureShopFields(u) {
     if (!u) return;
-    if (typeof u.coins !== 'number') u.coins = 100; // small starting balance
+    if (typeof u.coins !== 'number') u.coins = 1000; // generous starting balance
     if (!Array.isArray(u.ownedSkins)) u.ownedSkins = ['default_red', 'default_blue'];
     if (!u.equippedSkin) u.equippedSkin = '';
   }

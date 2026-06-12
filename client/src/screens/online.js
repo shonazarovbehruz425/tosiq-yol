@@ -226,6 +226,8 @@ export class OnlineScreen {
       blitzTime: data.config.blitzTime,
       wallsCount: data.config.wallsCount,
       mode: data.config.mode,
+      mySkin: data.mySkin,
+      opponentSkin: data.opponent && data.opponent.skin,
       opponent: data.opponent
     });
   }

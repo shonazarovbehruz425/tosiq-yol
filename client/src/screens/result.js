@@ -214,6 +214,8 @@ export class ResultScreen {
       fog: this.params.fog,
       chaos: this.params.chaos,
       seed: this.params.seed,
+      mySkin: this.params.mySkin,
+      opponentSkin: this.params.opponentSkin,
       opponent: this.params.opponent
     });
   }

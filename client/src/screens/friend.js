@@ -211,6 +211,8 @@ export class FriendScreen {
       totalTime: data.config.totalTime,
       blitzTime: data.config.blitzTime,
       wallsCount: data.config.wallsCount,
+      mySkin: data.mySkin,
+      opponentSkin: data.opponent && data.opponent.skin,
       opponent: data.opponent
     });
   }
