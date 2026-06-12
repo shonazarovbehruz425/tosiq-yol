@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { getOverview, getUsers, getGames, deleteUser } from './api.js';
+import { getOverview, getUsers, getGames, deleteUser, setCoins } from './api.js';
 import { country } from './flag.js';
 import MessageModal from './MessageModal.jsx';
 import MetricModal from './MetricModal.jsx';
@@ -69,6 +69,9 @@ export default function Dashboard({ onLogout, onExpire }) {
   const [delUser, setDelUser] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [broadcasting, setBroadcasting] = useState(false);
+  const [coinUser, setCoinUser] = useState(null);
+  const [coinInput, setCoinInput] = useState('');
+  const [coinBusy, setCoinBusy] = useState(false);
   const timer = useRef(null);
 
   const load = async () => {
@@ -232,7 +235,7 @@ export default function Dashboard({ onLogout, onExpire }) {
             : (
               <div className="panel-scroll">
                 <table>
-                  <thead><tr><th>Name</th><th>Username</th><th>Telegram ID</th><th>Country</th><th>Status</th><th></th></tr></thead>
+                  <thead><tr><th>Name</th><th>Username</th><th>Telegram ID</th><th>Country</th><th>WAYZ</th><th>Status</th><th></th></tr></thead>
                   <tbody>
                     {users.map((u) => {
                       const c = country(u);
@@ -243,12 +246,18 @@ export default function Dashboard({ onLogout, onExpire }) {
                           <td className="mono">{u.id}</td>
                           <td><span className="country">{c.flag} <span className="muted">{c.name}</span></span></td>
                           <td>
+                            <span className="wayz-cell">🪙 {u.coins ?? 0}</span>
+                          </td>
+                          <td>
                             {u.online
                               ? <span className="status-online"><span className="odot" /> Online</span>
                               : <span className="status-offline">Offline</span>}
                           </td>
                           <td>
                             <div className="row-actions">
+                              <button className="coin-btn" onClick={() => { setCoinUser(u); setCoinInput(String(u.coins ?? 0)); }} title="Edit WAYZ">
+                                🪙
+                              </button>
                               <button className="msg-btn" onClick={() => setMsgUser(u)} title="Send message">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                   <path d="M22 2 11 13" />
@@ -283,6 +292,84 @@ export default function Dashboard({ onLogout, onExpire }) {
       {msgUser && <MessageModal user={msgUser} onClose={() => setMsgUser(null)} />}
       {metric && <MetricModal metric={metric} onClose={() => setMetric(null)} />}
       {broadcasting && <BroadcastModal totalUsers={users.length} onClose={() => setBroadcasting(false)} />}
+
+      {coinUser && (
+        <div className="modal-overlay" onClick={() => !coinBusy && setCoinUser(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <div className="modal-title">Edit WAYZ balance</div>
+                <div className="modal-sub">{coinUser.first_name || 'user'} · ID {coinUser.id}</div>
+              </div>
+              <button className="modal-x" onClick={() => !coinBusy && setCoinUser(null)}>✕</button>
+            </div>
+            <p className="del-warn">Current balance: 🪙 {coinUser.coins ?? 0} WAYZ</p>
+            <input
+              type="number"
+              className="coin-input"
+              value={coinInput}
+              onChange={(e) => setCoinInput(e.target.value)}
+              placeholder="New balance"
+              autoFocus
+            />
+            <div className="modal-actions">
+              <button className="btn-ghost" onClick={() => !coinBusy && setCoinUser(null)} disabled={coinBusy}>Cancel</button>
+              <button className="btn-send" disabled={coinBusy} onClick={async () => {
+                const val = parseInt(coinInput, 10);
+                if (Number.isNaN(val) || val < 0) return;
+                setCoinBusy(true);
+                const res = await setCoins(coinUser.id, { set: val });
+                setCoinBusy(false);
+                if (res.ok) {
+                  setUsers((prev) => prev.map(x => x.id === coinUser.id ? { ...x, coins: res.coins } : x));
+                  setCoinUser(null);
+                } else {
+                  alert(res.error || 'Failed to update');
+                }
+              }}>{coinBusy ? 'Saving…' : 'Save'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {coinUser && (
+        <div className="modal-overlay" onClick={() => !coinBusy && setCoinUser(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <div className="modal-title">Edit WAYZ balance</div>
+                <div className="modal-sub">{coinUser.first_name || 'user'} · ID {coinUser.id}</div>
+              </div>
+              <button className="modal-x" onClick={() => !coinBusy && setCoinUser(null)}>✕</button>
+            </div>
+            <p className="del-warn">Current balance: 🪙 {coinUser.coins ?? 0} WAYZ</p>
+            <input
+              type="number"
+              className="coin-input"
+              value={coinInput}
+              onChange={(e) => setCoinInput(e.target.value)}
+              placeholder="New balance"
+              autoFocus
+            />
+            <div className="modal-actions">
+              <button className="btn-ghost" onClick={() => !coinBusy && setCoinUser(null)} disabled={coinBusy}>Cancel</button>
+              <button className="btn-send" disabled={coinBusy} onClick={async () => {
+                const val = parseInt(coinInput, 10);
+                if (Number.isNaN(val) || val < 0) return;
+                setCoinBusy(true);
+                const res = await setCoins(coinUser.id, { set: val });
+                setCoinBusy(false);
+                if (res.ok) {
+                  setUsers((prev) => prev.map(x => x.id === coinUser.id ? { ...x, coins: res.coins } : x));
+                  setCoinUser(null);
+                } else {
+                  alert(res.error || 'Failed to update');
+                }
+              }}>{coinBusy ? 'Saving…' : 'Save'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {delUser && (
         <div className="modal-overlay" onClick={() => !deleting && setDelUser(null)}>

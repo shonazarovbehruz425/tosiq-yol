@@ -540,9 +540,22 @@ class JSONDatabase {
         wins: u.wins,
         losses: u.losses,
         draws: u.draws,
+        coins: typeof u.coins === 'number' ? u.coins : 0,
+        skinsOwned: Array.isArray(u.ownedSkins) ? u.ownedSkins.length : 0,
+        equippedSkin: u.equippedSkin || '',
         created_at: u.created_at,
         last_seen: u.last_seen
       }));
+  }
+
+  // Admin: set a user's WAYZ balance to an exact amount. Returns new balance or null.
+  setCoins(telegramId, amount) {
+    const u = this.data.users[String(telegramId)];
+    if (!u) return null;
+    this._ensureShopFields(u);
+    u.coins = Math.max(0, amount | 0);
+    this.save();
+    return u.coins;
   }
 
   // Most recent games (newest first), with player names resolved.

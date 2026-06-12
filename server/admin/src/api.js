@@ -74,3 +74,16 @@ export async function deleteUser(userId) {
   const data = await r.json().catch(() => ({}));
   return { ok: r.ok, error: data.error };
 }
+
+export async function setCoins(userId, { set, add } = {}) {
+  const body = { userId };
+  if (typeof set === 'number') body.set = set;
+  if (typeof add === 'number') body.add = add;
+  const r = await fetch('/api/admin/set-coins', opts({
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }));
+  const data = await r.json().catch(() => ({}));
+  return { ok: r.ok, error: data.error, coins: data.coins };
+}

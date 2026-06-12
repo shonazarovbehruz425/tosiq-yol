@@ -115,6 +115,26 @@ app.post('/api/admin/broadcast', requireAdmin, async (req, res) => {
   }
 });
 
+// Adjust a user's WAYZ balance. Body: { userId, set?: number, add?: number }
+app.post('/api/admin/set-coins', requireAdmin, (req, res) => {
+  try {
+    const { userId, set, add } = req.body || {};
+    if (!userId) return res.status(400).json({ error: 'userId is required' });
+    let coins;
+    if (typeof add === 'number') {
+      coins = db.addCoins(userId, add);
+    } else if (typeof set === 'number') {
+      coins = db.setCoins(userId, set);
+    } else {
+      return res.status(400).json({ error: 'Provide "set" or "add" amount' });
+    }
+    if (coins === null) return res.status(404).json({ error: 'User not found' });
+    return res.json({ ok: true, coins });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Delete a user
 app.post('/api/admin/delete-user', requireAdmin, (req, res) => {
   try {
