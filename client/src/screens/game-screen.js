@@ -8,6 +8,7 @@ import { QuoridorAI } from '../game/ai.js';
 import { BoardRenderer } from '../game/board.js';
 import { GameTimer } from '../game/timer.js';
 import { FloatingEmoji } from '../game/animations.js';
+import { REACTIONS, reactionArt } from '../game/reactions.js';
 import { Modal } from '../components/modal.js';
 import { Toast } from '../components/toast.js';
 
@@ -116,12 +117,9 @@ export class GameScreen {
               </svg>
             </button>
             <div class="emoji-popup" id="emoji-popup">
-              <button class="emoji-btn" data-emoji="😠">😠</button>
-              <button class="emoji-btn" data-emoji="😂">😂</button>
-              <button class="emoji-btn" data-emoji="😱">😱</button>
-              <button class="emoji-btn" data-emoji="🤯">🤯</button>
-              <button class="emoji-btn" data-emoji="👏">👏</button>
-              <button class="emoji-btn" data-emoji="🔥">🔥</button>
+              ${REACTIONS.map(r => `
+                <button class="emoji-btn" data-emoji="${r.key}" style="--rc:${r.color}">${r.icon}</button>
+              `).join('')}
             </div>
           </div>
 
@@ -225,8 +223,8 @@ export class GameScreen {
         const emoji = btn.dataset.emoji;
         haptic.impact('light');
 
-        // Spawn locally
-        FloatingEmoji.spawn(emoji, document.getElementById('game-page-container'), btn.getBoundingClientRect());
+        // Spawn the custom reaction artwork locally
+        FloatingEmoji.spawn(reactionArt(emoji), document.getElementById('game-page-container'), btn.getBoundingClientRect());
 
         if (this.vs !== 'bot') {
           // Send to opponent online
@@ -420,10 +418,10 @@ export class GameScreen {
 
   // WebSocket event: opponent sent emoji
   onEmojiReceived(data) {
-    // Find the opponent panel rect to anchor emoji explosion
+    // Find the opponent panel rect to anchor the reaction
     const oppIdx = 1 - this.mySide;
     const oppPanel = document.getElementById(`player-panel-${oppIdx}`);
-    FloatingEmoji.spawn(data.emoji, document.getElementById('game-page-container'), oppPanel?.getBoundingClientRect());
+    FloatingEmoji.spawn(reactionArt(data.emoji), document.getElementById('game-page-container'), oppPanel?.getBoundingClientRect());
   }
 
   // WebSocket event: opponent surrendered

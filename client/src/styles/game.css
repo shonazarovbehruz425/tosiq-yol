@@ -31,7 +31,7 @@
   flex-shrink: 0;
 }
 
-.surrender-btn {
+.btn.surrender-btn {
   padding: 6px 14px;
   font-size: 11px;
   font-weight: 700;
@@ -426,17 +426,23 @@
 }
 
 .emoji-btn {
-  background: none;
-  border: none;
-  font-size: 26px;
-  line-height: 1;
-  padding: 2px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   cursor: pointer;
-  transition: transform var(--transition-bounce);
+  transition: transform var(--transition-bounce), background-color var(--transition-fast);
 }
+.emoji-btn svg { width: 24px; height: 24px; }
 
 .emoji-btn:active {
-  transform: scale(1.35);
+  transform: scale(1.25);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 /* Floating Emoji Animations */
@@ -446,6 +452,24 @@
   z-index: 100;
   pointer-events: none;
   animation: floatUp 1.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+/* Custom SVG reaction artwork (instead of plain emoji) */
+.floating-emoji-svg .reaction-art {
+  display: inline-flex;
+  width: 52px;
+  height: 52px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(17, 24, 39, 0.55);
+  border: 2px solid var(--rc, #7c3aed);
+  box-shadow: 0 0 18px var(--rc, #7c3aed);
+  backdrop-filter: blur(2px);
+}
+.floating-emoji-svg .reaction-art svg {
+  width: 32px;
+  height: 32px;
 }
 
 @keyframes floatUp {

@@ -37,7 +37,13 @@ export class FloatingEmoji {
   static spawn(emoji, container, sourceRect = null) {
     const el = document.createElement('div');
     el.className = 'floating-emoji';
-    el.innerText = emoji;
+    // Support both plain text emoji and custom SVG markup (starts with '<').
+    if (typeof emoji === 'string' && emoji.trim().startsWith('<')) {
+      el.classList.add('floating-emoji-svg');
+      el.innerHTML = emoji;
+    } else {
+      el.innerText = emoji;
+    }
     
     // Position
     let left = 50; // Center percent
