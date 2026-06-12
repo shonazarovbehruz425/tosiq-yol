@@ -25,6 +25,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Lightweight liveness probe for Render's health checks. Defined first and
+// kept dependency-free so it responds instantly the moment the server is up,
+// helping Render mark the new instance "ready" sooner and shortening the
+// deploy swap window (fewer brief 503s during deploys).
+app.get('/healthz', (req, res) => {
+  res.type('text/plain').send('ok');
+});
+
 // We attach the WebSocketServer later; expose a getter for live counts.
 let wssRef = null;
 const getOnlineCount = () => (wssRef ? wssRef.clients.size : 0);
