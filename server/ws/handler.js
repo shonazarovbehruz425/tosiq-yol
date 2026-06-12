@@ -4,6 +4,7 @@ import { roomManager } from './rooms.js';
 import { matchmaking } from './matchmaking.js';
 import { QuoridorEngine } from '../game/quoridor.js';
 import { presence } from './presence.js';
+import { socketRegistry } from './sockets.js';
 import { getClientIp, lookupCountry } from './geoip.js';
 
 // Send active online count to everyone
@@ -77,6 +78,8 @@ export function handleWebSocketConnection(ws, wss, request) {
 
         // Mark user online (for live admin presence)
         presence.add(userProfile.id);
+        // Register this socket so we can push friend/invite notifications.
+        socketRegistry.add(userProfile.id, ws);
 
         // Resolve real country from IP — but only persist it for known users
         if (known) {
@@ -135,6 +138,149 @@ export function handleWebSocketConnection(ws, wss, request) {
       if (type === 'get_leaderboard') {
         const board = db.getLeaderboard(20, userProfile.id);
         ws.send(JSON.stringify({ type: 'leaderboard', payload: board }));
+        return;
+      }
+
+      // ===== Friend system =====
+      const pushFriendData = (uid) => {
+        const data = db.getFriendData(uid, presence.onlineIds());
+        socketRegistry.sendToUser(uid, 'friend_data', data);
+      };
+
+      // Get my friends + pending requests
+      if (type === 'get_friends') {
+        const data = db.getFriendData(userProfile.id, presence.onlineIds());
+        ws.send(JSON.stringify({ type: 'friend_data', payload: data }));
+        return;
+      }
+
+      // Send a friend request to another user
+      if (type === 'send_friend_request') {
+        const targetId = payload && payload.userId;
+        if (!targetId) return;
+        const res = db.sendFriendRequest(userProfile.id, targetId);
+        ws.send(JSON.stringify({ type: 'friend_request_result', payload: { ...res, targetId } }));
+        if (res.ok) {
+          // Refresh both users' friend panels
+          pushFriendData(userProfile.id);
+          pushFriendData(targetId);
+          // Notify the target of a new incoming request (if just sent)
+          if (res.status === 'sent') {
+            socketRegistry.sendToUser(targetId, 'friend_request_received', {
+              from: db.publicProfile(userProfile.id)
+            });
+          }
+        }
+        return;
+      }
+
+      // Accept an incoming friend request
+      if (type === 'accept_friend_request') {
+        const otherId = payload && payload.userId;
+        if (!otherId) return;
+        const res = db.acceptFriendRequest(userProfile.id, otherId);
+        if (res.ok) {
+          pushFriendData(userProfile.id);
+          pushFriendData(otherId);
+          socketRegistry.sendToUser(otherId, 'friend_request_accepted', {
+            by: db.publicProfile(userProfile.id)
+          });
+        }
+        return;
+      }
+
+      // Decline an incoming friend request
+      if (type === 'decline_friend_request') {
+        const otherId = payload && payload.userId;
+        if (!otherId) return;
+        db.declineFriendRequest(userProfile.id, otherId);
+        pushFriendData(userProfile.id);
+        pushFriendData(otherId);
+        return;
+      }
+
+      // Remove an existing friend
+      if (type === 'remove_friend') {
+        const otherId = payload && payload.userId;
+        if (!otherId) return;
+        db.removeFriend(userProfile.id, otherId);
+        pushFriendData(userProfile.id);
+        pushFriendData(otherId);
+        return;
+      }
+
+      // ===== Game invite (challenge a friend to play) =====
+      if (type === 'invite_to_game') {
+        const targetId = payload && payload.userId;
+        if (!targetId) return;
+        if (!socketRegistry.isOnline(targetId)) {
+          ws.send(JSON.stringify({ type: 'invite_result', payload: { ok: false, error: 'offline', targetId } }));
+          return;
+        }
+        // Create a private room and tell the inviter to wait in it.
+        const cfg = payload.config || { mode: 'duel', boardSize: 9, totalTime: 300, blitzTime: 0, wallsCount: 10 };
+        const room = roomManager.createRoom({ ...cfg, isPrivate: true });
+        const inviter = { id: userProfile.id, first_name: userProfile.first_name, username: userProfile.username, ws };
+        room.addPlayer(inviter);
+
+        ws.send(JSON.stringify({ type: 'invite_result', payload: { ok: true, targetId, roomCode: room.roomCode } }));
+        socketRegistry.sendToUser(targetId, 'game_invite_received', {
+          from: db.publicProfile(userProfile.id),
+          roomCode: room.roomCode,
+          config: room.config
+        });
+        return;
+      }
+
+      // Friend accepts a game invite -> join the room and start.
+      if (type === 'accept_game_invite') {
+        const roomCode = payload && payload.roomCode;
+        const room = roomManager.getRoom(roomCode);
+        if (!room) {
+          ws.send(JSON.stringify({ type: 'error', payload: { message: "Xona topilmadi yoki bekor qilindi!" } }));
+          return;
+        }
+        if (room.players.length >= 2) {
+          ws.send(JSON.stringify({ type: 'error', payload: { message: "Xona to'la!" } }));
+          return;
+        }
+        const player = { id: userProfile.id, first_name: userProfile.first_name, username: userProfile.username, ws };
+        room.addPlayer(player);
+        room.start();
+        return;
+      }
+
+      // Friend declines a game invite -> tidy up the room, notify inviter.
+      if (type === 'decline_game_invite') {
+        const roomCode = payload && payload.roomCode;
+        const room = roomManager.getRoom(roomCode);
+        if (room && !room.isStarted) {
+          const inviter = room.players[0];
+          if (inviter) {
+            socketRegistry.sendToUser(inviter.id, 'game_invite_declined', {
+              by: db.publicProfile(userProfile.id)
+            });
+          }
+          roomManager.deleteRoom(roomCode);
+        }
+        return;
+      }
+
+      // ===== In-game real-time chat =====
+      if (type === 'game_chat') {
+        const roomCode = payload && payload.roomCode;
+        const text = payload && typeof payload.text === 'string' ? payload.text.trim().slice(0, 200) : '';
+        if (!roomCode || !text) return;
+        const room = roomManager.getRoom(roomCode);
+        if (!room) return;
+        const opp = room.getOpponent(userProfile.id);
+        if (opp) {
+          room.sendTo(opp.id, 'game_chat', {
+            text,
+            from: userProfile.first_name || 'Player',
+            ts: Date.now()
+          });
+        }
         return;
       }
 
@@ -337,6 +483,7 @@ export function handleWebSocketConnection(ws, wss, request) {
     if (userProfile) {
       // 0. Mark offline
       presence.remove(userProfile.id);
+      socketRegistry.remove(userProfile.id, ws);
 
       // 1. Remove from matchmaking queue
       matchmaking.leave(userProfile.id);

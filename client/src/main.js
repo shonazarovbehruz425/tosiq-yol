@@ -3,11 +3,13 @@ import { initTelegram, isTelegram, getTelegramUser } from './core/telegram.js';
 import { router } from './core/router.js';
 import { StorageManager } from './core/storage.js';
 import { initSound } from './core/sound.js';
+import { initSocial } from './core/social.js';
 
 // Screen Imports
 import HomeScreen from './screens/home.js';
 import SettingsScreen from './screens/settings.js';
 import LeaderboardScreen from './screens/leaderboard.js';
+import FriendsScreen from './screens/friends.js';
 import BotScreen from './screens/bot.js';
 import ModeSelectScreen from './screens/mode-select.js';
 import OnlineScreen from './screens/online.js';
@@ -41,6 +43,7 @@ async function bootstrap() {
   router.register('home', HomeScreen);
   router.register('settings', SettingsScreen);
   router.register('leaderboard', LeaderboardScreen);
+  router.register('friends', FriendsScreen);
   router.register('bot', BotScreen);
   router.register('mode-select', ModeSelectScreen);
   router.register('online', OnlineScreen);
@@ -51,6 +54,9 @@ async function bootstrap() {
 
   // 4. Hook router to DOM target
   router.init('#app');
+
+  // 4b. Bind app-wide social notifications (friend requests / game invites)
+  initSocial();
 
   // 5. Deep Link joining check (Telegram WebApp start_param parameter)
   // Check if user launched app via a link: t.me/BotName/app?startapp=join_1234

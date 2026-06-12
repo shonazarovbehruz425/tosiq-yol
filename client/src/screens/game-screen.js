@@ -49,6 +49,7 @@ export class GameScreen {
     this.onOpponentMoved = this.onOpponentMoved.bind(this);
     this.onOpponentWall = this.onOpponentWall.bind(this);
     this.onEmojiReceived = this.onEmojiReceived.bind(this);
+    this.onChatMessage = this.onChatMessage.bind(this);
     this.onOpponentResigned = this.onOpponentResigned.bind(this);
     this.onOpponentDisconnected = this.onOpponentDisconnected.bind(this);
     this.onOpponentReconnected = this.onOpponentReconnected.bind(this);
@@ -132,6 +133,35 @@ export class GameScreen {
               <span class="wall-chip-bar bar-v"></span>
             </div>
           </div>
+        </div>
+        ${isBot ? '' : this.renderChat()}
+      </div>
+    `;
+  }
+
+  // In-game real-time chat (online/friend games only)
+  renderChat() {
+    return `
+      <button class="chat-fab" id="chat-fab" title="${t('chat')}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+        </svg>
+        <span class="chat-fab-dot" id="chat-fab-dot" style="display:none;"></span>
+      </button>
+
+      <div class="chat-panel" id="chat-panel">
+        <div class="chat-head">
+          <span class="chat-title">${t('chat')}</span>
+          <button class="chat-close" id="chat-close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-input-row">
+          <input type="text" id="chat-input" class="chat-input" maxlength="200" placeholder="${t('typeMessage')}" autocomplete="off" />
+          <button class="chat-send" id="chat-send">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2 15 22l-4-9-9-4 20-7z"/></svg>
+          </button>
         </div>
       </div>
     `;
@@ -255,7 +285,68 @@ export class GameScreen {
       socket.on('opponent_resigned', this.onOpponentResigned);
       socket.on('opponent_disconnected', this.onOpponentDisconnected);
       socket.on('opponent_reconnected', this.onOpponentReconnected);
+      socket.on('game_chat', this.onChatMessage);
+      this.setupChat();
     }
+  }
+
+  // Wire up the in-game chat panel (online/friend games only)
+  setupChat() {
+    const fab = document.getElementById('chat-fab');
+    const panel = document.getElementById('chat-panel');
+    const closeBtn = document.getElementById('chat-close');
+    const input = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('chat-send');
+    const dot = document.getElementById('chat-fab-dot');
+    if (!fab || !panel) return;
+
+    const openPanel = () => {
+      panel.classList.add('open');
+      if (dot) dot.style.display = 'none';
+      setTimeout(() => input && input.focus(), 50);
+    };
+    const closePanel = () => panel.classList.remove('open');
+
+    fab.addEventListener('click', () => {
+      haptic.impact('light');
+      panel.classList.contains('open') ? closePanel() : openPanel();
+    });
+    if (closeBtn) closeBtn.addEventListener('click', closePanel);
+
+    const send = () => {
+      const text = (input.value || '').trim().slice(0, 200);
+      if (!text) return;
+      socket.send('game_chat', { roomCode: this.params.roomCode, text });
+      this.addChatMessage(text, 'me');
+      input.value = '';
+    };
+    if (sendBtn) sendBtn.addEventListener('click', send);
+    if (input) input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); send(); }
+    });
+  }
+
+  // Append a chat bubble; side = 'me' | 'them'
+  addChatMessage(text, side) {
+    const list = document.getElementById('chat-messages');
+    if (!list) return;
+    const bubble = document.createElement('div');
+    bubble.className = `chat-bubble ${side}`;
+    bubble.textContent = text;
+    list.appendChild(bubble);
+    list.scrollTop = list.scrollHeight;
+  }
+
+  // Opponent's chat message arrived
+  onChatMessage(data) {
+    if (!data || !data.text) return;
+    this.addChatMessage(data.text, 'them');
+    const panel = document.getElementById('chat-panel');
+    const dot = document.getElementById('chat-fab-dot');
+    if (panel && !panel.classList.contains('open') && dot) {
+      dot.style.display = 'block';
+    }
+    haptic.impact('light');
   }
 
   // Handle local pawn moves
@@ -601,6 +692,7 @@ export class GameScreen {
       socket.off('opponent_resigned', this.onOpponentResigned);
       socket.off('opponent_disconnected', this.onOpponentDisconnected);
       socket.off('opponent_reconnected', this.onOpponentReconnected);
+      socket.off('game_chat', this.onChatMessage);
     }
   }
 }

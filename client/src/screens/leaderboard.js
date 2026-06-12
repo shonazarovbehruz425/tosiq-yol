@@ -1,6 +1,7 @@
 import { t } from '../core/i18n.js';
 import { socket } from '../core/websocket.js';
 import { haptic } from '../core/telegram.js';
+import { Toast } from '../components/toast.js';
 
 // Convert an ISO-2 country code (e.g. "UZ") into its flag emoji.
 function flagFromCode(code) {
@@ -27,6 +28,7 @@ export class LeaderboardScreen {
     this.board = null;       // { top, me, total }
     this.loaded = false;
     this.onBoard = this.onBoard.bind(this);
+    this.onFriendResult = this.onFriendResult.bind(this);
   }
 
   render() {
@@ -106,6 +108,16 @@ export class LeaderboardScreen {
 
   renderRow(p) {
     const flag = flagFromCode(p.country_code);
+    const myId = this.board && this.board.me ? String(this.board.me.id) : null;
+    const isMe = myId && String(p.id) === myId;
+    const addBtn = isMe ? '' : `
+      <button class="lb-add-btn" data-add="${p.id}" title="${t('addFriend')}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M19 8v6M22 11h-6"/>
+        </svg>
+      </button>`;
     return `
       <div class="lb-row">
         <span class="lb-rank">${p.rank}</span>
@@ -115,6 +127,7 @@ export class LeaderboardScreen {
           ${flag ? `<span class="lb-flag">${flag}</span>` : ''}
         </span>
         <span class="lb-rating">${p.wins} ${t('wins')}</span>
+        ${addBtn}
       </div>
     `;
   }
@@ -155,6 +168,7 @@ export class LeaderboardScreen {
 
   afterRender() {
     socket.on('leaderboard', this.onBoard);
+    socket.on('friend_request_result', this.onFriendResult);
     socket.connect();
     // Ask for the board (auth happens on connect; resend shortly after in case
     // the socket wasn't authenticated yet).
@@ -168,6 +182,25 @@ export class LeaderboardScreen {
         this.router.back();
       });
     }
+    this.bindAddButtons();
+  }
+
+  bindAddButtons() {
+    document.querySelectorAll('.lb-add-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        haptic.impact('medium');
+        socket.send('send_friend_request', { userId: btn.dataset.add });
+        btn.classList.add('sent');
+        btn.disabled = true;
+      });
+    });
+  }
+
+  onFriendResult(res) {
+    if (!res) return;
+    if (res.status === 'already_friends') Toast.info(t('alreadyFriends'));
+    else if (res.status === 'accepted') Toast.success(t('friendAdded'));
+    else if (res.status === 'sent') Toast.success(t('friendRequestSent'));
   }
 
   onBoard(data) {
@@ -175,10 +208,12 @@ export class LeaderboardScreen {
     this.loaded = true;
     const body = document.getElementById('lb-body');
     if (body) body.innerHTML = this.renderBody();
+    this.bindAddButtons();
   }
 
   destroy() {
     socket.off('leaderboard', this.onBoard);
+    socket.off('friend_request_result', this.onFriendResult);
     if (this._retry) { clearTimeout(this._retry); this._retry = null; }
   }
 }

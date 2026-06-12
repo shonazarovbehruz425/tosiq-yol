@@ -165,5 +165,39 @@ export const en = {
   yourRank: "Your rank",
   noRanking: "Play games to enter the rankings",
   leaderboardEmpty: "No players ranked yet",
-  loadingBoard: "Loading rankings..."
+  loadingBoard: "Loading rankings...",
+
+  // Friends
+  friends: "Friends",
+  friendsTitle: "Friends",
+  friendsSubtitle: "Play with your friends",
+  tabFriends: "Friends",
+  tabRequests: "Requests",
+  addFriend: "Add friend",
+  friendRequestSent: "Request sent",
+  friendAdded: "Friend added",
+  alreadyFriends: "Already friends",
+  accept: "Accept",
+  decline: "Decline",
+  remove: "Remove",
+  invite: "Invite",
+  inviteToPlay: "Invite to play",
+  noFriends: "No friends yet. Add some from the leaderboard!",
+  noRequests: "No new requests",
+  incomingRequests: "Incoming requests",
+  outgoingRequests: "Sent requests",
+  online: "Online",
+  offline: "Offline",
+  friendOffline: "This friend is offline right now",
+  friendRequestFrom: "{name} wants to be your friend",
+  friendAcceptedYou: "{name} accepted your request",
+  gameInviteFrom: "{name} invited you to play",
+  inviteDeclined: "{name} declined the invite",
+  waitingFriendAccept: "Waiting for your friend to accept...",
+  pending: "Pending",
+
+  // In-game chat
+  chat: "Chat",
+  typeMessage: "Type a message...",
+  send: "Send"
 };

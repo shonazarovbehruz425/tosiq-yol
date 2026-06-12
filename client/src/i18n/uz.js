@@ -165,5 +165,39 @@ export const uz = {
   yourRank: "Sizning o'rningiz",
   noRanking: "Reytingga kirish uchun o'ynang",
   leaderboardEmpty: "Hali reytingda o'yinchilar yo'q",
-  loadingBoard: "Reyting yuklanmoqda..."
+  loadingBoard: "Reyting yuklanmoqda...",
+
+  // Friends
+  friends: "Do'stlar",
+  friendsTitle: "Do'stlar",
+  friendsSubtitle: "Do'stlaringiz bilan o'ynang",
+  tabFriends: "Do'stlar",
+  tabRequests: "So'rovlar",
+  addFriend: "Do'st qo'shish",
+  friendRequestSent: "So'rov yuborildi",
+  friendAdded: "Do'stga qo'shildi",
+  alreadyFriends: "Allaqachon do'stsiz",
+  accept: "Qabul qilish",
+  decline: "Rad etish",
+  remove: "O'chirish",
+  invite: "Taklif",
+  inviteToPlay: "O'ynashga taklif",
+  noFriends: "Hali do'stlaringiz yo'q. Reytingdan qo'shing!",
+  noRequests: "Yangi so'rovlar yo'q",
+  incomingRequests: "Kelgan so'rovlar",
+  outgoingRequests: "Yuborilgan so'rovlar",
+  online: "Onlayn",
+  offline: "Oflayn",
+  friendOffline: "Bu do'st hozir oflayn",
+  friendRequestFrom: "{name} sizni do'stlikka qo'shmoqchi",
+  friendAcceptedYou: "{name} so'rovingizni qabul qildi",
+  gameInviteFrom: "{name} sizni o'yinga chaqirdi",
+  inviteDeclined: "{name} taklifni rad etdi",
+  waitingFriendAccept: "Do'st qabul qilishini kutilmoqda...",
+  pending: "Kutilmoqda",
+
+  // In-game chat
+  chat: "Chat",
+  typeMessage: "Xabar yozing...",
+  send: "Yuborish"
 };

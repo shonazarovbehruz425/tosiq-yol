@@ -155,6 +155,139 @@ class JSONDatabase {
     return u;
   }
 
+  // ===== Friend system =====
+  // Each user gets: friends: [ids], friendRequests: { incoming: [ids], outgoing: [ids] }
+
+  _ensureFriendFields(u) {
+    if (!u) return;
+    if (!Array.isArray(u.friends)) u.friends = [];
+    if (!u.friendRequests || typeof u.friendRequests !== 'object') {
+      u.friendRequests = { incoming: [], outgoing: [] };
+    }
+    if (!Array.isArray(u.friendRequests.incoming)) u.friendRequests.incoming = [];
+    if (!Array.isArray(u.friendRequests.outgoing)) u.friendRequests.outgoing = [];
+  }
+
+  // Public name/flag for a user id (used by friend lists).
+  publicProfile(id) {
+    const u = this.data.users[String(id)];
+    if (!u) return { id, name: 'Unknown', country_code: '', wins: 0, losses: 0 };
+    return {
+      id: u.id,
+      name: u.display_name || u.first_name || (u.username ? '@' + u.username : 'Anonymous'),
+      country_code: u.country_code || '',
+      wins: u.wins || 0,
+      losses: u.losses || 0
+    };
+  }
+
+  areFriends(a, b) {
+    const ua = this.data.users[String(a)];
+    return !!(ua && Array.isArray(ua.friends) && ua.friends.map(String).includes(String(b)));
+  }
+
+  // Send a friend request from `fromId` to `toId`.
+  // Returns { ok, error, status } where status can be 'sent' | 'already_friends' | 'accepted'.
+  sendFriendRequest(fromId, toId) {
+    fromId = String(fromId); toId = String(toId);
+    if (fromId === toId) return { ok: false, error: 'self' };
+    const from = this.data.users[fromId];
+    const to = this.data.users[toId];
+    if (!from) return { ok: false, error: 'sender_unknown' };
+    if (!to) return { ok: false, error: 'target_unknown' };
+
+    this._ensureFriendFields(from);
+    this._ensureFriendFields(to);
+
+    if (from.friends.map(String).includes(toId)) {
+      return { ok: true, status: 'already_friends' };
+    }
+
+    // If the target already sent US a request, accept it automatically.
+    if (from.friendRequests.incoming.map(String).includes(toId)) {
+      this.acceptFriendRequest(fromId, toId);
+      return { ok: true, status: 'accepted' };
+    }
+
+    if (!from.friendRequests.outgoing.map(String).includes(toId)) {
+      from.friendRequests.outgoing.push(toId);
+    }
+    if (!to.friendRequests.incoming.map(String).includes(fromId)) {
+      to.friendRequests.incoming.push(fromId);
+    }
+    this.save();
+    return { ok: true, status: 'sent' };
+  }
+
+  // `meId` accepts a pending request from `otherId`.
+  acceptFriendRequest(meId, otherId) {
+    meId = String(meId); otherId = String(otherId);
+    const me = this.data.users[meId];
+    const other = this.data.users[otherId];
+    if (!me || !other) return { ok: false, error: 'unknown' };
+
+    this._ensureFriendFields(me);
+    this._ensureFriendFields(other);
+
+    // Remove from request lists
+    me.friendRequests.incoming = me.friendRequests.incoming.filter(id => String(id) !== otherId);
+    me.friendRequests.outgoing = me.friendRequests.outgoing.filter(id => String(id) !== otherId);
+    other.friendRequests.outgoing = other.friendRequests.outgoing.filter(id => String(id) !== meId);
+    other.friendRequests.incoming = other.friendRequests.incoming.filter(id => String(id) !== meId);
+
+    // Add to friends both ways
+    if (!me.friends.map(String).includes(otherId)) me.friends.push(otherId);
+    if (!other.friends.map(String).includes(meId)) other.friends.push(meId);
+
+    this.save();
+    return { ok: true };
+  }
+
+  // `meId` declines a pending request from `otherId`.
+  declineFriendRequest(meId, otherId) {
+    meId = String(meId); otherId = String(otherId);
+    const me = this.data.users[meId];
+    const other = this.data.users[otherId];
+    if (me) {
+      this._ensureFriendFields(me);
+      me.friendRequests.incoming = me.friendRequests.incoming.filter(id => String(id) !== otherId);
+    }
+    if (other) {
+      this._ensureFriendFields(other);
+      other.friendRequests.outgoing = other.friendRequests.outgoing.filter(id => String(id) !== meId);
+    }
+    this.save();
+    return { ok: true };
+  }
+
+  removeFriend(meId, otherId) {
+    meId = String(meId); otherId = String(otherId);
+    const me = this.data.users[meId];
+    const other = this.data.users[otherId];
+    if (me) { this._ensureFriendFields(me); me.friends = me.friends.filter(id => String(id) !== otherId); }
+    if (other) { this._ensureFriendFields(other); other.friends = other.friends.filter(id => String(id) !== meId); }
+    this.save();
+    return { ok: true };
+  }
+
+  // Full friend snapshot for a user: friends + incoming/outgoing requests as
+  // public profiles. `onlineIds` is an optional Set of online user ids.
+  getFriendData(meId, onlineIds = null) {
+    const me = this.data.users[String(meId)];
+    if (!me) return { friends: [], incoming: [], outgoing: [] };
+    this._ensureFriendFields(me);
+    const mark = (id) => {
+      const p = this.publicProfile(id);
+      p.online = onlineIds ? onlineIds.has(Number(id)) || onlineIds.has(String(id)) : false;
+      return p;
+    };
+    return {
+      friends: me.friends.map(mark),
+      incoming: me.friendRequests.incoming.map(mark),
+      outgoing: me.friendRequests.outgoing.map(mark)
+    };
+  }
+
   // Set the user's country resolved from their IP (code: ISO-2, e.g. "UZ")
   setUserCountry(telegramId, code, name) {
     const u = this.data.users[telegramId];
