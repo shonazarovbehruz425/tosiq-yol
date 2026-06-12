@@ -25,10 +25,14 @@ export class GameScreen {
     this.fog = this.params.fog === true; // Fog of War visibility overlay
     this.fogRadius = 2; // reveal a 5x5 area around my pawn
     this.revealedWalls = new Set(); // walls permanently revealed after a bump
+    this.chaos = this.params.chaos === true; // Power-up grid mode
     this.soundEnabled = true;
     
     // Engine & Board Renderer
-    this.engine = new QuoridorEngine(this.boardSize, this.wallsCount, this.mode);
+    this.engine = new QuoridorEngine(this.boardSize, this.wallsCount, this.mode, {
+      chaos: this.chaos,
+      seed: this.params.seed || 1
+    });
     this.boardRenderer = null;
     
     // Player settings: side 0 = Red (bottom), 1 = Blue (top)
@@ -185,6 +189,9 @@ export class GameScreen {
     // Fog of War uses blind-move highlights (all neighbours, walls hidden).
     this.boardRenderer.fogMode = this.fog;
     if (this.fog) this.boardRenderer.updateValidMoves(true);
+
+    // Chaos: draw the power-up tiles.
+    if (this.chaos) this.boardRenderer.drawPowerups();
 
     // Perspective: the "top" player (side 1 in duel/fog) controls a pawn that
     // starts at the top — awkward to play. Flip the board 180° so their own
@@ -481,6 +488,15 @@ export class GameScreen {
     // Fog of War: refresh the visible area around the controlled pawn.
     this.applyFog();
 
+    // Chaos: redraw power-up tiles, walls (hammer may have removed one), pawns
+    // (teleport may have moved one), and announce the latest effect.
+    if (this.chaos) {
+      this.boardRenderer.drawPowerups();
+      this.boardRenderer.drawWalls();
+      this.boardRenderer.updatePawns();
+      this.announceChaos();
+    }
+
     // 4. Trigger AI bot if vs bot
     if (this.vs === 'bot' && this.engine.currentPlayer !== this.mySide) {
       setTimeout(() => {
@@ -523,6 +539,16 @@ export class GameScreen {
       }
       return visible(w.r, w.c) || visible(w.r + 1, w.c) || visible(w.r, w.c + 1) || visible(w.r + 1, w.c + 1);
     });
+  }
+
+  // Chaos: show a toast describing the most recent power-up effect.
+  announceChaos() {
+    const ev = this.engine.lastEvent;
+    if (!ev || ev === this._lastChaosEvent) return;
+    this._lastChaosEvent = ev;
+    if (ev.type === 'teleport') { haptic.impact('medium'); Toast.info('✨ Teleport!'); }
+    else if (ev.type === 'ghost') { haptic.impact('medium'); Toast.info('👻 Arvoh rejimi: devordan o\'tasiz!'); }
+    else if (ev.type === 'hammer') { haptic.impact('medium'); Toast.info('🔨 Bolg\'a: devor buzildi!'); }
   }
 
   // Mark the wall(s) between two adjacent cells as permanently revealed.
@@ -783,6 +809,8 @@ export class GameScreen {
       initialWalls: this.wallsCount,
       mode: this.mode,
       fog: this.fog,
+      chaos: this.chaos,
+      seed: this.params.seed,
       totalTime: this.params.totalTime || 0,
       blitzTime: this.params.blitzTime || 0,
       difficulty: this.params.difficulty,

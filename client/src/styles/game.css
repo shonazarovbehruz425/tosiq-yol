@@ -846,3 +846,27 @@
   pointer-events: none;
   transition: opacity 0.2s ease;
 }
+
+/* ===== Chaos / Power-up tiles ===== */
+.powerup {
+  position: absolute;
+  inset: 14%;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 5;
+  animation: powerupPulse 1.8s ease-in-out infinite;
+}
+.powerup svg { width: 64%; height: 64%; }
+.powerup-teleport { color: #38bdf8; background: rgba(56, 189, 248, 0.16); box-shadow: 0 0 10px rgba(56,189,248,0.5); }
+.powerup-ghost    { color: #c084fc; background: rgba(192, 132, 252, 0.16); box-shadow: 0 0 10px rgba(192,132,252,0.5); }
+.powerup-hammer   { color: #fbbf24; background: rgba(251, 191, 36, 0.16); box-shadow: 0 0 10px rgba(251,191,36,0.5); }
+
+@keyframes powerupPulse {
+  0%, 100% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .powerup { animation: none; }
+}

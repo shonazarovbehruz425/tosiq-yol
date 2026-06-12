@@ -220,6 +220,28 @@ export class BoardRenderer {
     });
   }
 
+  // Chaos: draw power-up tiles (teleport / ghost / hammer) on their cells.
+  drawPowerups() {
+    const boardDiv = this.container.querySelector('.board');
+    if (!boardDiv) return;
+    boardDiv.querySelectorAll('.powerup').forEach(el => el.remove());
+
+    const icons = {
+      teleport: '<path d="M12 2v6m0 8v6M4 8l4 4-4 4M20 8l-4 4 4 4"/>',
+      ghost: '<path d="M5 21V9a7 7 0 0 1 14 0v12l-2-2-2 2-2-2-2 2-2-2-2 2z"/><circle cx="9.5" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="14.5" cy="10" r="1" fill="currentColor" stroke="none"/>',
+      hammer: '<path d="M14 7l5 5M3 21l9-9M14.5 5.5l4 4 2-2-4-4z"/>'
+    };
+
+    Object.entries(this.engine.powerups || {}).forEach(([key, type]) => {
+      const cell = this.cellElements[key];
+      if (!cell) return;
+      const el = document.createElement('div');
+      el.className = `powerup powerup-${type}`;
+      el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icons[type] || ''}</svg>`;
+      cell.appendChild(el);
+    });
+  }
+
   // Hover wall preview (legacy mouse hover) — kept minimal; drag uses renderPreviewAt
   clearWallPreviews() {
     if (this.previewWall) {

@@ -1,10 +1,19 @@
 // Quoridor Game Engine Logic
 
 export class QuoridorEngine {
-  constructor(boardSize = 9, wallsCount = 10, mode = 'duel') {
+  constructor(boardSize = 9, wallsCount = 10, mode = 'duel', options = {}) {
     this.boardSize = boardSize; // 7 or 9
     this.wallsCount = wallsCount; // Initial walls per player
     this.mode = mode; // 'duel' or 'race'
+
+    // Chaos / Power-up Grid options. A shared `seed` keeps the power-up layout
+    // and random effects identical across both clients in online play.
+    this.chaos = options.chaos === true;
+    this.seed = (options.seed || 0) >>> 0 || 0x9e3779b9;
+    this._rng = mulberry32(this.seed);
+    this.ghostCharges = [0, 0]; // pass-through-a-wall charges per player
+    this.powerups = {};         // 'r,c' -> 'teleport' | 'ghost' | 'hammer'
+    this.lastEvent = null;      // describes the most recent power-up effect (for UI)
 
     const mid = Math.floor(boardSize / 2);
 
@@ -33,6 +42,31 @@ export class QuoridorEngine {
     this.currentPlayer = 0; // 0 or 1
     this.winner = -1; // -1, 0, or 1
     this.moveHistory = []; // list of moves for replay
+
+    if (this.chaos) this._placePowerups();
+  }
+
+  // Scatter power-up tiles across the board (deterministic via the seed).
+  _placePowerups() {
+    const N = this.boardSize;
+    const types = ['teleport', 'ghost', 'hammer'];
+    const count = Math.max(4, Math.round(N * 0.9)); // ~8 on a 9x9 board
+    const taken = new Set([
+      `${this.pawnPos[0].r},${this.pawnPos[0].c}`,
+      `${this.pawnPos[1].r},${this.pawnPos[1].c}`
+    ]);
+    let placed = 0, guard = 0;
+    while (placed < count && guard < 500) {
+      guard++;
+      const r = Math.floor(this._rng() * N);
+      const c = Math.floor(this._rng() * N);
+      const key = `${r},${c}`;
+      // Avoid start cells, goal rows, and duplicates.
+      if (taken.has(key) || r === 0 || r === N - 1) continue;
+      taken.add(key);
+      this.powerups[key] = types[Math.floor(this._rng() * types.length)];
+      placed++;
+    }
   }
 
   // Goal row for a player given the current mode.
@@ -52,6 +86,10 @@ export class QuoridorEngine {
     copy.currentPlayer = this.currentPlayer;
     copy.winner = this.winner;
     copy.moveHistory = [ ...this.moveHistory ];
+    // Chaos state (so the AI's lookahead sees power-ups/ghost charges too).
+    copy.chaos = this.chaos;
+    copy.powerups = { ...this.powerups };
+    copy.ghostCharges = [ ...this.ghostCharges ];
     return copy;
   }
 
@@ -78,8 +116,10 @@ export class QuoridorEngine {
       // 1. Check if off board
       if (nr < 0 || nr >= this.boardSize || nc < 0 || nc >= this.boardSize) return;
 
-      // 2. Check if there is a wall between myPos and (nr, nc)
-      if (this.isWallBlocking(myPos.r, myPos.c, nr, nc)) return;
+      // 2. Check if there is a wall between myPos and (nr, nc).
+      //    Ghost charge (Chaos mode) lets the pawn pass through one wall.
+      const hasGhost = this.chaos && this.ghostCharges[playerIndex] > 0;
+      if (!hasGhost && this.isWallBlocking(myPos.r, myPos.c, nr, nc)) return;
 
       // 3. Check if opponent is in the target cell (nr, nc)
       if (oppPos.r === nr && oppPos.c === nc) {
@@ -253,6 +293,14 @@ export class QuoridorEngine {
 
     if (!isValid) return false;
 
+    const from = this.pawnPos[playerIndex];
+
+    // Chaos: if a ghost charge let us cross a wall, consume one charge.
+    if (this.chaos && this.ghostCharges[playerIndex] > 0 &&
+        this.isWallBlocking(from.r, from.c, r, c)) {
+      this.ghostCharges[playerIndex]--;
+    }
+
     this.pawnPos[playerIndex] = { r, c };
 
     this.moveHistory.push({
@@ -262,9 +310,61 @@ export class QuoridorEngine {
       c
     });
 
+    // Chaos: activate a power-up if the pawn landed on one.
+    if (this.chaos) this._activatePowerup(r, c, playerIndex);
+
     this.checkWinner();
     this.currentPlayer = 1 - this.currentPlayer;
     return true;
+  }
+
+  // Activate the power-up on cell (r,c) for the player who just landed there.
+  _activatePowerup(r, c, playerIndex) {
+    const key = `${r},${c}`;
+    const type = this.powerups[key];
+    if (!type) { this.lastEvent = null; return; }
+    delete this.powerups[key];
+
+    if (type === 'ghost') {
+      this.ghostCharges[playerIndex]++;
+      this.lastEvent = { type: 'ghost', player: playerIndex, r, c };
+    } else if (type === 'teleport') {
+      const dest = this._randomEmptyCell();
+      if (dest) this.pawnPos[playerIndex] = dest;
+      this.lastEvent = { type: 'teleport', player: playerIndex, to: dest };
+    } else if (type === 'hammer') {
+      // Remove a random opponent wall (the most "harmful" — on our path — first).
+      const removed = this._hammerSmash(playerIndex);
+      this.lastEvent = { type: 'hammer', player: playerIndex, wall: removed };
+    }
+  }
+
+  _randomEmptyCell() {
+    const N = this.boardSize;
+    const occupied = new Set([
+      `${this.pawnPos[0].r},${this.pawnPos[0].c}`,
+      `${this.pawnPos[1].r},${this.pawnPos[1].c}`
+    ]);
+    for (let i = 0; i < 200; i++) {
+      const r = Math.floor(this._rng() * N);
+      const c = Math.floor(this._rng() * N);
+      if (r === 0 || r === N - 1) continue; // not on a goal row
+      if (!occupied.has(`${r},${c}`)) return { r, c };
+    }
+    return null;
+  }
+
+  _hammerSmash(playerIndex) {
+    if (this.walls.length === 0) return null;
+    // Prefer smashing a wall placed by the opponent.
+    const opp = 1 - playerIndex;
+    let pool = this.walls.filter(w => w.player === opp);
+    if (pool.length === 0) pool = this.walls.slice();
+    const target = pool[Math.floor(this._rng() * pool.length)];
+    this.walls = this.walls.filter(w => !(w.r === target.r && w.c === target.c && w.type === target.type));
+    // Return the wall to its owner's reserve.
+    if (typeof target.player === 'number') this.playerWallsLeft[target.player]++;
+    return target;
   }
 
   // BFS check to verify if playerIndex has a path to their target row
@@ -318,4 +418,15 @@ export class QuoridorEngine {
       this.winner = 1;
     }
   }
+}
+
+// Small deterministic PRNG (mulberry32). Seeded so both online clients generate
+// the same power-up layout and random effects from a shared seed.
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }

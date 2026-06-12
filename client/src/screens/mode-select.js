@@ -20,7 +20,7 @@ const GAME_MODES = [
   { id: 'duel',  icon: '⚔️', available: true },
   { id: 'race',  icon: '🏁', available: true },
   { id: 'fog',   icon: '🌫️', available: true },
-  { id: 'chaos', icon: '✨', available: false },
+  { id: 'chaos', icon: '✨', available: true },
   { id: 'team',  icon: '👥', available: false }
 ];
 
@@ -344,11 +344,15 @@ export class ModeSelectScreen {
   }
 
   baseConfig() {
-    // Fog of War plays by Duel rules; the fog is a presentation layer.
-    const engineMode = this.config.mode === 'fog' ? 'duel' : this.config.mode;
+    // Fog of War and Chaos play by Duel rules; they're layered on top.
+    const engineMode = (this.config.mode === 'fog' || this.config.mode === 'chaos')
+      ? 'duel' : this.config.mode;
     return {
       mode: engineMode,
       fog: this.config.mode === 'fog',
+      chaos: this.config.mode === 'chaos',
+      // Shared seed so both online clients build the same power-up layout.
+      seed: (Date.now() & 0x7fffffff) || 1,
       boardSize: this.config.size,
       totalTime: this.config.timer,
       blitzTime: this.config.blitz,
