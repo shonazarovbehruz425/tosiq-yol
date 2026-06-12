@@ -10,14 +10,28 @@ export const initTelegram = () => {
   if (tg) {
     try { tg.ready(); } catch (e) { /* ignore */ }
     try { tg.expand(); } catch (e) { /* ignore */ }
+
+    // Open in true full screen on supported clients (Bot API 8.0+).
+    // Falls back silently to the expanded view on older clients.
+    try {
+      const ver = parseFloat(tg.version || '6.0');
+      if (ver >= 8.0 && typeof tg.requestFullscreen === 'function') {
+        tg.requestFullscreen();
+      }
+    } catch (e) { /* ignore */ }
+
     try { applyTheme(); } catch (e) { /* ignore */ }
 
     // Watch for theme & viewport changes (guarded — older desktop clients vary)
     try { tg.onEvent('themeChanged', applyTheme); } catch (e) { /* ignore */ }
     try { tg.onEvent('viewportChanged', applyViewportHeight); } catch (e) { /* ignore */ }
+    // Recompute the layout when entering/leaving full screen.
+    try { tg.onEvent('fullscreenChanged', onFullscreenChanged); } catch (e) { /* ignore */ }
+    try { tg.onEvent('fullscreenFailed', applyViewportHeight); } catch (e) { /* ignore */ }
   }
 
   applyViewportHeight();
+  applyTopInset();
 
   // Fallback for browsers / desktop testing: track window resize
   window.addEventListener('resize', applyViewportHeight);
@@ -25,6 +39,35 @@ export const initTelegram = () => {
     // Delay to let the browser settle the new dimensions
     setTimeout(applyViewportHeight, 200);
   });
+};
+
+// In full screen Telegram overlays its close/menu controls at the top, so we
+// push our content down by the reported safe-area inset. Also stop the
+// swipe-down-to-close gesture while in full screen so gameplay isn't dismissed.
+const onFullscreenChanged = () => {
+  applyTopInset();
+  applyViewportHeight();
+  try {
+    if (tg && tg.isFullscreen && typeof tg.disableVerticalSwipes === 'function') {
+      tg.disableVerticalSwipes();
+    } else if (tg && typeof tg.enableVerticalSwipes === 'function') {
+      tg.enableVerticalSwipes();
+    }
+  } catch (e) { /* ignore */ }
+};
+
+// Write Telegram's top safe-area inset into a CSS variable so the header clears
+// the fullscreen system controls. Falls back to the env() value when unset.
+const applyTopInset = () => {
+  let top = 0;
+  try {
+    if (tg && tg.contentSafeAreaInset && typeof tg.contentSafeAreaInset.top === 'number') {
+      top = tg.contentSafeAreaInset.top;
+    } else if (tg && tg.safeAreaInset && typeof tg.safeAreaInset.top === 'number') {
+      top = tg.safeAreaInset.top;
+    }
+  } catch (e) { /* ignore */ }
+  document.documentElement.style.setProperty('--tg-content-top', `${top || 0}px`);
 };
 
 // Write the real usable height into a CSS variable to avoid 100vh issues on mobile
