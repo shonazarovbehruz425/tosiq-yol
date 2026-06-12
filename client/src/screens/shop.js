@@ -69,7 +69,7 @@ export class ShopScreen {
     const isEquipped = equipped === s.id;
     let action;
     if (isEquipped) {
-      action = `<span class="shop-equipped">✓ ${t('equipped')}</span>`;
+      action = `<button class="shop-btn shop-unequip" data-unequip="1">✓ ${t('equipped')}</button>`;
     } else if (isOwned) {
       action = `<button class="shop-btn shop-equip" data-equip="${s.id}">${t('equip')}</button>`;
     } else {
@@ -115,6 +115,13 @@ export class ShopScreen {
         socket.send('equip_skin', { skinId: btn.dataset.equip });
       });
     });
+    document.querySelectorAll('[data-unequip]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        haptic.impact('light');
+        // Empty skinId tells the server to unequip (back to default pawn).
+        socket.send('equip_skin', { skinId: '' });
+      });
+    });
   }
 
   refreshBody() {
@@ -138,7 +145,10 @@ export class ShopScreen {
       else if (res.error === 'insufficient') { haptic.notification('error'); Toast.warning(t('notEnoughCoins')); }
       else if (res.error === 'not_registered') Toast.warning(t('shopNotRegistered'));
     } else if (res.action === 'equip') {
-      if (res.ok) { haptic.notification('success'); Toast.success(t('equipSuccess')); }
+      if (res.ok) {
+        haptic.notification('success');
+        Toast.success(res.equipped ? t('equipSuccess') : t('unequipSuccess'));
+      }
     }
     // Update local state from the server response, then re-render.
     if (typeof res.coins === 'number') this.state.coins = res.coins;

@@ -1849,4 +1849,5 @@ html.light-mode .qbg-grid {
 .shop-btn:active { transform: scale(0.94); }
 .shop-buy { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #1f2937; }
 .shop-equip { background: var(--primary-gradient); }
+.shop-unequip { background: rgba(16, 185, 129, 0.18); color: var(--accent-green); border: 1px solid rgba(16,185,129,0.45); }
 .shop-equipped { font-size: 12px; font-weight: 800; color: var(--accent-green); }

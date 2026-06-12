@@ -225,6 +225,7 @@ export const en = {
   equipped: "Equipped",
   buySuccess: "Purchased!",
   equipSuccess: "Equipped!",
+  unequipSuccess: "Unequipped!",
   notEnoughCoins: "Not enough WAYZ",
   shopNotRegistered: "Open the bot and press Start first",
   shopHint: "Win online games to earn WAYZ"

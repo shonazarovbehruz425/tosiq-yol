@@ -225,6 +225,7 @@ export const uz = {
   equipped: "Tanlangan",
   buySuccess: "Sotib olindi!",
   equipSuccess: "Jihozlandi!",
+  unequipSuccess: "Olib tashlandi!",
   notEnoughCoins: "WAYZ yetarli emas",
   shopNotRegistered: "Avval botga kirib Start bosing",
   shopHint: "Onlayn o'yinda yutib WAYZ ishlang"
