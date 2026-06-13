@@ -135,19 +135,21 @@ export class BoardRenderer {
     this.updateValidMoves();
   }
 
-  // Draw pawns on board
+  // Draw pawns on board. Reuses existing pawn elements and animates their
+  // movement between cells (FLIP technique) so they glide smoothly.
   updatePawns() {
-    // Clear old pawns
-    this.pawnElements.forEach(p => p?.remove());
-    
     const colors = ['red', 'blue'];
     for (let i = 0; i < 2; i++) {
       const pos = this.engine.pawnPos[i];
       const cell = this.cellElements[`${pos.r},${pos.c}`];
-      if (cell) {
-        const pawn = document.createElement('div');
+      if (!cell) continue;
+
+      let pawn = this.pawnElements[i];
+
+      // Create the pawn once; afterwards we just move the same element.
+      if (!pawn || !pawn.isConnected) {
+        pawn = document.createElement('div');
         pawn.className = `pawn pawn-${colors[i]}`;
-        // Equipped team crest (if any) for this side.
         const skinId = this.pawnSkins && this.pawnSkins[i];
         if (skinId && this._crestSvg) {
           pawn.classList.add('pawn-skinned');
@@ -155,6 +157,32 @@ export class BoardRenderer {
         }
         cell.appendChild(pawn);
         this.pawnElements[i] = pawn;
+        continue;
+      }
+
+      // Already on the right cell — nothing to animate.
+      if (pawn.parentElement === cell) continue;
+
+      // FLIP: measure old position, move, measure new, then animate the delta.
+      const first = pawn.getBoundingClientRect();
+      cell.appendChild(pawn);
+      const last = pawn.getBoundingClientRect();
+      const dx = first.left - last.left;
+      const dy = first.top - last.top;
+
+      if (dx || dy) {
+        pawn.classList.add('pawn-moving');
+        pawn.style.transition = 'none';
+        pawn.style.transform = `translate(${dx}px, ${dy}px)`;
+        // Force reflow so the starting transform is applied before transitioning.
+        void pawn.offsetWidth;
+        pawn.style.transition = '';
+        pawn.style.transform = '';
+        const done = () => {
+          pawn.classList.remove('pawn-moving');
+          pawn.removeEventListener('transitionend', done);
+        };
+        pawn.addEventListener('transitionend', done);
       }
     }
   }

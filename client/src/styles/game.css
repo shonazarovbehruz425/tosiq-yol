@@ -254,7 +254,18 @@
   position: absolute;
   z-index: 10;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
-  transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+  /* Smooth glide between cells (FLIP transform). */
+  transition: transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: transform;
+}
+
+/* The pawn currently sliding rides above the others. */
+.pawn.pawn-moving {
+  z-index: 20;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pawn { transition: none; }
 }
 
 .pawn.pawn-red {
