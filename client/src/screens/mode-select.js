@@ -21,7 +21,7 @@ const GAME_MODES = [
   { id: 'race',  icon: '🏁', available: true },
   { id: 'fog',   icon: '🌫️', available: true },
   { id: 'chaos', icon: '✨', available: true },
-  { id: 'team',  icon: '👥', available: false }
+  { id: 'team',  icon: '👥', available: true }
 ];
 
 const modeInfo = (id) => GAME_MODES.find(m => m.id === id) || GAME_MODES[0];
@@ -362,6 +362,16 @@ export class ModeSelectScreen {
 
   startGame() {
     const vs = this.params?.vs || 'online';
+
+    // 2v2 Team is a local (offline) mode for now: you + an AI teammate vs 2 AIs.
+    if (this.config.mode === 'team') {
+      this.router.navigate('team-game', {
+        boardSize: this.config.size,
+        wallsCount: this.config.walls
+      });
+      return;
+    }
+
     const gameParams = {
       vs,
       difficulty: this.params?.difficulty || 'normal',

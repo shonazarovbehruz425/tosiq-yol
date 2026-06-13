@@ -11,6 +11,7 @@ import SettingsScreen from './screens/settings.js';
 import LeaderboardScreen from './screens/leaderboard.js';
 import FriendsScreen from './screens/friends.js';
 import ShopScreen from './screens/shop.js';
+import TeamGameScreen from './screens/team-game.js';
 import BotScreen from './screens/bot.js';
 import ModeSelectScreen from './screens/mode-select.js';
 import OnlineScreen from './screens/online.js';
@@ -46,6 +47,7 @@ async function bootstrap() {
   router.register('leaderboard', LeaderboardScreen);
   router.register('friends', FriendsScreen);
   router.register('shop', ShopScreen);
+  router.register('team-game', TeamGameScreen);
   router.register('bot', BotScreen);
   router.register('mode-select', ModeSelectScreen);
   router.register('online', OnlineScreen);

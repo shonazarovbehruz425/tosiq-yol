@@ -1,6 +1,7 @@
 import { verifyTelegramWebAppData } from '../middleware/auth.js';
 import { db } from '../db/database.js';
 import { roomManager } from './rooms.js';
+import { teamRoomManager } from './team-rooms.js';
 import { matchmaking } from './matchmaking.js';
 import { QuoridorEngine } from '../game/quoridor.js';
 import { presence } from './presence.js';
@@ -225,6 +226,42 @@ export function handleWebSocketConnection(ws, wss, request) {
         db.removeFriend(userProfile.id, otherId);
         pushFriendData(userProfile.id);
         pushFriendData(otherId);
+        return;
+      }
+
+      // ===== 2v2 Team (online) =====
+      if (type === 'enter_team_matchmaking') {
+        const player = { id: userProfile.id, first_name: userProfile.first_name, username: userProfile.username, ws };
+        const cfg = { boardSize: 11, wallsPerTeam: (payload && payload.wallsPerTeam) || 10 };
+        const res = teamRoomManager.enqueue(player, cfg);
+        ws.send(JSON.stringify({ type: 'team_queue', payload: { size: teamRoomManager.queueSize(), ...res } }));
+        return;
+      }
+
+      if (type === 'cancel_team_search') {
+        teamRoomManager.dequeue(userProfile.id);
+        return;
+      }
+
+      if (type === 'team_move') {
+        const room = teamRoomManager.getRoom(payload && payload.roomCode);
+        if (room) room.handleMove(userProfile.id, payload.r, payload.c);
+        return;
+      }
+
+      if (type === 'team_wall') {
+        const room = teamRoomManager.getRoom(payload && payload.roomCode);
+        if (room) room.handleWall(userProfile.id, payload.r, payload.c, payload.wallType);
+        return;
+      }
+
+      if (type === 'leave_team_room') {
+        const room = teamRoomManager.getRoom(payload && payload.roomCode);
+        if (room) {
+          room.handleDisconnect(userProfile.id);
+          room.removePlayer(userProfile.id);
+          if (room.players.length === 0) teamRoomManager.deleteRoom(room.roomCode);
+        }
         return;
       }
 
@@ -503,6 +540,11 @@ export function handleWebSocketConnection(ws, wss, request) {
       // 0. Mark offline
       presence.remove(userProfile.id);
       socketRegistry.remove(userProfile.id, ws);
+
+      // Team mode: drop from queue and notify any active team room.
+      teamRoomManager.dequeue(userProfile.id);
+      const teamRoom = teamRoomManager.getRoomByPlayerId(userProfile.id);
+      if (teamRoom && !teamRoom.isFinished) teamRoom.handleDisconnect(userProfile.id);
 
       // 1. Remove from matchmaking queue
       matchmaking.leave(userProfile.id);

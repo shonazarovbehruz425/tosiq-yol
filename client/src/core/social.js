@@ -95,6 +95,21 @@ export function initSocial() {
     const amount = data && data.amount;
     if (amount) Toast.success(`+${amount} ${CURRENCY.code}`);
   });
+
+  // 2v2 Team match found -> drop into the online team game.
+  socket.on('team_match_found', (data) => {
+    if (!data || !data.roomCode) return;
+    haptic.notification('success');
+    router.navigate('team-game', {
+      online: true,
+      roomCode: data.roomCode,
+      slot: data.slot,
+      team: data.team,
+      boardSize: data.config.boardSize,
+      wallsPerTeam: data.config.wallsPerTeam,
+      players: data.players
+    });
+  });
 }
 
 export default initSocial;

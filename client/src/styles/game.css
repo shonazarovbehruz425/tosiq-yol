@@ -895,3 +895,47 @@
   height: 100%;
   display: block;
 }
+
+/* ===== 2v2 Team mode ===== */
+.team-status {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.team-chip {
+  flex: 1;
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 10px;
+  border-radius: 12px;
+  font-size: 12.5px; font-weight: 700;
+  background: var(--card-bg);
+  border: 1.5px solid var(--card-border);
+  transition: all var(--transition-normal);
+}
+.team-chip .team-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.team-chip.team0 { color: #93c5fd; }
+.team-chip.team0 .team-dot { background: var(--accent-blue); box-shadow: 0 0 8px var(--accent-blue); }
+.team-chip.team1 { color: #fca5a5; }
+.team-chip.team1 .team-dot { background: var(--accent-red); box-shadow: 0 0 8px var(--accent-red); }
+.team-chip.team0.active { border-color: var(--accent-blue); box-shadow: 0 0 12px var(--accent-blue-glow); }
+.team-chip.team1.active { border-color: var(--accent-red); box-shadow: 0 0 12px var(--accent-red-glow); }
+.team-walls { margin-left: auto; font-size: 11px; opacity: 0.9; }
+
+.team-wall-btn { flex: 1; font-size: 13px; padding: 10px; }
+.team-wall-btn.active {
+  background: var(--primary-gradient);
+  color: #fff;
+}
+
+/* Highlight the human's own pawn with a bright ring. */
+.pawn.pawn-me {
+  box-shadow: 0 0 0 3px #fff, 0 4px 12px rgba(0,0,0,0.5);
+}
+
+/* Active (tappable) wall slots in team mode. */
+.wall-slot-active {
+  background: rgba(124, 58, 237, 0.18);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.wall-slot-active:hover { background: rgba(124, 58, 237, 0.35); }
