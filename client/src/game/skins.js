@@ -139,7 +139,8 @@ export function shopSkins() {
 let _uid = 0;
 
 // Build an inline SVG crest for a skin. `size` is the pixel diameter.
-// Uses a diagonal two-tone split — no clipPath (which collided across copies).
+// Uses a clipPath with a UNIQUE id per render (the duplicate-id collision was
+// the original "half-drawn" bug) so any number of crests render correctly.
 export function crestSvg(id, size = 40) {
   const s = byId[id];
   const uid = `s${(++_uid)}`;
@@ -156,25 +157,18 @@ export function crestSvg(id, size = 40) {
   }
 
   const [p, sec] = s.colors;
-  const txt = isLight(p) && isLight(sec) ? '#111827' : '#ffffff';
-  // Two diagonal halves filling the whole circle, then a ring + abbreviation.
-  // No clipPath: each half is a path bounded by the circle, so it always
-  // renders fully even with many crests on screen.
+  // Circle clipped two-tone: primary fill + a diagonal triangle of the secondary
+  // colour, then a white ring and the abbreviation centred on a dark plate so
+  // it stays readable on any colour combination.
   return `<svg viewBox="0 0 40 40" width="${size}" height="${size}">
-    <circle cx="20" cy="20" r="18" fill="${p}"/>
-    <path d="M20 2 A18 18 0 0 0 7.3 32.7 Z" fill="${sec}"/>
-    <circle cx="20" cy="20" r="18" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2.5"/>
-    <text x="20" y="25" text-anchor="middle" font-family="Outfit, Arial, sans-serif"
-      font-size="11" font-weight="800" fill="${txt}"
-      stroke="rgba(0,0,0,0.35)" stroke-width="0.4" paint-order="stroke">${s.short}</text>
+    <defs><clipPath id="${uid}"><circle cx="20" cy="20" r="18"/></clipPath></defs>
+    <g clip-path="url(#${uid})">
+      <rect x="0" y="0" width="40" height="40" fill="${p}"/>
+      <polygon points="0,0 40,0 0,40" fill="${sec}"/>
+      <rect x="0" y="13.5" width="40" height="13" fill="rgba(0,0,0,0.32)"/>
+    </g>
+    <circle cx="20" cy="20" r="18" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2.5"/>
+    <text x="20" y="24.4" text-anchor="middle" font-family="Outfit, Arial, sans-serif"
+      font-size="10.5" font-weight="800" fill="#ffffff">${s.short}</text>
   </svg>`;
-}
-
-function isLight(hex) {
-  const c = (hex || '').replace('#', '');
-  if (c.length !== 6) return false;
-  const r = parseInt(c.slice(0, 2), 16);
-  const g = parseInt(c.slice(2, 4), 16);
-  const b = parseInt(c.slice(4, 6), 16);
-  return (0.299 * r + 0.587 * g + 0.114 * b) > 150;
 }
