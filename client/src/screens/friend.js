@@ -33,7 +33,10 @@ export class FriendScreen {
             </div>
 
             <button class="btn btn-primary" id="share-link-btn">
-              🔗 Havolani Ulashish
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;vertical-align:-3px;margin-right:6px;">
+                <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v14"/>
+              </svg>
+              Havolani Ulashish
             </button>
 
             <button class="btn btn-secondary" id="cancel-room-btn" style="margin-top: 10px; width: 100%;">
@@ -58,7 +61,10 @@ export class FriendScreen {
         </button>
 
         <button class="btn btn-secondary" id="create-private-btn" style="margin: 0 0 26px; padding: 16px;">
-          🔒 &nbsp; ${t('createPrivate')}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;flex-shrink:0;">
+            <rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+          </svg>
+          &nbsp; ${t('createPrivate')}
         </button>
 
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
