@@ -1861,7 +1861,7 @@ html.light-mode .qbg-grid {
 /* ===== Global top-left in-app back button ===== */
 .app-back-btn {
   position: absolute;
-  top: calc(2px + var(--safe-top));
+  top: calc(var(--safe-top) - 6px);
   left: calc(10px + var(--safe-left));
   z-index: 120;
   height: 40px;
