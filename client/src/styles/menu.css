@@ -1864,18 +1864,22 @@ html.light-mode .qbg-grid {
   top: calc(8px + var(--safe-top));
   left: calc(10px + var(--safe-left));
   z-index: 120;
-  width: 40px; height: 40px;
+  height: 40px;
+  padding: 0 14px 0 10px;
   border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; gap: 5px;
   background: var(--pill-bg);
   border: 1px solid var(--pill-border);
   color: var(--text-color);
+  font-family: var(--font-sans);
+  font-size: 14px; font-weight: 700;
   cursor: pointer;
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   transition: transform 0.12s ease, background 0.2s ease;
 }
-.app-back-btn svg { width: 22px; height: 22px; }
-.app-back-btn:active { transform: scale(0.9); }
+.app-back-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
+.app-back-label { line-height: 1; }
+.app-back-btn:active { transform: scale(0.94); }
 
 /* The old bottom "Back" buttons are replaced by the global top button.
    (Replay uses .game-logo-btn#back-btn at the top, so only hide .btn ones.) */

@@ -2,6 +2,7 @@
 // (not on the home screen or during gameplay). Calls router.back().
 import { router } from './router.js';
 import { haptic } from './telegram.js';
+import { t } from './i18n.js';
 
 let btn = null;
 
@@ -15,7 +16,8 @@ export function initBackButton() {
   btn.innerHTML = `
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M15 18l-6-6 6-6"/>
-    </svg>`;
+    </svg>
+    <span class="app-back-label">${t('back')}</span>`;
   btn.addEventListener('click', () => {
     haptic.impact('light');
     router.back();
@@ -28,6 +30,9 @@ export function mountBackButton() {
   const app = document.getElementById('app');
   if (!app) return;
   if (!btn) { initBackButton(); return; }
+  // Keep the label in sync with the current language.
+  const label = btn.querySelector('.app-back-label');
+  if (label) label.textContent = t('back');
   // Re-attach after the router wipes #app.
   if (btn.parentElement !== app) app.appendChild(btn);
 }
