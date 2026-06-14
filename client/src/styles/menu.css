@@ -1193,6 +1193,11 @@ input:checked + .slider:before {
   pointer-events: none;
 }
 
+/* Global persistent layer: sits behind all screens inside #app. */
+.qbg-global { z-index: 0; }
+/* Screens render above the background. */
+#app > .screen, #app > .game-container { position: relative; z-index: 1; }
+
 /* Grid of board cells (the "qafaslar") */
 .qbg-grid {
   position: absolute;

@@ -1,8 +1,12 @@
 import { showBackButton, hideBackButton } from './telegram.js';
+import { setBackgroundVisible, mountBackground } from './background.js';
 
 // Screens that should NOT be kept in the back stack once you leave them.
 // (You should never be able to "go back into" a finished/transient screen.)
 const TRANSIENT = new Set(['game', 'result', 'replay-screen']);
+
+// Screens where the animated menu background should be hidden (gameplay).
+const NO_BACKGROUND = new Set(['game', 'team-game', 'replay-screen']);
 
 class Router {
   constructor() {
@@ -135,8 +139,15 @@ class Router {
       hideBackButton();
     }
 
+    // Compute whether this screen shows the menu background.
+    const top = this.history[this.history.length - 1];
+
     this.activeScreen = new ScreenClass(this, params);
     this.container.innerHTML = this.activeScreen.render();
+    // The innerHTML reset above wipes the persistent background; re-attach it
+    // and apply the correct visibility for this screen (hidden in-game).
+    mountBackground();
+    setBackgroundVisible(!(top && NO_BACKGROUND.has(top.name)));
     if (typeof this.activeScreen.afterRender === 'function') {
       this.activeScreen.afterRender();
     }
@@ -146,6 +157,7 @@ class Router {
     if (!this.activeScreen) return;
     const scrollPos = window.scrollY;
     this.container.innerHTML = this.activeScreen.render();
+    mountBackground();
     if (typeof this.activeScreen.afterRender === 'function') {
       this.activeScreen.afterRender();
     }

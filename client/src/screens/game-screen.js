@@ -348,7 +348,10 @@ export class GameScreen {
       if (dot) dot.style.display = 'none';
       setTimeout(() => input && input.focus(), 50);
     };
-    const closePanel = () => panel.classList.remove('open');
+    const closePanel = () => {
+      panel.classList.remove('open');
+      if (input) input.blur();
+    };
 
     fab.addEventListener('click', () => {
       haptic.impact('light');
@@ -356,12 +359,27 @@ export class GameScreen {
     });
     if (closeBtn) closeBtn.addEventListener('click', closePanel);
 
+    // Keep the chat panel above the on-screen keyboard using the VisualViewport
+    // API: when the keyboard shrinks the visual viewport, lift the panel by the
+    // difference so the input stays visible.
+    const vv = window.visualViewport;
+    if (vv) {
+      this._chatVVHandler = () => {
+        if (!panel.classList.contains('open')) { panel.style.bottom = ''; return; }
+        const keyboard = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+        panel.style.bottom = keyboard > 80 ? `${keyboard}px` : '';
+      };
+      vv.addEventListener('resize', this._chatVVHandler);
+      vv.addEventListener('scroll', this._chatVVHandler);
+    }
+
     const send = () => {
       const text = (input.value || '').trim().slice(0, 200);
       if (!text) return;
       socket.send('game_chat', { roomCode: this.params.roomCode, text });
       this.addChatMessage(text, 'me');
       input.value = '';
+      input.focus();
     };
     if (sendBtn) sendBtn.addEventListener('click', send);
     if (input) input.addEventListener('keydown', (e) => {
@@ -856,6 +874,11 @@ export class GameScreen {
     if (this._onShopState) {
       socket.off('shop_state', this._onShopState);
       this._onShopState = null;
+    }
+    if (this._chatVVHandler && window.visualViewport) {
+      window.visualViewport.removeEventListener('resize', this._chatVVHandler);
+      window.visualViewport.removeEventListener('scroll', this._chatVVHandler);
+      this._chatVVHandler = null;
     }
     
     // Turn off sockets

@@ -4,6 +4,7 @@ import { router } from './core/router.js';
 import { StorageManager } from './core/storage.js';
 import { initSound } from './core/sound.js';
 import { initSocial } from './core/social.js';
+import { initBackground } from './core/background.js';
 
 // Screen Imports
 import HomeScreen from './screens/home.js';
@@ -58,6 +59,9 @@ async function bootstrap() {
 
   // 4. Hook router to DOM target
   router.init('#app');
+
+  // 4a. Mount the persistent animated background (shown on menus, hidden in-game)
+  initBackground();
 
   // 4b. Bind app-wide social notifications (friend requests / game invites)
   initSocial();
