@@ -91,7 +91,19 @@ export class TeamRoom {
 
   handleDisconnect(playerId) {
     if (!this.isStarted || this.isFinished) return;
-    this.broadcast('team_player_left', { slot: this.playerSlots[playerId] });
+    const slot = this.playerSlots[playerId];
+    this.broadcast('team_player_left', { slot });
+    // A 4-player turn-based game can't continue if someone leaves (their turn
+    // would never resolve). End it: the leaver's team forfeits.
+    if (slot != null && this.engine && this.engine.winner === -1) {
+      this.engine.winner = 1 - (slot % 2); // the other team wins
+      this.isFinished = true;
+      this.broadcast('team_finished', { winningTeam: this.engine.winner, reason: 'left' });
+      this.players.forEach(p => {
+        const won = this.playerSlots[p.id] % 2 === this.engine.winner;
+        try { db.addCoins(p.id, won ? 25 : 8); } catch (e) { /* ignore */ }
+      });
+    }
   }
 
   broadcast(type, payload) {

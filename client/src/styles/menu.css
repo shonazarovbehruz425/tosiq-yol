@@ -1786,6 +1786,7 @@ html.light-mode .qbg-grid {
   gap: 10px;
 }
 .mode-cur-emoji { font-size: 20px; flex-shrink: 0; }
+.mode-cur-emoji svg { width: 22px; height: 22px; display: block; color: var(--primary); }
 .mode-option { width: 100%; text-align: left; }
 .mode-opt-text { display: flex; flex-direction: column; gap: 1px; flex: 1 1 auto; min-width: 0; }
 .mode-option.soon { opacity: 0.55; }
@@ -1856,3 +1857,41 @@ html.light-mode .qbg-grid {
 .shop-equip { background: var(--primary-gradient); }
 .shop-unequip { background: rgba(16, 185, 129, 0.18); color: var(--accent-green); border: 1px solid rgba(16,185,129,0.45); }
 .shop-equipped { font-size: 12px; font-weight: 800; color: var(--accent-green); }
+
+/* ===== Global top-left in-app back button ===== */
+.app-back-btn {
+  position: absolute;
+  top: calc(8px + var(--safe-top));
+  left: calc(10px + var(--safe-left));
+  z-index: 120;
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--pill-bg);
+  border: 1px solid var(--pill-border);
+  color: var(--text-color);
+  cursor: pointer;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  transition: transform 0.12s ease, background 0.2s ease;
+}
+.app-back-btn svg { width: 22px; height: 22px; }
+.app-back-btn:active { transform: scale(0.9); }
+
+/* The old bottom "Back" buttons are replaced by the global top button.
+   (Replay uses .game-logo-btn#back-btn at the top, so only hide .btn ones.) */
+.btn.btn-secondary#back-btn { display: none !important; }
+
+/* Give menu screens a little top room so content clears the back button. */
+.app-back-btn ~ #app, .screen { }
+
+/* ===== Rematch status (result screen) ===== */
+.rematch-status { font-weight: 700; font-size: 14px; margin: 4px 0; }
+.rematch-status.wait { color: var(--primary); }
+.rematch-status.go { color: var(--accent-green); }
+.rematch-status.invite { color: var(--accent-yellow); }
+.rematch-pulse { animation: rematchPulse 1s ease-in-out infinite; }
+@keyframes rematchPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); box-shadow: 0 0 18px var(--primary-glow); }
+}
+@media (prefers-reduced-motion: reduce) { .rematch-pulse { animation: none; } }

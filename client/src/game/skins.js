@@ -158,16 +158,18 @@ export function crestSvg(id, size = 40) {
 
   const [p, sec] = s.colors;
   // Circle clipped two-tone: primary fill + a diagonal triangle of the secondary
-  // colour, then a white ring and the abbreviation centred on a dark plate so
-  // it stays readable on any colour combination.
+  // colour, a divider line, a dark plate behind the abbreviation, and an outer
+  // ring. Works even for white-on-white teams.
   return `<svg viewBox="0 0 40 40" width="${size}" height="${size}">
     <defs><clipPath id="${uid}"><circle cx="20" cy="20" r="18"/></clipPath></defs>
     <g clip-path="url(#${uid})">
       <rect x="0" y="0" width="40" height="40" fill="${p}"/>
       <polygon points="0,0 40,0 0,40" fill="${sec}"/>
-      <rect x="0" y="13.5" width="40" height="13" fill="rgba(0,0,0,0.32)"/>
+      <line x1="40" y1="0" x2="0" y2="40" stroke="rgba(0,0,0,0.25)" stroke-width="1.5"/>
+      <rect x="0" y="13.5" width="40" height="13" fill="rgba(0,0,0,0.4)"/>
+      <circle cx="20" cy="20" r="17" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="2"/>
     </g>
-    <circle cx="20" cy="20" r="18" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2.5"/>
+    <circle cx="20" cy="20" r="18" fill="none" stroke="rgba(255,255,255,0.92)" stroke-width="2.5"/>
     <text x="20" y="24.4" text-anchor="middle" font-family="Outfit, Arial, sans-serif"
       font-size="10.5" font-weight="800" fill="#ffffff">${s.short}</text>
   </svg>`;

@@ -90,6 +90,7 @@ export const en = {
   teamBlue: "Blue Team",
   teamRed: "Red Team",
   teammateTurn: "Teammate's turn",
+  teamGoalHint: "Goal: reach the finish line at the top. If your teammate makes it, you win too!",
   size7Sub: "Fast",
   size9Sub: "Standard",
   size11Sub: "Large",
@@ -142,6 +143,8 @@ export const en = {
   menu: "Main Menu",
   waitingOpponentRematch: "Waiting for opponent...",
   rematchDeclined: "Opponent declined rematch.",
+  opponentWantsRematch: "Opponent wants a rematch! Tap Rematch",
+  rematchStarting: "Both agreed! Starting...",
 
   // Replay
   replayTitle: "Game Replay",

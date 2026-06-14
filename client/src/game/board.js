@@ -135,6 +135,15 @@ export class BoardRenderer {
     this.updateValidMoves();
   }
 
+  // Force a full re-render of pawns (used when an equipped skin arrives after
+  // the pawns were first drawn). Removes existing pawn elements so updatePawns
+  // recreates them with the crest applied.
+  refreshSkins() {
+    this.pawnElements.forEach(p => p?.remove());
+    this.pawnElements = this.pawnElements.map(() => null);
+    this.updatePawns();
+  }
+
   // Draw pawns on board. Reuses existing pawn elements and animates their
   // movement between cells (FLIP technique) so they glide smoothly.
   updatePawns() {

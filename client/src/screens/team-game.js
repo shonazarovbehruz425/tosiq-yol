@@ -82,6 +82,10 @@ export class TeamGameScreen {
     this.updatePawns();
     this.updateBanner();
 
+    // Brief intro so players understand the objective. After the board flip,
+    // every player's own goal line is visually at the TOP of their screen.
+    Toast.info(t('teamGoalHint'));
+
     document.getElementById('logo-btn').addEventListener('click', () => this.confirmExit());
     document.getElementById('exit-btn').addEventListener('click', () => this.confirmExit());
 
@@ -93,7 +97,8 @@ export class TeamGameScreen {
 
   toggleWallMode(type, btn, other) {
     if (this.engine.currentPlayer !== this.mySide || this.engine.winner !== -1) return;
-    if (this.engine.teamWallsLeft[0] <= 0) { Toast.warning("To'siqlar tugadi!"); return; }
+    const myTeam = this.engine.team(this.mySide);
+    if (this.engine.teamWallsLeft[myTeam] <= 0) { Toast.warning("To'siqlar tugadi!"); return; }
     this.wallMode = this.wallMode === type ? null : type;
     btn.classList.toggle('active', this.wallMode === type);
     other.classList.remove('active');
@@ -124,6 +129,18 @@ export class TeamGameScreen {
         cell.className = 'cell';
         cell.style.gridRow = `${r * 2 + 1}`;
         cell.style.gridColumn = `${c * 2 + 1}`;
+        // Goal lines: team 0 (blue) finishes at the top (row 0),
+        // team 1 (red) finishes at the bottom (row N-1).
+        if (r === 0) {
+          const g = document.createElement('div');
+          g.className = 'goal-line-blue';
+          cell.appendChild(g);
+        }
+        if (r === N - 1) {
+          const g = document.createElement('div');
+          g.className = 'goal-line-red';
+          cell.appendChild(g);
+        }
         cell.addEventListener('click', () => this.onCellClick(r, c));
         board.appendChild(cell);
         this.cellElements[`${r},${c}`] = cell;
@@ -131,6 +148,11 @@ export class TeamGameScreen {
     }
     this.boardDiv = board;
     container.appendChild(board);
+    // Flip the board 180° for red-team players so their own pawn sits at the
+    // bottom moving up — the natural perspective (same as 1v1).
+    if (this.engine.team(this.mySide) === 1) {
+      container.classList.add('board-flipped');
+    }
     this.drawWalls();
     this.renderValidMoves();
   }
@@ -250,15 +272,21 @@ export class TeamGameScreen {
 
   updatePawns() {
     // Team 0 = blue (players 0,2), Team 1 = red (players 1,3).
-    // The human (player 0) is highlighted.
+    // Your pawn gets a bright ring; your teammate gets a small star marker so
+    // you can instantly tell friend from foe.
     this.pawnElements.forEach(p => p?.remove());
+    const myTeam = this.engine.team(this.mySide);
     for (let i = 0; i < 4; i++) {
       const pos = this.engine.pawnPos[i];
       const cell = this.cellElements[`${pos.r},${pos.c}`];
       if (!cell) continue;
       const pawn = document.createElement('div');
       const color = this.engine.team(i) === 0 ? 'blue' : 'red';
-      pawn.className = `pawn pawn-${color}${i === this.mySide ? ' pawn-me' : ''}`;
+      let extra = '';
+      if (i === this.mySide) extra = ' pawn-me';
+      else if (this.engine.team(i) === myTeam) extra = ' pawn-mate';
+      pawn.className = `pawn pawn-${color}${extra}`;
+      if (i === this.mySide) pawn.innerHTML = '<span class="pawn-tag">★</span>';
       cell.appendChild(pawn);
       this.pawnElements[i] = pawn;
     }

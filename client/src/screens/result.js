@@ -26,10 +26,12 @@ export class ResultScreen {
     const isBot = this.vs === 'bot';
     
     let statusText = '';
-    if (this.rematchRequested && !this.opponentRematchRequested) {
-      statusText = `<p style="color: var(--primary); font-weight: 600;">${t('waitingOpponentRematch')}</p>`;
-    } else if (this.rematchRequested && this.opponentRematchRequested) {
-      statusText = `<p style="color: var(--accent-green); font-weight: 600;">O'yin boshlanmoqda...</p>`;
+    if (this.rematchRequested && this.opponentRematchRequested) {
+      statusText = `<p class="rematch-status go">${t('rematchStarting')}</p>`;
+    } else if (this.rematchRequested) {
+      statusText = `<p class="rematch-status wait">${t('waitingOpponentRematch')}</p>`;
+    } else if (this.opponentRematchRequested) {
+      statusText = `<p class="rematch-status invite">${t('opponentWantsRematch')}</p>`;
     }
 
     return `
@@ -190,11 +192,17 @@ export class ResultScreen {
 
   onRematchRequested() {
     this.opponentRematchRequested = true;
-    Toast.info("Raqib sizni qayta o'yinga taklif qilmoqda!");
-    
+
     if (this.rematchRequested) {
-      // Both requested rematch -> accept!
+      // Both requested rematch -> accept and auto-start!
       socket.send('accept_rematch', { roomCode: this.params.roomCode });
+    } else {
+      // Show the incoming request prominently so the player can tap Rematch.
+      haptic.notification('warning');
+      Toast.info(t('opponentWantsRematch'));
+      this.router.reRenderActiveScreen();
+      const btn = document.getElementById('rematch-btn');
+      if (btn) btn.classList.add('rematch-pulse');
     }
   }
 

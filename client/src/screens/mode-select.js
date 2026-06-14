@@ -14,15 +14,26 @@ const BOARD_SIZES = [
 
 const sizeInfo = (size) => BOARD_SIZES.find(b => b.size === size) || BOARD_SIZES[1];
 
-// Selectable game modes. `available: false` modes show a "coming soon" hint
-// and can't be started yet (e.g. networked 2v2 needs more work).
+// Selectable game modes. `available: false` modes show a "coming soon" hint.
 const GAME_MODES = [
-  { id: 'duel',  icon: '⚔️', available: true },
-  { id: 'race',  icon: '🏁', available: true },
-  { id: 'fog',   icon: '🌫️', available: true },
-  { id: 'chaos', icon: '✨', available: true },
-  { id: 'team',  icon: '👥', available: true }
+  { id: 'duel',  available: true },
+  { id: 'race',  available: true },
+  { id: 'fog',   available: true },
+  { id: 'chaos', available: true },
+  { id: 'team',  available: true }
 ];
+
+// Crisp SVG icon per mode (no emoji/stickers).
+function modeIconSvg(id) {
+  const paths = {
+    duel:  '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="16" r="3"/><path d="M11 8h6M7 11v6"/>',
+    race:  '<path d="M5 3v18"/><path d="M5 4h11l-2 3 2 3H5"/>',
+    fog:   '<path d="M4 15h16M6 19h12M3 11h5M11 11h10M8 7h12"/>',
+    chaos: '<path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/>',
+    team:  '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.2"/><path d="M3 20a6 6 0 0 1 12 0M15 20a5 5 0 0 1 6-4.5"/>'
+  };
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths[id] || ''}</svg>`;
+}
 
 const modeInfo = (id) => GAME_MODES.find(m => m.id === id) || GAME_MODES[0];
 const modeName = (id) => ({ duel: 'modeDuel', race: 'modeRace', fog: 'modeFog', chaos: 'modeChaos', team: 'modeTeam' }[id]);
@@ -56,7 +67,7 @@ export class ModeSelectScreen {
     else timeLabel = `${this.config.timer / 60} min`;
     return `
       <div class="mode-badges">
-        <span class="mode-badge">${modeInfo(this.config.mode).icon} ${modeLabel}</span>
+        <span class="mode-badge">${modeLabel}</span>
         <span class="mode-badge">⏱️ ${timeLabel}</span>
         <span class="mode-badge">🚧 ${this.config.walls}</span>
       </div>
@@ -84,7 +95,7 @@ export class ModeSelectScreen {
         <div class="mode-section-label">${t('fieldLabel')}</div>
         <div class="bsize-select mode-select" id="mode-select">
           <button class="bsize-current" id="mode-current-btn">
-            <span class="mode-cur-emoji">${modeInfo(c.mode).icon}</span>
+            <span class="mode-cur-emoji">${modeIconSvg(c.mode)}</span>
             <span class="bsize-cur-title">${t(modeName(c.mode))}</span>
             <span class="bsize-cur-sub">${t(modeSub(c.mode))}</span>
             <span class="lang-caret">
@@ -96,7 +107,7 @@ export class ModeSelectScreen {
           <div class="bsize-dropdown" id="mode-dropdown">
             ${GAME_MODES.map(m => `
               <button class="bsize-option mode-option ${c.mode === m.id ? 'active' : ''} ${m.available ? '' : 'soon'}" data-mode="${m.id}">
-                <span class="mode-cur-emoji">${m.icon}</span>
+                <span class="mode-cur-emoji">${modeIconSvg(m.id)}</span>
                 <span class="mode-opt-text">
                   <span class="bsize-opt-title">${t(modeName(m.id))}${m.available ? '' : ' · soon'}</span>
                   <span class="bsize-opt-sub">${t(modeSub(m.id))}</span>
@@ -232,7 +243,7 @@ export class ModeSelectScreen {
         const emoji = modeCurrentBtn.querySelector('.mode-cur-emoji');
         const title = modeCurrentBtn.querySelector('.bsize-cur-title');
         const sub = modeCurrentBtn.querySelector('.bsize-cur-sub');
-        if (emoji) emoji.innerText = info.icon;
+        if (emoji) emoji.innerHTML = modeIconSvg(id);
         if (title) title.innerText = t(modeName(id));
         if (sub) sub.innerText = t(modeSub(id));
 

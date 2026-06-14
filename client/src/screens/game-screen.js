@@ -197,12 +197,12 @@ export class GameScreen {
     this.boardRenderer.pawnSkins = [null, null];
     if (this.params.mySkin) this.boardRenderer.pawnSkins[this.mySide] = this.params.mySkin;
     if (this.params.opponentSkin) this.boardRenderer.pawnSkins[1 - this.mySide] = this.params.opponentSkin;
-    if (this.params.mySkin || this.params.opponentSkin) this.boardRenderer.updatePawns();
+    if (this.params.mySkin || this.params.opponentSkin) this.boardRenderer.refreshSkins();
 
     this._onShopState = (data) => {
       if (data && data.equipped && !this.boardRenderer.pawnSkins[this.mySide]) {
         this.boardRenderer.pawnSkins[this.mySide] = data.equipped;
-        this.boardRenderer.updatePawns();
+        this.boardRenderer.refreshSkins();
         this.applyFog();
       }
     };
@@ -772,8 +772,12 @@ export class GameScreen {
       if (redTime) redTime.innerText = this.timer.formatTime(state.playerTimes[0]);
       if (blueTime) blueTime.innerText = this.timer.formatTime(state.playerTimes[1]);
     } else {
-      if (redTime) redTime.innerText = '∞';
-      if (blueTime) blueTime.innerText = '∞';
+      // No time limit → show an elapsed-time stopwatch (counts up from start).
+      if (!this._startTime) this._startTime = Date.now();
+      const elapsed = Math.floor((Date.now() - this._startTime) / 1000);
+      const stop = '⏱ ' + this.timer.formatTime(elapsed);
+      if (redTime) redTime.innerText = stop;
+      if (blueTime) blueTime.innerText = stop;
     }
 
     // Blitz bar update in status banner if active

@@ -90,6 +90,7 @@ export const uz = {
   teamBlue: "Ko'k Jamoa",
   teamRed: "Qizil Jamoa",
   teammateTurn: "Sherigingiz navbati",
+  teamGoalHint: "Maqsad: yuqoridagi marra chizig'iga yeting. Sherigingiz yetsa ham g'alaba!",
   size7Sub: "Tezkor",
   size9Sub: "Standart",
   size11Sub: "Katta",
@@ -142,6 +143,8 @@ export const uz = {
   menu: "Bosh Menyu",
   waitingOpponentRematch: "Raqibning roziligini kutilmoqda...",
   rematchDeclined: "Raqib qayta o'ynashni rad etdi.",
+  opponentWantsRematch: "Raqib qayta o'ynashni xohlaydi! Rematch bosing",
+  rematchStarting: "Ikkalangiz rozi! O'yin boshlanmoqda...",
 
   // Replay
   replayTitle: "O'yin Replayi",
