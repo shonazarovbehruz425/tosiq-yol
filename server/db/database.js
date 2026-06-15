@@ -129,6 +129,7 @@ class JSONDatabase {
       if (langCode) this.data.users[telegramId].language_code = langCode;
       this.data.users[telegramId].last_seen = new Date().toISOString();
     }
+    this._ensureGameId(this.data.users[telegramId]);
     this.save();
     return this.data.users[telegramId];
   }
@@ -212,8 +213,65 @@ class JSONDatabase {
   // ===== Friend system =====
   // Each user gets: friends: [ids], friendRequests: { incoming: [ids], outgoing: [ids] }
 
+  // Ensure the user has a unique public 8-digit game ID (separate from the
+  // Telegram id, which we don't want to expose for searching).
+  _ensureGameId(u) {
+    if (!u) return;
+    if (u.gameId && String(u.gameId).length === 8) return;
+    if (!this._gameIdIndex) this._rebuildGameIdIndex();
+    let id;
+    let guard = 0;
+    do {
+      id = String(Math.floor(10000000 + Math.random() * 90000000));
+      guard++;
+    } while (this._gameIdIndex.has(id) && guard < 50);
+    u.gameId = id;
+    this._gameIdIndex.add(id);
+  }
+
+  _rebuildGameIdIndex() {
+    this._gameIdIndex = new Set();
+    Object.values(this.data.users).forEach(u => {
+      if (u.gameId) this._gameIdIndex.add(String(u.gameId));
+    });
+  }
+
+  // Look up the Telegram id for a given 8-digit game ID.
+  findByGameId(gameId) {
+    const gid = String(gameId).trim();
+    const u = Object.values(this.data.users).find(x => String(x.gameId) === gid);
+    return u || null;
+  }
+
+  // Search users by 8-digit game ID (exact) or username/display name (partial).
+  // Returns up to `limit` public profiles, excluding the requester.
+  searchUsers(query, requesterId, limit = 12) {
+    const q = String(query || '').trim().toLowerCase().replace(/^@/, '');
+    if (!q) return [];
+    const me = String(requesterId);
+    const results = [];
+    for (const u of Object.values(this.data.users)) {
+      if (String(u.id) === me) continue;
+      this._ensureGameId(u);
+      const uname = (u.username || '').toLowerCase();
+      const dname = (u.display_name || u.first_name || '').toLowerCase();
+      const gid = String(u.gameId);
+      const isMatch =
+        gid === q ||                 // exact game ID
+        gid.startsWith(q) ||         // partial game ID
+        uname.includes(q) ||         // username contains
+        dname.includes(q);           // name contains
+      if (isMatch) {
+        results.push(this.publicProfile(u.id));
+        if (results.length >= limit) break;
+      }
+    }
+    return results;
+  }
+
   _ensureFriendFields(u) {
     if (!u) return;
+    this._ensureGameId(u);
     if (!Array.isArray(u.friends)) u.friends = [];
     if (!u.friendRequests || typeof u.friendRequests !== 'object') {
       u.friendRequests = { incoming: [], outgoing: [] };
@@ -225,10 +283,13 @@ class JSONDatabase {
   // Public name/flag for a user id (used by friend lists).
   publicProfile(id) {
     const u = this.data.users[String(id)];
-    if (!u) return { id, name: 'Unknown', country_code: '', wins: 0, losses: 0 };
+    if (!u) return { id, name: 'Unknown', country_code: '', wins: 0, losses: 0, gameId: '' };
+    this._ensureGameId(u);
     return {
       id: u.id,
+      gameId: u.gameId,
       name: u.display_name || u.first_name || (u.username ? '@' + u.username : 'Anonymous'),
+      username: u.username || '',
       country_code: u.country_code || '',
       wins: u.wins || 0,
       losses: u.losses || 0
@@ -336,6 +397,7 @@ class JSONDatabase {
       return p;
     };
     return {
+      me: this.publicProfile(meId),
       friends: me.friends.map(mark),
       incoming: me.friendRequests.incoming.map(mark),
       outgoing: me.friendRequests.outgoing.map(mark),

@@ -174,6 +174,18 @@ export function handleWebSocketConnection(ws, wss, request) {
         return;
       }
 
+      // Search users by 8-digit game ID or username/name.
+      if (type === 'search_users') {
+        const q = payload && payload.query;
+        const onlineIds = presence.onlineIds();
+        const results = db.searchUsers(q, userProfile.id, 12).map(p => {
+          p.online = onlineIds.has(Number(p.id)) || onlineIds.has(String(p.id));
+          return p;
+        });
+        ws.send(JSON.stringify({ type: 'search_results', payload: { query: q, results } }));
+        return;
+      }
+
       // Send a friend request to another user
       if (type === 'send_friend_request') {
         const targetId = payload && payload.userId;

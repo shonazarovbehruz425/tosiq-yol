@@ -1899,3 +1899,45 @@ html.light-mode .qbg-grid {
   50% { transform: scale(1.05); box-shadow: 0 0 18px var(--primary-glow); }
 }
 @media (prefers-reduced-motion: reduce) { .rematch-pulse { animation: none; } }
+
+/* ===== Friends: your game ID + search ===== */
+.my-game-id {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: text;
+}
+.my-game-id b { color: var(--text-color); letter-spacing: 1px; font-family: monospace; font-size: 14px; }
+.my-game-id .copy-id { margin-left: 4px; opacity: 0.7; }
+
+.fr-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 4px 0 14px;
+}
+.fr-search-ico {
+  position: absolute; left: 12px;
+  width: 18px; height: 18px; color: var(--text-secondary);
+  pointer-events: none;
+}
+.fr-search-input {
+  width: 100%;
+  font-family: var(--font-sans);
+  font-size: 14px; font-weight: 600;
+  color: var(--text-color);
+  background: var(--pill-bg);
+  border: 1px solid var(--pill-border);
+  border-radius: 14px;
+  padding: 11px 36px 11px 38px;
+  outline: none;
+}
+.fr-search-input:focus { border-color: var(--primary); }
+.fr-search-clear {
+  position: absolute; right: 8px;
+  width: 26px; height: 26px; border-radius: 50%;
+  border: none; background: rgba(255,255,255,0.08);
+  color: var(--text-secondary); cursor: pointer; font-size: 13px;
+  display: grid; place-items: center;
+}

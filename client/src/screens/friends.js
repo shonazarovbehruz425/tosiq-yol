@@ -14,16 +14,20 @@ export class FriendsScreen {
   constructor(router, params) {
     this.router = router;
     this.params = params || {};
-    this.data = null; // { friends, suggestions }
+    this.data = null; // { me, friends, suggestions }
     this.loaded = false;
     this._bound = false;
+    this.searchResults = null; // null = not searching; [] = no results
+    this.searchQuery = '';
 
     this.onFriendData = this.onFriendData.bind(this);
     this.onInviteResult = this.onInviteResult.bind(this);
     this.onFriendResult = this.onFriendResult.bind(this);
+    this.onSearchResults = this.onSearchResults.bind(this);
   }
 
   render() {
+    const myId = this.data && this.data.me ? this.data.me.gameId : '';
     return `
       <div class="screen screen-enter">
         <div class="menu-header" style="margin-top: 18px;">
@@ -36,6 +40,15 @@ export class FriendsScreen {
           </div>
           <h2 class="menu-title">${t('friendsTitle')}</h2>
           <p class="menu-slogan">${t('friendsSubtitle')}</p>
+          ${myId ? `<div class="my-game-id" id="my-game-id">${t('yourId')}: <b>${myId}</b> <span class="copy-id">⧉</span></div>` : ''}
+        </div>
+
+        <div class="fr-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="fr-search-ico">
+            <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+          </svg>
+          <input type="text" id="fr-search-input" class="fr-search-input" placeholder="${t('searchPlaceholder')}" autocomplete="off" />
+          <button class="fr-search-clear" id="fr-search-clear" style="display:none;">✕</button>
         </div>
 
         <div id="fr-body" class="fr-body">
@@ -50,6 +63,9 @@ export class FriendsScreen {
   }
 
   renderBody() {
+    if (this.searchResults !== null) {
+      return this.renderSearch();
+    }
     if (!this.loaded) {
       return `<div class="fr-empty"><div class="loader"></div></div>`;
     }
@@ -70,6 +86,42 @@ export class FriendsScreen {
       html += `<div class="fr-list">${suggestions.map(s => this.suggestionRow(s)).join('')}</div>`;
     }
     return html;
+  }
+
+  renderSearch() {
+    const results = this.searchResults || [];
+    const friendIds = new Set((this.data && this.data.friends || []).map(f => String(f.id)));
+    if (results.length === 0) {
+      return `<div class="fr-section-title">${t('searchResults')}</div><div class="fr-empty">${t('noSearchResults')}</div>`;
+    }
+    return `
+      <div class="fr-section-title">${t('searchResults')}</div>
+      <div class="fr-list">${results.map(s => this.searchRow(s, friendIds.has(String(s.id)))).join('')}</div>
+    `;
+  }
+
+  searchRow(s, isFriend) {
+    const flag = flagFromCode(s.country_code);
+    const status = s.online
+      ? `<span class="fr-status on"><span class="odot"></span>${t('online')}</span>`
+      : `<span class="fr-status">ID ${s.gameId || ''}</span>`;
+    const action = isFriend
+      ? `<span class="fr-status on">✓</span>`
+      : `<button class="fr-add-btn" data-add="${s.id}" title="${t('addFriend')}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>
+          </svg>
+        </button>`;
+    return `
+      <div class="fr-row">
+        <span class="fr-avatar">${this.initial(s.name)}</span>
+        <span class="fr-meta">
+          <span class="fr-name">${this.esc(s.name)} ${flag ? `<span class="fr-flag">${flag}</span>` : ''}</span>
+          ${status}
+        </span>
+        ${action}
+      </div>
+    `;
   }
 
   suggestionRow(s) {
@@ -135,6 +187,7 @@ export class FriendsScreen {
       socket.on('friend_data', this.onFriendData);
       socket.on('invite_result', this.onInviteResult);
       socket.on('friend_request_result', this.onFriendResult);
+      socket.on('search_results', this.onSearchResults);
       this._bound = true;
       socket.connect();
       socket.send('get_friends');
@@ -144,7 +197,53 @@ export class FriendsScreen {
     const backBtn = document.getElementById('back-btn');
     if (backBtn) backBtn.addEventListener('click', () => { haptic.impact('light'); this.router.back(); });
 
+    // Search input (debounced) — query by 8-digit ID or username/name.
+    const input = document.getElementById('fr-search-input');
+    const clearBtn = document.getElementById('fr-search-clear');
+    if (input) {
+      input.value = this.searchQuery;
+      input.addEventListener('input', () => {
+        const q = input.value.trim();
+        this.searchQuery = q;
+        if (clearBtn) clearBtn.style.display = q ? 'block' : 'none';
+        clearTimeout(this._searchTimer);
+        if (!q) { this.searchResults = null; this.refreshBody(); return; }
+        this._searchTimer = setTimeout(() => {
+          socket.send('search_users', { query: q });
+        }, 300);
+      });
+    }
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        this.searchQuery = '';
+        this.searchResults = null;
+        if (input) input.value = '';
+        clearBtn.style.display = 'none';
+        this.refreshBody();
+      });
+    }
+
+    // Copy my game ID on tap.
+    const idEl = document.getElementById('my-game-id');
+    if (idEl) {
+      idEl.addEventListener('click', () => {
+        const id = this.data && this.data.me ? this.data.me.gameId : '';
+        if (id) {
+          navigator.clipboard?.writeText(id).then(() => Toast.success(t('idCopied'))).catch(() => {});
+        }
+      });
+    }
+
     this.bindRowActions();
+  }
+
+  onSearchResults(data) {
+    if (!data) return;
+    // Only apply if it matches the current query (avoid stale responses).
+    if (this.searchQuery && data.query === this.searchQuery) {
+      this.searchResults = data.results || [];
+      this.refreshBody();
+    }
   }
 
   // Re-render just the list body without re-running socket setup.
@@ -180,9 +279,13 @@ export class FriendsScreen {
   }
 
   onFriendData(data) {
-    this.data = data || { friends: [], suggestions: [] };
+    this.data = data || { me: null, friends: [], suggestions: [] };
     this.loaded = true;
     this.refreshBody();
+    // Refresh the "your ID" line if it wasn't shown before.
+    if (this.data.me && this.data.me.gameId && !document.getElementById('my-game-id')) {
+      this.router.reRenderActiveScreen();
+    }
   }
 
   onFriendResult(res) {
@@ -223,7 +326,9 @@ export class FriendsScreen {
     socket.off('friend_data', this.onFriendData);
     socket.off('invite_result', this.onInviteResult);
     socket.off('friend_request_result', this.onFriendResult);
+    socket.off('search_results', this.onSearchResults);
     if (this._retry) { clearTimeout(this._retry); this._retry = null; }
+    if (this._searchTimer) { clearTimeout(this._searchTimer); this._searchTimer = null; }
   }
 }
 
