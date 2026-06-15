@@ -162,19 +162,14 @@
   color: var(--primary);
 }
 
-/* Responsive Board Wrapper.
-   Flex sizing: the board takes the space left between the panels and the
-   bottom controls, stays square, and never pushes the controls off-screen.
-   The max-height cap guarantees a clear zone for the controls below it on
-   tall phones, so the bottom-row walls/reactions are always reachable. */
+/* Board: a fixed SQUARE that never grows (flex-grow would stretch it into a
+   tall rectangle). It's capped by width AND by the available height so it
+   always fits, stays square, and leaves room for the controls below. */
 .board-wrapper {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;
+  width: min(100%, calc(var(--app-height) - 220px));
   aspect-ratio: 1 / 1;
-  width: auto;
-  max-width: 100%;
-  max-height: min(100%, calc(var(--app-height) - 210px));
-  margin: 6px auto;
+  margin: 6px auto 0;
   position: relative;
   background-color: var(--board-bg);
   border-radius: var(--border-radius-md);
@@ -407,7 +402,7 @@
   justify-content: space-between;
   gap: 16px;
   flex-shrink: 0;
-  margin-top: 6px;
+  margin-top: auto;
   padding-bottom: 4px;
 }
 
