@@ -235,7 +235,7 @@ export default function Dashboard({ onLogout, onExpire }) {
             : (
               <div className="panel-scroll">
                 <table>
-                  <thead><tr><th>Name</th><th>Username</th><th>Telegram ID</th><th>Country</th><th>WAYZ</th><th>Status</th><th></th></tr></thead>
+                  <thead><tr><th>Name</th><th>Username</th><th>Game ID</th><th>Telegram ID</th><th>Country</th><th>WAYZ</th><th>Status</th><th></th></tr></thead>
                   <tbody>
                     {users.map((u) => {
                       const c = country(u);
@@ -243,6 +243,7 @@ export default function Dashboard({ onLogout, onExpire }) {
                         <tr key={u.id}>
                           <td>{u.first_name || '—'}</td>
                           <td className="muted">{u.username ? '@' + u.username : '—'}</td>
+                          <td className="mono">{u.gameId || '—'}</td>
                           <td className="mono">{u.id}</td>
                           <td><span className="country">{c.flag} <span className="muted">{c.name}</span></span></td>
                           <td>

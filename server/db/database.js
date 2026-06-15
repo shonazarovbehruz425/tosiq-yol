@@ -591,23 +591,27 @@ class JSONDatabase {
   getAllUsers() {
     return Object.values(this.data.users)
       .sort((a, b) => new Date(b.last_seen || b.created_at || 0) - new Date(a.last_seen || a.created_at || 0))
-      .map(u => ({
-        id: u.id,
-        first_name: u.first_name,
-        username: u.username,
-        language_code: u.language_code || u.lang || '',
-        country_code: u.country_code || '',
-        country_name: u.country_name || '',
-        rating: u.rating,
-        wins: u.wins,
-        losses: u.losses,
-        draws: u.draws,
-        coins: typeof u.coins === 'number' ? u.coins : 0,
-        skinsOwned: Array.isArray(u.ownedSkins) ? u.ownedSkins.length : 0,
-        equippedSkin: u.equippedSkin || '',
-        created_at: u.created_at,
-        last_seen: u.last_seen
-      }));
+      .map(u => {
+        this._ensureGameId(u);
+        return {
+          id: u.id,
+          gameId: u.gameId || '',
+          first_name: u.first_name,
+          username: u.username,
+          language_code: u.language_code || u.lang || '',
+          country_code: u.country_code || '',
+          country_name: u.country_name || '',
+          rating: u.rating,
+          wins: u.wins,
+          losses: u.losses,
+          draws: u.draws,
+          coins: typeof u.coins === 'number' ? u.coins : 0,
+          skinsOwned: Array.isArray(u.ownedSkins) ? u.ownedSkins.length : 0,
+          equippedSkin: u.equippedSkin || '',
+          created_at: u.created_at,
+          last_seen: u.last_seen
+        };
+      });
   }
 
   // Admin: set a user's WAYZ balance to an exact amount. Returns new balance or null.
