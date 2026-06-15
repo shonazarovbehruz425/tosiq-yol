@@ -9,6 +9,7 @@
   gap: 5px;
   justify-content: flex-start;
   overflow: hidden;
+  position: relative;
 }
 
 /* Header */
@@ -162,13 +163,13 @@
   color: var(--primary);
 }
 
-/* Board: a fixed SQUARE that never grows (flex-grow would stretch it into a
-   tall rectangle). It's capped by width AND by the available height so it
-   always fits, stays square, and leaves room for the controls below. */
+/* Board: a fixed SQUARE. Its exact pixel size is computed in JS (--board-size)
+   to avoid aspect-ratio / min()/calc quirks in old desktop Telegram WebViews
+   (EdgeHTML), which would otherwise collapse or stretch the board. */
 .board-wrapper {
   flex: 0 0 auto;
-  width: min(100%, calc(var(--app-height) - 220px));
-  aspect-ratio: 1 / 1;
+  width: var(--board-size, 300px);
+  height: var(--board-size, 300px);
   margin: 6px auto 0;
   position: relative;
   background-color: var(--board-bg);
@@ -970,3 +971,38 @@
   margin-top: auto;
   margin-bottom: auto;
 }
+
+/* ===== Board position adjuster (up / reset / down) ===== */
+.board-shift {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 16px;
+  background: rgba(17, 24, 39, 0.55);
+  border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+}
+.bshift-btn {
+  width: 30px; height: 30px;
+  border-radius: 11px;
+  display: grid; place-items: center;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.bshift-btn svg { width: 18px; height: 18px; }
+.bshift-btn:active { transform: scale(0.88); }
+.bshift-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-color); }
+.bshift-reset svg { width: 13px; height: 13px; opacity: 0.7; }
+
+/* Smoothly animate the board when nudged. */
+#game-board-container, #team-board { transition: transform 0.2s ease; }

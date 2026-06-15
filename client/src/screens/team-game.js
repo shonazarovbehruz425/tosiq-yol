@@ -8,6 +8,7 @@ import { socket } from '../core/websocket.js';
 import { Modal } from '../components/modal.js';
 import { Toast } from '../components/toast.js';
 import { Confetti } from '../game/animations.js';
+import { attachBoardShift, sizeBoard } from '../game/board-shift.js';
 
 // 2v2 Team game. Two flavours:
 //  - Local  (params.online falsy): human is player 0, AI controls 1,2,3.
@@ -155,6 +156,11 @@ export class TeamGameScreen {
     }
     this.drawWalls();
     this.renderValidMoves();
+    // Board position adjuster (nudge up/down for comfort on tall phones).
+    if (this._detachShift) this._detachShift();
+    this._detachShift = attachBoardShift(container);
+    if (this._detachSize) this._detachSize();
+    this._detachSize = sizeBoard(container);
   }
 
   onCellClick(r, c) {
@@ -400,6 +406,8 @@ export class TeamGameScreen {
   }
 
   destroy() {
+    if (this._detachShift) { this._detachShift(); this._detachShift = null; }
+    if (this._detachSize) { this._detachSize(); this._detachSize = null; }
     if (this.online) {
       socket.off('team_moved', this.onTeamMoved);
       socket.off('team_wall', this.onTeamWall);
