@@ -5,7 +5,7 @@
   flex-direction: column;
   height: 100%;
   max-height: 100%;
-  padding: calc(6px + var(--safe-top)) calc(2px + var(--safe-right)) calc(max(28px, var(--safe-bottom) + 18px)) calc(2px + var(--safe-left));
+  padding: calc(6px + var(--safe-top)) calc(2px + var(--safe-right)) calc(max(56px, var(--safe-bottom) + 44px)) calc(2px + var(--safe-left));
   gap: 5px;
   justify-content: flex-start;
   overflow: hidden;
@@ -971,38 +971,6 @@
   margin-top: auto;
   margin-bottom: auto;
 }
-
-/* ===== Board position adjuster (up / reset / down) ===== */
-.board-shift {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 40;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 4px;
-  border-radius: 16px;
-  background: rgba(17, 24, 39, 0.55);
-  border: 1px solid rgba(255,255,255,0.12);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
-}
-.bshift-btn {
-  width: 30px; height: 30px;
-  border-radius: 11px;
-  display: grid; place-items: center;
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
-}
-.bshift-btn svg { width: 18px; height: 18px; }
-.bshift-btn:active { transform: scale(0.88); }
-.bshift-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-color); }
-.bshift-reset svg { width: 13px; height: 13px; opacity: 0.7; }
 
 /* Smoothly animate the board when nudged. */
 #game-board-container, #team-board { transition: transform 0.2s ease; }

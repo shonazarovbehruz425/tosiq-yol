@@ -10,7 +10,7 @@ import { GameTimer } from '../game/timer.js';
 import { FloatingEmoji } from '../game/animations.js';
 import { REACTIONS, reactionArt } from '../game/reactions.js';
 import { crestSvg } from '../game/skins.js';
-import { attachBoardShift, sizeBoard } from '../game/board-shift.js';
+import { sizeBoard } from '../game/board-shift.js';
 import { Modal } from '../components/modal.js';
 import { Toast } from '../components/toast.js';
 
@@ -192,8 +192,6 @@ export class GameScreen {
     this.boardRenderer.fogMode = this.fog;
     if (this.fog) this.boardRenderer.updateValidMoves(true);
 
-    // Board position adjuster (nudge up/down for comfort on tall phones).
-    this._detachShift = attachBoardShift(container);
     // Size the board in JS (square px) — old desktop WebViews lack aspect-ratio.
     this._detachSize = sizeBoard(container);
 
@@ -890,7 +888,6 @@ export class GameScreen {
       window.visualViewport.removeEventListener('scroll', this._chatVVHandler);
       this._chatVVHandler = null;
     }
-    if (this._detachShift) { this._detachShift(); this._detachShift = null; }
     if (this._detachSize) { this._detachSize(); this._detachSize = null; }
     
     // Turn off sockets
