@@ -523,8 +523,9 @@ export class GameScreen {
     this.updateStatusBanner();
     this.updateWallChips();
     
-    // Redraw available move circles
-    const myTurn = this.vs === 'bot' || this.engine.currentPlayer === this.mySide;
+    // Redraw available move circles — ONLY on the local player's own turn, so
+    // the opponent's/bot's possible moves are never revealed.
+    const myTurn = this.engine.currentPlayer === this.mySide;
     this.boardRenderer.updateValidMoves(myTurn);
 
     // Fog of War: refresh the visible area around the controlled pawn.
