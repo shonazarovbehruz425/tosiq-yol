@@ -24,6 +24,13 @@ export class ReplayScreen {
     this.onAutoplayStep = this.onAutoplayStep.bind(this);
   }
 
+  playIcon() {
+    return `<svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;vertical-align:-2px;margin-right:5px;"><path d="M7 5v14l12-7z"/></svg>${t('play')}`;
+  }
+  pauseIcon() {
+    return `<svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;vertical-align:-2px;margin-right:5px;"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>${t('pause')}`;
+  }
+
   render() {
     const total = this.moveHistory.length;
     const current = this.replay.currentStep;
@@ -62,13 +69,16 @@ export class ReplayScreen {
         <div style="display: flex; flex-direction: column; gap: 12px; margin-top: auto;">
           <div style="display: flex; gap: 12px; justify-content: center;">
             <button class="btn btn-secondary" id="step-back-btn" style="flex: 1; padding: 12px;">
-              ⏪ ${t('stepBackward')}
+              <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;vertical-align:-2px;margin-right:5px;"><path d="M11 6 4 12l7 6V6zM19 6l-7 6 7 6V6z"/></svg>
+              ${t('stepBackward')}
             </button>
             <button class="btn btn-primary" id="play-pause-btn" style="flex: 1.5; padding: 12px;">
-              ▶ ${t('play')}
+              <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;vertical-align:-2px;margin-right:5px;"><path d="M7 5v14l12-7z"/></svg>
+              ${t('play')}
             </button>
             <button class="btn btn-secondary" id="step-forward-btn" style="flex: 1; padding: 12px;">
-              ⏩ ${t('stepForward')}
+              ${t('stepForward')}
+              <svg viewBox="0 0 24 24" fill="currentColor" style="width:16px;height:16px;vertical-align:-2px;margin-left:5px;"><path d="M13 6l7 6-7 6V6zM5 6l7 6-7 6V6z"/></svg>
             </button>
           </div>
 
@@ -109,9 +119,9 @@ export class ReplayScreen {
       haptic.impact('medium');
       if (this.replay.isAutoplay) {
         this.replay.stopAutoplay();
-        playPauseBtn.innerHTML = `▶ ${t('play')}`;
+        playPauseBtn.innerHTML = this.playIcon();
       } else {
-        playPauseBtn.innerHTML = `⏸ Pause`;
+        playPauseBtn.innerHTML = this.pauseIcon();
         this.replay.startAutoplay(1000, this.onAutoplayStep);
       }
     });
@@ -119,7 +129,7 @@ export class ReplayScreen {
     stepBackBtn.addEventListener('click', () => {
       haptic.impact('light');
       this.replay.stopAutoplay();
-      playPauseBtn.innerHTML = `▶ ${t('play')}`;
+      playPauseBtn.innerHTML = this.playIcon();
       
       this.replay.stepBackward();
       this.syncUI();
@@ -128,7 +138,7 @@ export class ReplayScreen {
     stepForwardBtn.addEventListener('click', () => {
       haptic.impact('light');
       this.replay.stopAutoplay();
-      playPauseBtn.innerHTML = `▶ ${t('play')}`;
+      playPauseBtn.innerHTML = this.playIcon();
       
       this.replay.stepForward();
       this.syncUI();
@@ -295,7 +305,7 @@ export class ReplayScreen {
     
     if (state.currentStep === state.totalSteps) {
       const playPauseBtn = document.getElementById('play-pause-btn');
-      if (playPauseBtn) playPauseBtn.innerHTML = `▶ ${t('play')}`;
+      if (playPauseBtn) playPauseBtn.innerHTML = this.playIcon();
     }
   }
 

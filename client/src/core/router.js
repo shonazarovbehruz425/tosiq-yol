@@ -11,7 +11,7 @@ const NO_BACKGROUND = new Set(['game', 'team-game', 'replay-screen']);
 
 // Screens with NO in-app back button (home root + gameplay, which have their
 // own exit controls).
-const NO_BACK_BUTTON = new Set(['home', 'game', 'team-game', 'result']);
+const NO_BACK_BUTTON = new Set(['home', 'game', 'team-game', 'result', 'replay-screen']);
 
 class Router {
   constructor() {
