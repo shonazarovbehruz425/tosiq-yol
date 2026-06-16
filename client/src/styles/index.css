@@ -179,6 +179,7 @@ body {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   -ms-overflow-style: -ms-autohiding-scrollbar;
+  overscroll-behavior: contain;
   animation: fadeIn var(--transition-normal);
 }
 

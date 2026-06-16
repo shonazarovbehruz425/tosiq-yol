@@ -22,6 +22,19 @@ export const initTelegram = () => {
 
     try { applyTheme(); } catch (e) { /* ignore */ }
 
+    // Always stop Telegram's swipe-down-to-minimize gesture. On Android this
+    // gesture otherwise hijacks in-app scrolling and wall dragging, so our
+    // scrollable game screen never receives the touch. (Bot API 7.7+.)
+    try {
+      if (typeof tg.disableVerticalSwipes === 'function') {
+        tg.disableVerticalSwipes();
+      }
+    } catch (e) { /* ignore */ }
+    // Some clients expose this as a writable flag.
+    try {
+      if ('isVerticalSwipesEnabled' in tg) tg.isVerticalSwipesEnabled = false;
+    } catch (e) { /* ignore */ }
+
     // Watch for theme & viewport changes (guarded — older desktop clients vary)
     try { tg.onEvent('themeChanged', applyTheme); } catch (e) { /* ignore */ }
     try { tg.onEvent('viewportChanged', applyViewportHeight); } catch (e) { /* ignore */ }
@@ -50,11 +63,11 @@ export const initTelegram = () => {
 const onFullscreenChanged = () => {
   applyTopInset();
   applyViewportHeight();
+  // Keep vertical swipes disabled regardless of fullscreen state so Android
+  // never hijacks in-app scrolling / wall dragging.
   try {
-    if (tg && tg.isFullscreen && typeof tg.disableVerticalSwipes === 'function') {
+    if (tg && typeof tg.disableVerticalSwipes === 'function') {
       tg.disableVerticalSwipes();
-    } else if (tg && typeof tg.enableVerticalSwipes === 'function') {
-      tg.enableVerticalSwipes();
     }
   } catch (e) { /* ignore */ }
 };
