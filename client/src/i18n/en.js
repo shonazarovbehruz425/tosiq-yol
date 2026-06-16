@@ -30,6 +30,7 @@ export const en = {
   teamOnlineDesc: "4 players: 2 vs 2 co-op",
   friendLobby: "Play with Friend",
   friendLobbyDesc: "Invite a friend to a match",
+  inviteFriendHint: "Pick a friend to invite to the game",
   waitingTeam: "Waiting for players...",
   opponentLeft: "A player left",
   openGames: "Open Games",

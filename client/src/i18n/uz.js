@@ -30,6 +30,7 @@ export const uz = {
   teamOnlineDesc: "4 o'yinchi: 2 ga 2 jamoaviy",
   friendLobby: "Do'st bilan Lobby",
   friendLobbyDesc: "Do'stingizni o'yinga taklif qiling",
+  inviteFriendHint: "O'yinga taklif qilish uchun do'stingizni tanlang",
   waitingTeam: "Jamoa uchun o'yinchilar kutilmoqda...",
   opponentLeft: "O'yinchi chiqib ketdi",
   openGames: "Ochiq O'yinlar",

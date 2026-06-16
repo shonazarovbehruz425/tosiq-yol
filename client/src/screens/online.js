@@ -3,6 +3,13 @@ import { socket } from '../core/websocket.js';
 import { haptic } from '../core/telegram.js';
 import { Toast } from '../components/toast.js';
 
+function flagFromCode(code) {
+  if (!code || code.length !== 2) return '';
+  const A = 0x1f1e6;
+  const up = code.toUpperCase();
+  return String.fromCodePoint(A + (up.charCodeAt(0) - 65), A + (up.charCodeAt(1) - 65));
+}
+
 export class OnlineScreen {
   constructor(router, params) {
     this.router = router;
@@ -11,9 +18,14 @@ export class OnlineScreen {
     this.lobbies = [];
     this.waitingLobby = false;   // created a public lobby, waiting for someone
 
+    this.friends = null;         // friend list for the invite popup
+    this.invitedId = null;       // friend we're currently inviting
+
     this.onLobbiesList = this.onLobbiesList.bind(this);
     this.onMatchFound = this.onMatchFound.bind(this);
     this.onConnect = this.onConnect.bind(this);
+    this.onFriendData = this.onFriendData.bind(this);
+    this.onInviteResult = this.onInviteResult.bind(this);
 
     // Register socket listeners once for this screen instance
     this.bindSockets();
@@ -174,9 +186,9 @@ export class OnlineScreen {
     const teamBtn = document.getElementById('friend-lobby-btn');
     teamBtn?.addEventListener('click', () => {
       haptic.impact('medium');
-      // Open the friends list, where the player invites an accepted friend
-      // to a private match.
-      this.router.navigate('friends');
+      // Open a popup right here with the player's friends; pick one to invite
+      // to a private match (no screen change).
+      this.openInvitePopup();
     });
 
     document.querySelectorAll('.lobby-join-btn').forEach(btn => {
@@ -189,12 +201,107 @@ export class OnlineScreen {
     });
   }
 
+  // ===== Invite a friend popup =====
+
+  openInvitePopup() {
+    // Build the overlay shell; request fresh friend data to fill it.
+    this.closeInvitePopup();
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'invite-popup';
+    overlay.innerHTML = `
+      <div class="modal-card invite-card">
+        <button class="invite-close" id="invite-close">✕</button>
+        <h3 class="modal-title">${t('friendLobby')}</h3>
+        <p class="modal-desc">${t('inviteFriendHint')}</p>
+        <div class="invite-list" id="invite-list">
+          <div class="fr-empty"><div class="loader"></div></div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    this._invitePopup = overlay;
+
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) this.closeInvitePopup(); });
+    overlay.querySelector('#invite-close')?.addEventListener('click', () => this.closeInvitePopup());
+
+    // Render cached friends immediately if we have them; always refresh.
+    if (this.friends) this.renderInviteList();
+    this.whenConnected(() => socket.send('get_friends'));
+  }
+
+  closeInvitePopup() {
+    if (this._invitePopup) { this._invitePopup.remove(); this._invitePopup = null; }
+  }
+
+  renderInviteList() {
+    const list = this._invitePopup && this._invitePopup.querySelector('#invite-list');
+    if (!list) return;
+    const friends = this.friends || [];
+    if (friends.length === 0) {
+      list.innerHTML = `<div class="fr-empty">${t('noFriends')}</div>`;
+      return;
+    }
+    list.innerHTML = friends.map(f => {
+      const flag = flagFromCode(f.country_code);
+      const init = this.esc((f.name || '?').trim().charAt(0).toUpperCase() || '?');
+      const status = f.online
+        ? `<span class="fr-status on"><span class="odot"></span>${t('online')}</span>`
+        : `<span class="fr-status">${t('offline')}</span>`;
+      return `
+        <div class="fr-row">
+          <span class="fr-avatar">${init}</span>
+          <span class="fr-meta">
+            <span class="fr-name">${this.esc(f.name)} ${flag ? `<span class="fr-flag">${flag}</span>` : ''}</span>
+            ${status}
+          </span>
+          <button class="fr-invite-btn ${f.online ? '' : 'disabled'}" data-invite="${f.id}" ${f.online ? '' : 'disabled'}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor" stroke="none"/></svg>
+            ${t('invite')}
+          </button>
+        </div>
+      `;
+    }).join('');
+
+    list.querySelectorAll('.fr-invite-btn[data-invite]').forEach(btn => {
+      if (btn.disabled) return;
+      btn.addEventListener('click', () => {
+        haptic.impact('medium');
+        this.invitedId = btn.dataset.invite;
+        socket.send('invite_to_game', { userId: btn.dataset.invite });
+        Toast.info(t('waitingFriendAccept'));
+        this.closeInvitePopup();
+      });
+    });
+  }
+
+  esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
+    ));
+  }
+
+  onFriendData(data) {
+    this.friends = (data && data.friends) || [];
+    this.renderInviteList();
+  }
+
+  onInviteResult(res) {
+    if (res && !res.ok && res.error === 'offline') {
+      Toast.warning(t('friendOffline'));
+    }
+    // On success the server sends match_found once the friend accepts; that's
+    // handled by onMatchFound below.
+  }
+
   // Register socket listeners exactly once
   bindSockets() {
     socket.connect();
     socket.on('lobbies_list', this.onLobbiesList);
     socket.on('match_found', this.onMatchFound);
     socket.on('connect', this.onConnect);
+    socket.on('friend_data', this.onFriendData);
+    socket.on('invite_result', this.onInviteResult);
     this.whenConnected(() => socket.send('get_lobbies'));
   }
 
@@ -239,9 +346,12 @@ export class OnlineScreen {
   }
 
   destroy() {
+    this.closeInvitePopup();
     socket.off('lobbies_list', this.onLobbiesList);
     socket.off('match_found', this.onMatchFound);
     socket.off('connect', this.onConnect);
+    socket.off('friend_data', this.onFriendData);
+    socket.off('invite_result', this.onInviteResult);
   }
 }
 export default OnlineScreen;

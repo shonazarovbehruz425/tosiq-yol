@@ -1375,6 +1375,8 @@ html.light-mode .qbg-grid {
 }
 .podium-col {
   flex: 1 1 0;
+  min-width: 0;
+  max-width: 33.33%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1403,6 +1405,7 @@ html.light-mode .qbg-grid {
   margin-top: 10px;
   font-size: 13px; font-weight: 700; color: var(--text-color);
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  box-sizing: border-box; padding: 0 2px;
 }
 .podium-rating { font-size: 12px; font-weight: 700; color: var(--text-secondary); }
 .podium-flag { font-size: 14px; margin-top: 2px; }
@@ -1940,4 +1943,37 @@ html.light-mode .qbg-grid {
   border: none; background: rgba(255,255,255,0.08);
   color: var(--text-secondary); cursor: pointer; font-size: 13px;
   display: grid; place-items: center;
+}
+
+/* ===== Invite-a-friend popup (Online screen) ===== */
+.invite-card {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  text-align: left;
+}
+.invite-close {
+  position: absolute;
+  top: 12px; right: 12px;
+  width: 30px; height: 30px;
+  border: none; border-radius: 50%;
+  background: var(--pill-bg, rgba(255,255,255,0.08));
+  color: var(--text-color);
+  font-size: 15px; line-height: 1;
+  cursor: pointer;
+  display: grid; place-items: center;
+}
+.invite-close:active { transform: scale(0.92); }
+.invite-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.invite-list .fr-empty {
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px 0;
+  color: var(--text-secondary);
 }
