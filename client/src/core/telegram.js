@@ -55,6 +55,11 @@ export const initTelegram = () => {
     // Delay to let the browser settle the new dimensions
     setTimeout(applyViewportHeight, 200);
   });
+  // Android: the visual viewport changes when system bars / keyboard appear and
+  // Telegram's own viewportChanged event isn't always reliable. Re-measure.
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', applyViewportHeight);
+  }
 };
 
 // In full screen Telegram overlays its close/menu controls at the top, so we
@@ -112,6 +117,15 @@ const applyViewportHeight = () => {
   // Guard: Telegram may report 0 before expand (esp. desktop). Fall back to window.
   if (!height || height < 200) {
     height = window.innerHeight || document.documentElement.clientHeight || 600;
+  }
+
+  // Android fix: Telegram sometimes reports a stable height taller than the
+  // actually-visible WebView (the bottom then sits under the system nav bar and
+  // is unreachable, with no scroll because nothing "overflows"). Clamp to the
+  // real visible viewport so the bottom controls always fit / can scroll.
+  const winH = window.innerHeight || document.documentElement.clientHeight || 0;
+  if (winH > 200 && height > winH) {
+    height = winH;
   }
 
   const winW = window.innerWidth || document.documentElement.clientWidth || 400;
