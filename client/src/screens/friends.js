@@ -70,8 +70,16 @@ export class FriendsScreen {
       return `<div class="fr-empty"><div class="loader"></div></div>`;
     }
     const friends = this.data.friends || [];
+    const incoming = this.data.incoming || [];
+    const outgoing = this.data.outgoing || [];
     const suggestions = this.data.suggestions || [];
     let html = '';
+
+    // Incoming friend requests (accept / decline) — shown first so they're seen.
+    if (incoming.length > 0) {
+      html += `<div class="fr-section-title">${t('friendRequests')} <span class="fr-badge">${incoming.length}</span></div>`;
+      html += `<div class="fr-list">${incoming.map(r => this.requestRow(r)).join('')}</div>`;
+    }
 
     if (friends.length === 0) {
       html += `<div class="fr-empty">${t('noFriends')}</div>`;
@@ -80,12 +88,55 @@ export class FriendsScreen {
       html += `<div class="fr-list">${friends.map(f => this.friendRow(f)).join('')}</div>`;
     }
 
+    // Pending sent requests.
+    if (outgoing.length > 0) {
+      html += `<div class="fr-section-title">${t('sentRequests')}</div>`;
+      html += `<div class="fr-list">${outgoing.map(s => this.outgoingRow(s)).join('')}</div>`;
+    }
+
     // Random people-you-may-know suggestions from the bot's users.
     if (suggestions.length > 0) {
       html += `<div class="fr-section-title">${t('suggestions')}</div>`;
       html += `<div class="fr-list">${suggestions.map(s => this.suggestionRow(s)).join('')}</div>`;
     }
     return html;
+  }
+
+  // Incoming request: accept (check) / decline (x).
+  requestRow(r) {
+    const flag = flagFromCode(r.country_code);
+    return `
+      <div class="fr-row">
+        <span class="fr-avatar">${this.initial(r.name)}</span>
+        <span class="fr-meta">
+          <span class="fr-name">${this.esc(r.name)} ${flag ? `<span class="fr-flag">${flag}</span>` : ''}</span>
+          <span class="fr-status">ID ${r.gameId || ''}</span>
+        </span>
+        <button class="fr-accept-btn" data-accept="${r.id}" title="${t('accept')}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        </button>
+        <button class="fr-remove-btn" data-decline="${r.id}" title="${t('decline')}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+    `;
+  }
+
+  // Outgoing (pending) request: shows a muted "pending" tag.
+  outgoingRow(s) {
+    const flag = flagFromCode(s.country_code);
+    return `
+      <div class="fr-row">
+        <span class="fr-avatar">${this.initial(s.name)}</span>
+        <span class="fr-meta">
+          <span class="fr-name">${this.esc(s.name)} ${flag ? `<span class="fr-flag">${flag}</span>` : ''}</span>
+          <span class="fr-status">${t('pending')}</span>
+        </span>
+        <button class="fr-remove-btn" data-decline="${s.id}" title="${t('cancel')}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+    `;
   }
 
   renderSearch() {
@@ -188,6 +239,10 @@ export class FriendsScreen {
       socket.on('invite_result', this.onInviteResult);
       socket.on('friend_request_result', this.onFriendResult);
       socket.on('search_results', this.onSearchResults);
+      // Live updates: when someone sends/accepts a request, refresh the panel.
+      this._onFriendEvent = () => socket.send('get_friends');
+      socket.on('friend_request_received', this._onFriendEvent);
+      socket.on('friend_request_accepted', this._onFriendEvent);
       this._bound = true;
       socket.connect();
       socket.send('get_friends');
@@ -239,8 +294,10 @@ export class FriendsScreen {
 
   onSearchResults(data) {
     if (!data) return;
-    // Only apply if it matches the current query (avoid stale responses).
-    if (this.searchQuery && data.query === this.searchQuery) {
+    // Apply the latest results. We accept whenever we're still in search mode
+    // (a non-empty query); the exact-match guard was too strict and dropped
+    // valid responses when the query changed by a character mid-flight.
+    if (this.searchQuery) {
       this.searchResults = data.results || [];
       this.refreshBody();
     }
@@ -276,10 +333,22 @@ export class FriendsScreen {
         socket.send('remove_friend', { userId: btn.dataset.remove });
       });
     });
+    document.querySelectorAll('[data-accept]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        haptic.impact('medium');
+        socket.send('accept_friend_request', { userId: btn.dataset.accept });
+      });
+    });
+    document.querySelectorAll('[data-decline]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        haptic.impact('light');
+        socket.send('decline_friend_request', { userId: btn.dataset.decline });
+      });
+    });
   }
 
   onFriendData(data) {
-    this.data = data || { me: null, friends: [], suggestions: [] };
+    this.data = data || { me: null, friends: [], incoming: [], outgoing: [], suggestions: [] };
     this.loaded = true;
     this.refreshBody();
     // Refresh the "your ID" line if it wasn't shown before.
@@ -327,6 +396,11 @@ export class FriendsScreen {
     socket.off('invite_result', this.onInviteResult);
     socket.off('friend_request_result', this.onFriendResult);
     socket.off('search_results', this.onSearchResults);
+    if (this._onFriendEvent) {
+      socket.off('friend_request_received', this._onFriendEvent);
+      socket.off('friend_request_accepted', this._onFriendEvent);
+      this._onFriendEvent = null;
+    }
     if (this._retry) { clearTimeout(this._retry); this._retry = null; }
     if (this._searchTimer) { clearTimeout(this._searchTimer); this._searchTimer = null; }
   }

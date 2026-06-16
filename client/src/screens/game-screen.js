@@ -409,6 +409,11 @@ export class GameScreen {
     });
     if (closeBtn) closeBtn.addEventListener('click', closePanel);
 
+    // Make the chat button draggable so the player can move it to any spot
+    // along the bottom of the screen. A small movement threshold distinguishes
+    // a drag from a tap (tap still opens the chat).
+    this.setupChatFabDrag(fab);
+
     // Keep the chat panel above the on-screen keyboard using the VisualViewport
     // API: when the keyboard shrinks the visual viewport, lift the panel by the
     // difference so the input stays visible.
@@ -435,6 +440,75 @@ export class GameScreen {
     if (input) input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); send(); }
     });
+  }
+
+  // Drag the chat FAB anywhere on screen (positioned via left/top). The button
+  // suppresses its click when an actual drag happened so dragging never opens
+  // the chat. Position is clamped to stay fully on screen.
+  setupChatFabDrag(fab) {
+    let dragging = false;
+    let moved = false;
+    let startX = 0, startY = 0;
+    let offX = 0, offY = 0;
+    const THRESHOLD = 6; // px before a press counts as a drag
+
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+    const onDown = (e) => {
+      // Only the primary pointer; ignore while chat panel is open.
+      dragging = true;
+      moved = false;
+      const rect = fab.getBoundingClientRect();
+      startX = e.clientX;
+      startY = e.clientY;
+      offX = e.clientX - rect.left;
+      offY = e.clientY - rect.top;
+      fab.setPointerCapture && fab.setPointerCapture(e.pointerId);
+    };
+
+    const onMove = (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (!moved && Math.abs(dx) + Math.abs(dy) < THRESHOLD) return;
+      moved = true;
+      e.preventDefault();
+
+      const w = fab.offsetWidth;
+      const h = fab.offsetHeight;
+      const maxX = window.innerWidth - w - 6;
+      const maxY = window.innerHeight - h - 6;
+      const left = clamp(e.clientX - offX, 6, maxX);
+      const top = clamp(e.clientY - offY, 6, maxY);
+
+      // Switch to absolute left/top positioning (overrides the CSS bottom/left).
+      fab.style.left = `${left}px`;
+      fab.style.top = `${top}px`;
+      fab.style.right = 'auto';
+      fab.style.bottom = 'auto';
+    };
+
+    const onUp = (e) => {
+      if (!dragging) return;
+      dragging = false;
+      try { fab.releasePointerCapture && fab.releasePointerCapture(e.pointerId); } catch (_) {}
+      if (moved) {
+        // Swallow the click that follows a drag so it doesn't open the chat.
+        this._fabSuppressClick = true;
+        setTimeout(() => { this._fabSuppressClick = false; }, 50);
+        haptic.selection();
+      }
+    };
+
+    fab.addEventListener('pointerdown', onDown);
+    fab.addEventListener('pointermove', onMove);
+    fab.addEventListener('pointerup', onUp);
+    fab.addEventListener('pointercancel', onUp);
+
+    // Block the synthetic click after a drag.
+    fab.addEventListener('click', (e) => {
+      if (this._fabSuppressClick) { e.stopImmediatePropagation(); e.preventDefault(); }
+    }, true);
   }
 
   // Append a chat bubble; side = 'me' | 'them'

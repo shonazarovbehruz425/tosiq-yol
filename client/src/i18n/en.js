@@ -212,6 +212,8 @@ export const en = {
   friendsSubtitle: "Play with your friends",
   tabFriends: "Friends",
   tabRequests: "Requests",
+  friendRequests: "Friend requests",
+  sentRequests: "Sent requests",
   addFriend: "Add friend",
   friendRequestSent: "Request sent",
   friendAdded: "Friend added",

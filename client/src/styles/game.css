@@ -229,6 +229,8 @@
   letter-spacing: 1.5px;
   padding: 4px 2px;
   flex-shrink: 0;
+  height: 26px;
+  overflow: hidden;
 }
 .turn-indicator .ti-line {
   height: 2px;
@@ -236,10 +238,17 @@
   border-radius: 2px;
   background: currentColor;
   opacity: 0.5;
+  flex-shrink: 0;
 }
 .turn-indicator.turn-red { color: var(--accent-red); }
 .turn-indicator.turn-blue { color: var(--accent-blue); }
-.turn-indicator .ti-label { text-transform: uppercase; }
+.turn-indicator .ti-label {
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60vw;
+}
 
 /* keep legacy hook (blitz banner) usable */
 .turn-banner { text-align: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
@@ -847,7 +856,7 @@ html.light-mode .wall-chip-bar {
 
 /* ===== In-game real-time chat ===== */
 .chat-fab {
-  position: absolute;
+  position: fixed;
   left: calc(12px + var(--safe-left));
   bottom: calc(86px + var(--safe-bottom));
   width: 46px; height: 46px;
@@ -856,11 +865,13 @@ html.light-mode .wall-chip-bar {
   background: var(--primary-gradient);
   border: none;
   color: #fff;
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
   box-shadow: 0 8px 22px var(--primary-glow);
   z-index: 60;
   transition: transform 0.12s ease;
 }
+.chat-fab:active { cursor: grabbing; }
 .chat-fab svg { width: 24px; height: 24px; }
 .chat-fab:active { transform: scale(0.92); }
 .chat-fab-dot {
