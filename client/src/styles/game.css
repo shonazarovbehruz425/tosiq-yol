@@ -416,8 +416,7 @@
   border-radius: 2px;
 }
 
-/* Walls — polished 3D slate bars with a subtle owner-coloured glow.
-   (Plain flat black looked harsh; this gives depth with a top highlight.) */
+/* Walls */
 .wall {
   position: relative;
   z-index: 5;
@@ -425,34 +424,19 @@
   height: 100%;
   align-self: stretch;
   justify-self: stretch;
-  border-radius: 5px;
-  background: linear-gradient(160deg, #3b4256 0%, #262b3d 100%);
-  box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.22),
-    inset 0 -2px 3px rgba(0, 0, 0, 0.35),
-    0 3px 7px rgba(0, 0, 0, 0.45);
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
   animation: wallPlace 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-/* Owner tint: a coloured glow so you can tell who placed it; body stays slate. */
 .wall.wall-red {
-  box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -2px 3px rgba(0, 0, 0, 0.35),
-    0 0 10px rgba(239, 68, 68, 0.5),
-    0 3px 7px rgba(0, 0, 0, 0.4);
+  background: var(--accent-red-gradient);
+  box-shadow: 0 0 8px var(--accent-red-glow);
 }
 
 .wall.wall-blue {
-  box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -2px 3px rgba(0, 0, 0, 0.35),
-    0 0 10px rgba(59, 130, 246, 0.5),
-    0 3px 7px rgba(0, 0, 0, 0.4);
-}
-
-html.light-mode .wall {
-  background: linear-gradient(160deg, #4b5468 0%, #333a4d 100%);
+  background: var(--accent-blue-gradient);
+  box-shadow: 0 0 8px var(--accent-blue-glow);
 }
 
 .wall.wall-preview {
@@ -649,21 +633,22 @@ html.light-mode .wall {
   touch-action: pan-y;
 }
 
-/* Wall tray holding draggable chips — premium glassy card */
+/* Wall tray holding draggable chips — premium glassy card (compact) */
 .wall-tray {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  flex: 1;
+  gap: 6px;
+  flex: 0 1 auto;
+  align-self: center;
   background:
     linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0) 40%),
     var(--card-bg);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 22px;
-  padding: 11px 16px 13px;
+  border-radius: 18px;
+  padding: 7px 18px 9px;
   box-shadow:
-    0 10px 28px rgba(0,0,0,0.28),
+    0 8px 22px rgba(0,0,0,0.26),
     inset 0 1px 0 rgba(255,255,255,0.08);
   transition: opacity var(--transition-fast);
 }
@@ -675,19 +660,19 @@ html.light-mode .wall {
 .wall-tray-hint {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12.5px;
+  gap: 5px;
+  font-size: 11.5px;
   font-weight: 800;
   letter-spacing: 0.2px;
   color: var(--text-secondary);
   white-space: nowrap;
 }
-.wall-tray-hint svg { width: 15px; height: 15px; }
+.wall-tray-hint svg { width: 14px; height: 14px; }
 
 .wall-chips {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
 /* Premium chip: glossy raised tile with inner highlight + soft glow */
@@ -695,9 +680,9 @@ html.light-mode .wall {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 70px;
-  height: 48px;
-  border-radius: 16px;
+  width: 58px;
+  height: 40px;
+  border-radius: 13px;
   background:
     radial-gradient(120% 90% at 50% 0%, rgba(255,255,255,0.14), rgba(255,255,255,0) 55%),
     linear-gradient(180deg, #2a3047 0%, #1c2133 100%);
