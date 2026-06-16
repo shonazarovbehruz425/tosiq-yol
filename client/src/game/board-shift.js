@@ -11,7 +11,7 @@ export function sizeBoard(container) {
     const root = document.documentElement;
     const appH = parseFloat(getComputedStyle(root).getPropertyValue('--app-height')) ||
                  window.innerHeight || 600;
-    const availH = appH - 230;
+    const availH = appH - 250;
     const size = Math.max(180, Math.floor(Math.min(availW, availH)));
     container.style.setProperty('--board-size', `${size}px`);
   };
