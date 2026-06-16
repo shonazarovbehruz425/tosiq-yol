@@ -8,7 +8,9 @@
   padding: calc(6px + var(--safe-top)) calc(2px + var(--safe-right)) calc(max(80px, var(--safe-bottom) + 68px)) calc(2px + var(--safe-left));
   gap: 5px;
   justify-content: flex-start;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   position: relative;
 }
 
