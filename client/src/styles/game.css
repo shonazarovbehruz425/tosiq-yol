@@ -649,18 +649,22 @@ html.light-mode .wall {
   touch-action: pan-y;
 }
 
-/* Wall tray holding draggable chips — a floating card like the mockup */
+/* Wall tray holding draggable chips — premium glassy card */
 .wall-tray {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex: 1;
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 20px;
-  padding: 10px 16px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.16);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0) 40%),
+    var(--card-bg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  padding: 11px 16px 13px;
+  box-shadow:
+    0 10px 28px rgba(0,0,0,0.28),
+    inset 0 1px 0 rgba(255,255,255,0.08);
   transition: opacity var(--transition-fast);
 }
 
@@ -671,29 +675,37 @@ html.light-mode .wall {
 .wall-tray-hint {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  font-weight: 700;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
   color: var(--text-secondary);
   white-space: nowrap;
 }
-.wall-tray-hint svg { width: 14px; height: 14px; }
+.wall-tray-hint svg { width: 15px; height: 15px; }
 
 .wall-chips {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
+/* Premium chip: glossy raised tile with inner highlight + soft glow */
 .wall-chip {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 64px;
-  height: 44px;
-  border-radius: 14px;
-  background: var(--pill-bg, rgba(120,120,140,0.1));
-  border: 1px solid var(--card-border);
+  width: 70px;
+  height: 48px;
+  border-radius: 16px;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(255,255,255,0.14), rgba(255,255,255,0) 55%),
+    linear-gradient(180deg, #2a3047 0%, #1c2133 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.16),
+    inset 0 -3px 6px rgba(0,0,0,0.3),
+    0 4px 10px rgba(0,0,0,0.3);
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -706,9 +718,12 @@ html.light-mode .wall {
 /* Only show the "picked up" look while actually dragging (JS-controlled) */
 .wall-chip.wall-chip-dragging {
   cursor: grabbing;
-  transform: scale(0.9);
-  background-color: rgba(124, 58, 237, 0.18);
+  transform: scale(0.92);
   border-color: var(--primary);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.16),
+    0 0 0 2px rgba(124, 58, 237, 0.5),
+    0 6px 16px rgba(124, 58, 237, 0.35);
 }
 
 .wall-chip-bar {
@@ -717,25 +732,32 @@ html.light-mode .wall {
 
 .wall-chip.chip-disabled {
   pointer-events: none;
-  opacity: 0.5;
+  opacity: 0.45;
+  filter: grayscale(0.4);
 }
 
+/* Premium 3D bar: glossy gradient with highlight + glow */
 .wall-chip-bar {
   display: block;
-  border-radius: 5px;
-  background: #1f2433;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.35);
+  border-radius: 6px;
+  background: linear-gradient(180deg, #b7c0db 0%, #7882a8 55%, #545d80 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.6),
+    inset 0 -2px 3px rgba(0,0,0,0.3),
+    0 2px 6px rgba(0,0,0,0.4);
 }
-html.light-mode .wall-chip-bar { background: #1f2433; }
+html.light-mode .wall-chip-bar {
+  background: linear-gradient(180deg, #5b647e 0%, #333a4d 100%);
+}
 
 .wall-chip-bar.bar-h {
-  width: 30px;
-  height: 10px;
+  width: 34px;
+  height: 11px;
 }
 
 .wall-chip-bar.bar-v {
-  width: 10px;
-  height: 26px;
+  width: 11px;
+  height: 28px;
 }
 
 /* Floating ghost that follows the finger/cursor while dragging */
