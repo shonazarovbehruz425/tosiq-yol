@@ -20,24 +20,27 @@ export class ReplayRecorder {
     this.canvas.width = this.size;
     this.canvas.height = this.size + this.headerH;
     this.ctx = this.canvas.getContext('2d', { alpha: false });
+    this.ctx.imageSmoothingEnabled = true;
+    this.ctx.imageSmoothingQuality = 'high';
 
-    // Theme colours (kept independent of CSS so the export looks consistent).
+    // Theme colours — matched to the actual in-game board (styles/index.css
+    // + game.css) so the export looks like what the player sees.
     this.colors = {
-      bg: '#0b0f1d',
-      bg2: '#141a2e',
-      panel: '#1b2138',
-      cell: '#252b42',
-      cellEdge: '#323a59',
+      bg: '#0b0f19',          // --bg-color
+      bg2: '#0b0f19',
+      panel: '#121824',       // --board-bg
+      cell: '#1c2330',        // opaque equivalent of --cell-bg over the panel
+      cellEdge: 'rgba(255,255,255,0.05)',
       red: '#ef4444',
       redHi: '#f87171',
+      redDark: '#dc2626',
       blue: '#3b82f6',
       blueHi: '#60a5fa',
-      wall: '#aab4d6',
-      wallEdge: '#5b647e',
-      redGoal: 'rgba(239,68,68,0.20)',
-      blueGoal: 'rgba(59,130,246,0.20)',
-      text: '#f1f3fb',
-      sub: '#9aa0b5'
+      blueDark: '#2563eb',
+      redGoal: 'rgba(239,68,68,0.30)',
+      blueGoal: 'rgba(59,130,246,0.30)',
+      text: '#f3f4f6',
+      sub: '#9ca3af'
     };
 
     // Audio (synthesized move/wall sounds mixed into the recording).
@@ -153,29 +156,29 @@ export class ReplayRecorder {
     ctx.strokeStyle = 'rgba(255,255,255,0.06)';
     ctx.stroke();
 
-    // Cells + goal tint
+    // Cells + goal tint (red goal top, blue goal bottom — matches the game)
     for (let r = 0; r < L.N; r++) {
       for (let c = 0; c < L.N; c++) {
         const x = this.cellX(c, L), y = this.cellY(r, L);
-        this.roundRect(x, y, L.cell, L.cell, L.cell * 0.16);
-        let fill = C.cell;
-        if (this.mode === 'race') {
-          if (r === 0) fill = C.blueGoal;
-        } else {
-          if (r === 0) fill = C.redGoal;
-          else if (r === L.N - 1) fill = C.blueGoal;
-        }
-        ctx.fillStyle = fill;
+        this.roundRect(x, y, L.cell, L.cell, L.cell * 0.14);
+        ctx.fillStyle = C.cell;
         ctx.fill();
-        ctx.lineWidth = 1.5 * s;
+        ctx.lineWidth = 1 * s;
         ctx.strokeStyle = C.cellEdge;
         ctx.stroke();
+        // Goal-line strips
+        if (this.mode === 'race') {
+          if (r === 0) { ctx.fillStyle = C.blueGoal; ctx.fillRect(x, y, L.cell, 4 * s); }
+        } else {
+          if (r === 0) { ctx.fillStyle = C.redGoal; ctx.fillRect(x, y, L.cell, 4 * s); }
+          else if (r === L.N - 1) { ctx.fillStyle = C.blueGoal; ctx.fillRect(x, y + L.cell - 4 * s, L.cell, 4 * s); }
+        }
       }
     }
 
-    // Walls — glossy slate bars with owner-coloured glow
+    // Walls — solid red/blue gradient bars (matches the in-game design).
     (engine.walls || []).forEach(w => {
-      const glow = w.player === 0 ? C.red : C.blue;
+      const isRed = w.player === 0;
       let x, y, ww, hh;
       if (w.type === 'H') {
         x = this.cellX(w.c, L);
@@ -186,19 +189,15 @@ export class ReplayRecorder {
         y = this.cellY(w.r, L);
         ww = L.gap; hh = 2 * L.cell + L.gap;
       }
-      ctx.save();
-      ctx.shadowColor = glow;
-      ctx.shadowBlur = 12 * s;
-      const wg = ctx.createLinearGradient(x, y, x, y + hh);
-      wg.addColorStop(0, '#c2cae3');
-      wg.addColorStop(1, '#6b76a0');
+      const wg = ctx.createLinearGradient(x, y, x + ww, y + hh);
+      wg.addColorStop(0, isRed ? C.redHi : C.blueHi);
+      wg.addColorStop(1, isRed ? C.redDark : C.blueDark);
       ctx.fillStyle = wg;
-      this.roundRect(x, y, ww, hh, Math.min(ww, hh) / 2);
+      this.roundRect(x, y, ww, hh, Math.min(ww, hh) / 2.2);
       ctx.fill();
-      ctx.restore();
     });
 
-    // Pawns — glossy 3D spheres
+    // Pawns — clean spheres with a white ring (matches the in-game pawns).
     const pawnFill = [C.red, C.blue];
     const pawnHi = [C.redHi, C.blueHi];
     for (let i = 0; i < 2; i++) {
@@ -206,10 +205,7 @@ export class ReplayRecorder {
       if (!p) continue;
       const cx = this.cellX(p.c, L) + L.cell / 2;
       const cy = this.cellY(p.r, L) + L.cell / 2;
-      const rad = L.cell * 0.34;
-      ctx.save();
-      ctx.shadowColor = pawnFill[i];
-      ctx.shadowBlur = 18 * s;
+      const rad = L.cell * 0.36;
       const pg = ctx.createRadialGradient(cx - rad * 0.3, cy - rad * 0.35, rad * 0.1, cx, cy, rad);
       pg.addColorStop(0, pawnHi[i]);
       pg.addColorStop(1, pawnFill[i]);
@@ -217,11 +213,14 @@ export class ReplayRecorder {
       ctx.arc(cx, cy, rad, 0, Math.PI * 2);
       ctx.fillStyle = pg;
       ctx.fill();
-      ctx.restore();
+      // white ring
+      ctx.lineWidth = Math.max(2, rad * 0.14);
+      ctx.strokeStyle = 'rgba(255,255,255,0.65)';
+      ctx.stroke();
       // glossy highlight
       ctx.beginPath();
-      ctx.arc(cx - rad * 0.28, cy - rad * 0.3, rad * 0.38, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      ctx.arc(cx - rad * 0.28, cy - rad * 0.3, rad * 0.32, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
       ctx.fill();
     }
   }
@@ -282,7 +281,7 @@ export class ReplayRecorder {
       }
 
       const delay = Math.max(140, baseDelay / speed);
-      const fps = 60;
+      const fps = 30;
       let stream;
       try {
         stream = this.canvas.captureStream(fps);
@@ -315,7 +314,7 @@ export class ReplayRecorder {
         recorder = mime
           ? new window.MediaRecorder(stream, {
               mimeType: mime,
-              videoBitsPerSecond: 16_000_000,
+              videoBitsPerSecond: 24_000_000,
               audioBitsPerSecond: 128_000
             })
           : new window.MediaRecorder(stream);

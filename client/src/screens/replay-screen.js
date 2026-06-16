@@ -86,6 +86,7 @@ export class ReplayScreen {
           <div class="replay-speed-row">
             <span class="replay-speed-label">${t('exportSpeed')}</span>
             <div class="btn-group" id="speed-selector">
+              <button class="btn-segment" data-speed="1">1x</button>
               <button class="btn-segment" data-speed="1.5">1.5x</button>
               <button class="btn-segment" data-speed="2">2x</button>
               <button class="btn-segment" data-speed="2.5">2.5x</button>
