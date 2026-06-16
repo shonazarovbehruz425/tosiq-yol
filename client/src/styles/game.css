@@ -532,18 +532,20 @@ html.light-mode .wall {
   border-color: var(--primary);
 }
 
-/* Popup row of reactions, revealed when the toggle is tapped */
+/* Popup row of reactions, revealed when the toggle is tapped — glassy pill */
 .emoji-popup {
   position: absolute;
   bottom: calc(100% + 10px);
   left: 0;
   display: flex;
-  gap: 6px;
-  padding: 8px 10px;
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(20, 24, 38, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--border-radius-full);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.08);
   opacity: 0;
   visibility: hidden;
   transform: translateY(8px) scale(0.9);
@@ -558,23 +560,29 @@ html.light-mode .wall {
 }
 
 .emoji-btn {
-  width: 40px;
-  height: 40px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  /* Glossy translucent bubble with a soft owner-colour glow (--rc per button) */
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255,255,255,0.16), rgba(255,255,255,0.02) 60%),
+    rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 0 12px -2px var(--rc, transparent), inset 0 1px 0 rgba(255,255,255,0.12);
   cursor: pointer;
   transition: transform var(--transition-bounce), background-color var(--transition-fast);
 }
-.emoji-btn svg { width: 24px; height: 24px; }
+.emoji-btn svg { width: 28px; height: 28px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35)); }
 
 .emoji-btn:active {
-  transform: scale(1.25);
-  background: rgba(255, 255, 255, 0.12);
+  transform: scale(1.18);
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255,255,255,0.22), rgba(255,255,255,0.04) 60%),
+    rgba(255, 255, 255, 0.1);
 }
 
 /* Floating Emoji Animations */

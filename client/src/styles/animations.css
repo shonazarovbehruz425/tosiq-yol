@@ -169,27 +169,16 @@
   75% { transform: translateX(2px) rotate(3deg); }
 }
 
-/* Clap: hands come together repeatedly, sparkles flash. */
-.ra-clap .ra-hand-l { animation: raClapL 0.3s ease-in-out infinite; transform-origin: 60% 50%; }
-.ra-clap .ra-hand-r { animation: raClapR 0.3s ease-in-out infinite; transform-origin: 40% 50%; }
-.ra-clap .ra-spark { animation: raSpark 0.3s ease-in-out infinite; transform-origin: 50% 30%; }
-@keyframes raClapL {
-  0%, 100% { transform: translateX(-5px) rotate(-8deg); }
-  50% { transform: translateX(0) rotate(0deg); }
-}
-@keyframes raClapR {
-  0%, 100% { transform: translateX(5px) rotate(8deg); }
-  50% { transform: translateX(0) rotate(0deg); }
-}
-@keyframes raSpark {
-  0%, 100% { opacity: 0; transform: scale(0.6); }
-  45% { opacity: 0; }
-  55% { opacity: 1; transform: scale(1.1); }
+/* Clap/Wave: the hand rotates back and forth like a wave. */
+.ra-wave .ra-hand { animation: raWaveHand 0.5s ease-in-out infinite; transform-origin: 50% 85%; }
+@keyframes raWaveHand {
+  0%, 100% { transform: rotate(-14deg); }
+  50% { transform: rotate(14deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .ra-laugh, .ra-laugh .ra-mouth, .ra-fire .ra-flame, .ra-wow, .ra-wow .ra-mouth,
-  .ra-wow .ra-eye, .ra-angry, .ra-clap .ra-hand-l, .ra-clap .ra-hand-r, .ra-clap .ra-spark {
+  .ra-wow .ra-eye, .ra-angry, .ra-wave .ra-hand {
     animation: none;
   }
 }
