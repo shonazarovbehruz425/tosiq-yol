@@ -28,6 +28,8 @@ export const en = {
   quickPlayDesc: "Find an opponent instantly",
   createLobbyDesc: "Open a room and wait",
   teamOnlineDesc: "4 players: 2 vs 2 co-op",
+  friendLobby: "Play with Friend",
+  friendLobbyDesc: "Invite a friend to a match",
   waitingTeam: "Waiting for players...",
   opponentLeft: "A player left",
   openGames: "Open Games",

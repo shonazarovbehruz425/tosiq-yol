@@ -144,8 +144,9 @@ export class BoardRenderer {
     this.updatePawns();
   }
 
-  // Draw pawns on board. Reuses existing pawn elements and animates their
-  // movement between cells (FLIP technique) so they glide smoothly.
+  // Draw pawns on board. Pawns are placed directly into their cells. We use a
+  // CSS transition on the pawn's position so moves still look smooth, without
+  // the fragile FLIP transform that glitched on Android / flipped boards.
   updatePawns() {
     const colors = ['red', 'blue'];
     for (let i = 0; i < 2; i++) {
@@ -155,7 +156,7 @@ export class BoardRenderer {
 
       let pawn = this.pawnElements[i];
 
-      // Create the pawn once; afterwards we just move the same element.
+      // Create the pawn once; afterwards just re-parent it to the new cell.
       if (!pawn || !pawn.isConnected) {
         pawn = document.createElement('div');
         pawn.className = `pawn pawn-${colors[i]}`;
@@ -169,29 +170,9 @@ export class BoardRenderer {
         continue;
       }
 
-      // Already on the right cell — nothing to animate.
-      if (pawn.parentElement === cell) continue;
-
-      // FLIP: measure old position, move, measure new, then animate the delta.
-      const first = pawn.getBoundingClientRect();
-      cell.appendChild(pawn);
-      const last = pawn.getBoundingClientRect();
-      const dx = first.left - last.left;
-      const dy = first.top - last.top;
-
-      if (dx || dy) {
-        pawn.classList.add('pawn-moving');
-        pawn.style.transition = 'none';
-        pawn.style.transform = `translate(${dx}px, ${dy}px)`;
-        // Force reflow so the starting transform is applied before transitioning.
-        void pawn.offsetWidth;
-        pawn.style.transition = '';
-        pawn.style.transform = '';
-        const done = () => {
-          pawn.classList.remove('pawn-moving');
-          pawn.removeEventListener('transitionend', done);
-        };
-        pawn.addEventListener('transitionend', done);
+      // Move to the new cell (no-op if already there).
+      if (pawn.parentElement !== cell) {
+        cell.appendChild(pawn);
       }
     }
   }

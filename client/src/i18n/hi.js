@@ -24,6 +24,8 @@ export const hi = {
   // Lobby / Online
   onlineTitle: "ऑनलाइन अखाड़ा",
   createLobby: "लॉबी बनाएँ",
+  friendLobby: "दोस्त के साथ खेलें",
+  friendLobbyDesc: "किसी दोस्त को मैच के लिए आमंत्रित करें",
   join: "शामिल हों",
   lobbyCode: "लॉबी कोड",
   players: "खिलाड़ी",

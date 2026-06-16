@@ -24,6 +24,8 @@ export const ar = {
   // Lobby / Online
   onlineTitle: "الساحة عبر الإنترنت",
   createLobby: "إنشاء غرفة",
+  friendLobby: "اللعب مع صديق",
+  friendLobbyDesc: "ادعُ صديقًا إلى مباراة",
   join: "انضمام",
   lobbyCode: "رمز الغرفة",
   players: "اللاعبون",

@@ -24,6 +24,8 @@ export const pt = {
   // Lobby / Online
   onlineTitle: "Arena online",
   createLobby: "Criar sala",
+  friendLobby: "Jogar com amigo",
+  friendLobbyDesc: "Convide um amigo para uma partida",
   join: "Entrar",
   lobbyCode: "Código da sala",
   players: "Jogadores",

@@ -24,6 +24,8 @@ export const ru = {
   // Lobby / Online
   onlineTitle: "Онлайн-арена",
   createLobby: "Создать лобби",
+  friendLobby: "Игра с другом",
+  friendLobbyDesc: "Пригласить друга на матч",
   join: "Войти",
   lobbyCode: "Код лобби",
   players: "Игроки",

@@ -28,6 +28,8 @@ export const uz = {
   quickPlayDesc: "Darhol raqib toping",
   createLobbyDesc: "Ochiq xona ochib kutib turing",
   teamOnlineDesc: "4 o'yinchi: 2 ga 2 jamoaviy",
+  friendLobby: "Do'st bilan Lobby",
+  friendLobbyDesc: "Do'stingizni o'yinga taklif qiling",
   waitingTeam: "Jamoa uchun o'yinchilar kutilmoqda...",
   opponentLeft: "O'yinchi chiqib ketdi",
   openGames: "Ochiq O'yinlar",

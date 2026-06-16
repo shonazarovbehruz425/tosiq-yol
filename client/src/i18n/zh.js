@@ -24,6 +24,8 @@ export const zh = {
   // Lobby / Online
   onlineTitle: "在线竞技场",
   createLobby: "创建房间",
+  friendLobby: "与好友对战",
+  friendLobbyDesc: "邀请好友进行对战",
   join: "加入",
   lobbyCode: "房间代码",
   players: "玩家",
