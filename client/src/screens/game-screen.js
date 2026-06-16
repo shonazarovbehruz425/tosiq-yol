@@ -85,9 +85,7 @@ export class GameScreen {
         <div class="game-header">
           <button class="game-logo-btn" id="logo-btn">
             <span class="game-logo-mark">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 15v-3h-6v-2h6V7l4 4-4 4M5 15l-4-4 4-4v3h6v2H5v3"/>
-              </svg>
+              <img src="/favicon.svg" alt="" width="22" height="22" />
             </span>
             <span class="game-logo-text">${t('appName')}</span>
           </button>
@@ -346,8 +344,10 @@ export class GameScreen {
         const emoji = btn.dataset.emoji;
         haptic.impact('light');
 
-        // Spawn the custom reaction artwork locally
+        // Spawn the custom reaction artwork locally + play its voice
         FloatingEmoji.spawn(reactionArt(emoji), document.getElementById('game-page-container'), btn.getBoundingClientRect());
+        const reaction = REACTIONS.find(r => r.key === emoji);
+        if (reaction && reaction.sound) Sound.reaction(reaction.sound);
 
         if (this.vs !== 'bot') {
           // Send to opponent online
@@ -748,6 +748,8 @@ export class GameScreen {
     const oppIdx = 1 - this.mySide;
     const oppPanel = document.getElementById(`player-panel-${oppIdx}`);
     FloatingEmoji.spawn(reactionArt(data.emoji), document.getElementById('game-page-container'), oppPanel?.getBoundingClientRect());
+    const reaction = REACTIONS.find(r => r.key === data.emoji);
+    if (reaction && reaction.sound) Sound.reaction(reaction.sound);
   }
 
   // WebSocket event: opponent surrendered

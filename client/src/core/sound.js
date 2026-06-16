@@ -162,6 +162,97 @@ export const Sound = {
         osc.stop(t + 0.31);
       });
     });
+  },
+
+  // Expressive synthesized "voice" for each animated reaction (~1s).
+  reaction(id) {
+    switch (id) {
+      case 'laugh': {
+        // Bouncy "ha-ha-ha" — quick repeated bright blips rising then falling.
+        const beats = [520, 480, 560, 500, 460];
+        beats.forEach((f, i) => {
+          playTone((osc, gain, now) => {
+            const t = now + i * 0.13;
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(f, t);
+            osc.frequency.exponentialRampToValueAtTime(f * 1.4, t + 0.05);
+            osc.frequency.exponentialRampToValueAtTime(f * 0.85, t + 0.11);
+            gain.gain.setValueAtTime(0.0001, t);
+            gain.gain.exponentialRampToValueAtTime(0.12, t + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+            osc.start(t);
+            osc.stop(t + 0.13);
+          });
+        });
+        break;
+      }
+      case 'fire': {
+        // Whoosh: filtered noise-like sweep using a falling sawtooth.
+        playTone((osc, gain, now) => {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(900, now);
+          osc.frequency.exponentialRampToValueAtTime(120, now + 0.9);
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.exponentialRampToValueAtTime(0.1, now + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.05, now + 0.5);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.0);
+          osc.start(now);
+          osc.stop(now + 1.05);
+        });
+        break;
+      }
+      case 'wow': {
+        // Surprised rising "wooo".
+        playTone((osc, gain, now) => {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(300, now);
+          osc.frequency.exponentialRampToValueAtTime(720, now + 0.5);
+          osc.frequency.exponentialRampToValueAtTime(640, now + 0.9);
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.exponentialRampToValueAtTime(0.12, now + 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.95);
+          osc.start(now);
+          osc.stop(now + 1.0);
+        });
+        break;
+      }
+      case 'angry': {
+        // Low growl: buzzy detuned saw with a slow wobble.
+        playTone((osc, gain, now) => {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(110, now);
+          for (let i = 0; i < 6; i++) {
+            const t = now + i * 0.13;
+            osc.frequency.setValueAtTime(i % 2 ? 95 : 125, t);
+          }
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.exponentialRampToValueAtTime(0.13, now + 0.03);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.85);
+          osc.start(now);
+          osc.stop(now + 0.9);
+        });
+        break;
+      }
+      case 'clap': {
+        // Several short bright claps.
+        for (let i = 0; i < 5; i++) {
+          playTone((osc, gain, now) => {
+            const t = now + i * 0.16;
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(1200, t);
+            osc.frequency.exponentialRampToValueAtTime(400, t + 0.04);
+            gain.gain.setValueAtTime(0.0001, t);
+            gain.gain.exponentialRampToValueAtTime(0.1, t + 0.005);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+            osc.start(t);
+            osc.stop(t + 0.07);
+          });
+        }
+        break;
+      }
+      default:
+        break;
+    }
   }
 };
 

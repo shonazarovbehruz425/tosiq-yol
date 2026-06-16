@@ -40,6 +40,10 @@ export class FloatingEmoji {
     // Support both plain text emoji and custom SVG markup (starts with '<').
     if (typeof emoji === 'string' && emoji.trim().startsWith('<')) {
       el.classList.add('floating-emoji-svg');
+      // Animated reactions linger longer and play their own motion.
+      if (emoji.indexOf('reaction-art-anim') !== -1) {
+        el.classList.add('floating-reaction');
+      }
       el.innerHTML = emoji;
     } else {
       el.innerText = emoji;

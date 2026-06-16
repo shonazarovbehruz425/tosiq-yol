@@ -99,3 +99,97 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* ===== Animated reactions (5 expressive reactions with motion) ===== */
+
+/* The floating wrapper for an animated reaction: bigger, lingers ~1.6s. */
+.floating-emoji.floating-reaction {
+  animation: reactionFloat 1.6s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+@keyframes reactionFloat {
+  0%   { transform: translateY(10px) scale(0.3); opacity: 0; }
+  14%  { transform: translateY(-6px) scale(1.15); opacity: 1; }
+  24%  { transform: translateY(-10px) scale(1); opacity: 1; }
+  78%  { transform: translateY(-70px) scale(1); opacity: 1; }
+  100% { transform: translateY(-130px) scale(0.85); opacity: 0; }
+}
+
+.reaction-art-anim {
+  width: 74px;
+  height: 74px;
+  border-width: 3px;
+}
+.reaction-art-anim .ra-svg {
+  width: 60px;
+  height: 60px;
+  display: block;
+}
+
+/* Laugh: the whole face bounces, mouth opens wider. */
+.ra-laugh { animation: raLaughBounce 0.4s ease-in-out infinite; transform-origin: 50% 60%; }
+.ra-laugh .ra-mouth { animation: raMouthOpen 0.4s ease-in-out infinite; transform-origin: 50% 60%; }
+@keyframes raLaughBounce {
+  0%, 100% { transform: rotate(-6deg) translateY(0); }
+  50% { transform: rotate(6deg) translateY(-2px); }
+}
+@keyframes raMouthOpen {
+  0%, 100% { transform: scaleY(0.7); }
+  50% { transform: scaleY(1.15); }
+}
+
+/* Fire: flame flickers and scales. */
+.ra-fire .ra-flame { animation: raFlicker 0.28s ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes raFlicker {
+  0%, 100% { transform: scale(1) skewX(0deg); }
+  35% { transform: scale(1.08, 0.96) skewX(-4deg); }
+  70% { transform: scale(0.95, 1.06) skewX(4deg); }
+}
+
+/* Wow: eyes & mouth pop, slight zoom. */
+.ra-wow { animation: raWowZoom 1s ease-in-out; transform-origin: 50% 50%; }
+.ra-wow .ra-mouth { animation: raWowMouth 0.9s ease-in-out; transform-origin: 50% 60%; }
+.ra-wow .ra-eye { animation: raWowMouth 0.9s ease-in-out; transform-origin: center; }
+@keyframes raWowZoom {
+  0% { transform: scale(0.8); }
+  30% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+@keyframes raWowMouth {
+  0% { transform: scale(0.4); }
+  40% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+/* Angry: shakes side to side, brows pulse. */
+.ra-angry { animation: raShake 0.18s linear infinite; transform-origin: 50% 50%; }
+@keyframes raShake {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(-2px) rotate(-3deg); }
+  75% { transform: translateX(2px) rotate(3deg); }
+}
+
+/* Clap: hands come together repeatedly, sparkles flash. */
+.ra-clap .ra-hand-l { animation: raClapL 0.3s ease-in-out infinite; transform-origin: 60% 50%; }
+.ra-clap .ra-hand-r { animation: raClapR 0.3s ease-in-out infinite; transform-origin: 40% 50%; }
+.ra-clap .ra-spark { animation: raSpark 0.3s ease-in-out infinite; transform-origin: 50% 30%; }
+@keyframes raClapL {
+  0%, 100% { transform: translateX(-5px) rotate(-8deg); }
+  50% { transform: translateX(0) rotate(0deg); }
+}
+@keyframes raClapR {
+  0%, 100% { transform: translateX(5px) rotate(8deg); }
+  50% { transform: translateX(0) rotate(0deg); }
+}
+@keyframes raSpark {
+  0%, 100% { opacity: 0; transform: scale(0.6); }
+  45% { opacity: 0; }
+  55% { opacity: 1; transform: scale(1.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ra-laugh, .ra-laugh .ra-mouth, .ra-fire .ra-flame, .ra-wow, .ra-wow .ra-mouth,
+  .ra-wow .ra-eye, .ra-angry, .ra-clap .ra-hand-l, .ra-clap .ra-hand-r, .ra-clap .ra-spark {
+    animation: none;
+  }
+}

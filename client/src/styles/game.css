@@ -44,9 +44,9 @@
   width: 30px; height: 30px;
   border-radius: 9px;
   display: grid; place-items: center;
-  background: linear-gradient(135deg, #7c3aed, #4f46e5);
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+  overflow: hidden;
 }
+.game-logo-mark img { width: 26px; height: 26px; display: block; }
 .game-logo-mark svg { width: 18px; height: 18px; }
 .game-logo-text { letter-spacing: -0.2px; }
 
