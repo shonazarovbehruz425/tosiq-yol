@@ -16,8 +16,9 @@ import { initTelegramStore } from './db/telegram-store.js';
 import { handleWebSocketConnection } from './ws/handler.js';
 import { roomManager } from './ws/rooms.js';
 import { loginHandler, logoutHandler, requireAdmin } from './admin/auth.js';
-import { startBot, sendToUser, broadcastToAll } from './bot/bot.js';
+import { startBot, sendToUser, broadcastToAll, sendVideoToUser } from './bot/bot.js';
 import { presence } from './ws/presence.js';
+import { verifyTelegramWebAppData } from './middleware/auth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -50,6 +51,42 @@ app.get('/api/leaderboard', (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ===== Replay video delivery =====
+// The Mini App records a replay to a .webm video client-side and POSTs the raw
+// bytes here. We authenticate via the Telegram initData (Authorization: Bearer
+// <initData>) and forward the video to that user's chat through the bot.
+app.post('/api/replay/upload',
+  express.raw({ type: ['video/webm', 'application/octet-stream'], limit: '25mb' }),
+  async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization || '';
+      const initData = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+      const result = verifyTelegramWebAppData(initData, process.env.BOT_TOKEN);
+      if (!result.isValid || !result.user || !result.user.id) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+
+      const buffer = req.body;
+      if (!buffer || !buffer.length) {
+        return res.status(400).json({ error: 'Empty video' });
+      }
+      // Hard cap (Telegram bots can send up to 50MB; we keep replays small).
+      if (buffer.length > 25 * 1024 * 1024) {
+        return res.status(413).json({ error: 'Video too large' });
+      }
+
+      const caption = (req.query.caption ? String(req.query.caption) : '').slice(0, 200)
+        || '🎬 Wrong Way — o\'yin replayi';
+
+      const sent = await sendVideoToUser(result.user.id, buffer, `wrong-way-replay-${Date.now()}.webm`, caption);
+      if (sent.ok) return res.json({ ok: true });
+      return res.status(502).json({ error: sent.error || 'Failed to send' });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
 
 // ===== Admin auth (httpOnly cookie session) =====
 app.post('/api/admin/login', loginHandler);

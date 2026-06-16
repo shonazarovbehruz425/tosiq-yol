@@ -341,6 +341,40 @@ export async function broadcastToAll(text) {
   return { ok: true, sent, failed, total: users.length };
 }
 
+// Send a recorded replay video to a specific user's chat. The video arrives as
+// a Buffer (webm). Uses multipart/form-data so we can upload the file bytes
+// directly. Returns { ok, error }.
+export async function sendVideoToUser(userId, buffer, filename = 'replay.webm', caption = '') {
+  if (!activeToken) return { ok: false, error: 'Bot is not running' };
+  if (!userId || !buffer || !buffer.length) return { ok: false, error: 'Missing userId or video' };
+
+  try {
+    const form = new FormData();
+    form.append('chat_id', String(userId));
+    if (caption) form.append('caption', caption);
+    // Telegram accepts webm under sendVideo; send as a Blob with a filename.
+    const blob = new Blob([buffer], { type: 'video/webm' });
+    form.append('video', blob, filename);
+
+    const res = await fetch(API(activeToken, 'sendVideo'), { method: 'POST', body: form });
+    const data = await res.json().catch(() => null);
+    if (data && data.ok) return { ok: true };
+
+    // Some clients prefer the file as a document; retry as a document fallback.
+    const form2 = new FormData();
+    form2.append('chat_id', String(userId));
+    if (caption) form2.append('caption', caption);
+    form2.append('document', new Blob([buffer], { type: 'video/webm' }), filename);
+    const res2 = await fetch(API(activeToken, 'sendDocument'), { method: 'POST', body: form2 });
+    const data2 = await res2.json().catch(() => null);
+    if (data2 && data2.ok) return { ok: true };
+
+    return { ok: false, error: (data2 && data2.description) || (data && data.description) || 'Failed to send video' };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

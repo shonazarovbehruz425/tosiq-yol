@@ -1,5 +1,5 @@
 import { t } from '../core/i18n.js';
-import { haptic } from '../core/telegram.js';
+import { haptic, getInitData, isTelegram } from '../core/telegram.js';
 import { BoardRenderer } from '../game/board.js';
 import { ReplayManager } from '../game/replay.js';
 import { ReplayRecorder } from '../game/replay-recorder.js';
@@ -208,23 +208,65 @@ export class ReplayScreen {
         }
       });
 
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `wrong-way-replay-${Date.now()}.webm`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      // Inside Telegram: send the video straight to the user's chat via the bot
+      // (downloading a file in the Mini App WebView is unreliable). Outside
+      // Telegram (browser testing): fall back to a normal file download.
+      let sentToChat = false;
+      if (isTelegram()) {
+        // Show an "uploading / sending" state.
+        const titleEl = overlay.querySelector('.modal-title');
+        const hintEl = overlay.querySelector('.modal-desc');
+        if (titleEl) titleEl.innerText = t('sendingToChat');
+        if (hintEl) hintEl.innerText = t('sendingToChatHint');
 
-      haptic.notification('success');
-      Toast.success(t('videoSaved'));
+        sentToChat = await this.sendReplayToBot(blob);
+      }
+
+      if (sentToChat) {
+        haptic.notification('success');
+        Toast.success(t('videoSentToChat'));
+      } else {
+        // Browser fallback (or send failed): trigger a download.
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `wrong-way-replay-${Date.now()}.webm`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        haptic.notification('success');
+        Toast.success(t('videoSaved'));
+      }
     } catch (e) {
       haptic.notification('error');
       Toast.error(t('exportFailed'));
     } finally {
       this.recording = false;
       overlay.remove();
+    }
+  }
+
+  // Upload the recorded replay to the server, which forwards it to the user's
+  // Telegram chat via the bot. Returns true on success.
+  async sendReplayToBot(blob) {
+    try {
+      const loc = window.location;
+      const isViteDev = loc.port === '5173';
+      const base = isViteDev ? `${loc.protocol}//${loc.hostname}:3000` : '';
+      const caption = encodeURIComponent(t('replayCaption'));
+      const res = await fetch(`${base}/api/replay/upload?caption=${caption}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'video/webm',
+          'Authorization': `Bearer ${getInitData() || ''}`
+        },
+        body: blob
+      });
+      const data = await res.json().catch(() => null);
+      return !!(data && data.ok);
+    } catch (e) {
+      return false;
     }
   }
 

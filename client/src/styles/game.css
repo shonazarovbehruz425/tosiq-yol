@@ -618,9 +618,11 @@
 
 /* ===== Drag & Drop walls ===== */
 
-/* Prevent the page from scrolling while interacting with the board */
+/* Allow vertical scrolling over the board (walls are dragged from the tray, so
+   the board itself doesn't need to block panning). During an actual wall drag
+   the JS calls preventDefault on pointermove to stop the page from scrolling. */
 .board {
-  touch-action: none;
+  touch-action: pan-y;
 }
 
 /* Wall tray holding draggable chips — a floating card like the mockup */
