@@ -35,6 +35,9 @@ export const uz = {
   opponentLeft: "O'yinchi chiqib ketdi",
   openGames: "Ochiq O'yinlar",
   waitingOpponent: "Raqib kutilmoqda...",
+  findingMatch: "Raqib qidirilmoqda",
+  searchingOpponent: "Raqib izlanmoqda...",
+  connectingServer: "Serverga ulanmoqda...",
   join: "Qo'shilish",
   lobbyCode: "Lobby Kodu",
   players: "O'yinchilar",
@@ -164,6 +167,7 @@ export const uz = {
   exportFailed: "Videoni yaratib bo'lmadi",
   exportUnsupported: "Brauzeringiz video yozishni qo'llab-quvvatlamaydi",
   noMovesToExport: "Yozib olish uchun yurishlar yo'q",
+  wallsLeftLabel: "to'siq qoldi",
 
   // Settings
   systemSettings: "Sozlamalar",

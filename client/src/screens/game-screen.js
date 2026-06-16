@@ -66,49 +66,78 @@ export class GameScreen {
 
   render() {
     const isBot = this.vs === 'bot';
-    
+
     const p1Name = this.mySide === 0 ? this.meUser.first_name : this.opponentUser.first_name;
     const p2Name = this.mySide === 1 ? this.meUser.first_name : this.opponentUser.first_name;
-    
+    this.p1Name = p1Name;
+    this.p2Name = p2Name;
+
+    // Mode / time pill shown under the header.
+    const tt = this.params.totalTime || 0;
+    const timeLabel = tt > 0 ? `${Math.round(tt / 60)} min` : '∞';
+
+    const clockSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`;
+    const wallSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/><path d="M8 4v6M16 14v6M12 4v6"/></svg>`;
+
     return `
       <div class="game-container screen-enter" id="game-page-container">
         <!-- Header -->
         <div class="game-header">
-          <button class="game-logo-btn" id="logo-btn">🛑 ${t('appName')}</button>
-          <button class="btn btn-outline-red surrender-btn" id="surrender-btn">${t('surrender')}</button>
+          <button class="game-logo-btn" id="logo-btn">
+            <span class="game-logo-mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 15v-3h-6v-2h6V7l4 4-4 4M5 15l-4-4 4-4v3h6v2H5v3"/>
+              </svg>
+            </span>
+            <span class="game-logo-text">${t('appName')}</span>
+          </button>
+          <button class="give-up-btn" id="surrender-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>
+            </svg>
+            <span>${t('surrender')}</span>
+          </button>
         </div>
+
+        <!-- Mode / time pill -->
+        <div class="game-mode-pill">${clockSvg}<span>${timeLabel}</span></div>
 
         <!-- Players Panel -->
         <div class="players-status">
-          <!-- Blue Player (Top, indices 1) -->
-          <div class="player-panel player-blue" id="player-panel-1">
-            <div class="player-info-top">
-              <div class="player-avatar">B</div>
-              <span class="player-name">${p2Name}</span>
-            </div>
-            <div class="player-stats">
-              <span class="walls-badge" id="player-walls-1">🚧 ${this.wallsCount}</span>
-              <span class="player-timer" id="player-time-1">05:00</span>
-            </div>
-          </div>
-
-          <!-- Red Player (Bottom, indices 0) -->
+          <!-- Red Player (index 0) -->
           <div class="player-panel player-red" id="player-panel-0">
-            <div class="player-info-top">
-              <div class="player-avatar">R</div>
-              <span class="player-name">${p1Name}</span>
+            <div class="player-orb"></div>
+            <div class="player-card-body">
+              <div class="player-timer-pill">
+                ${clockSvg}
+                <span class="player-timer" id="player-time-0">${tt > 0 ? this.fmt(tt) : '0:00'}</span>
+                <span class="tpill-label">TIME</span>
+              </div>
+              <div class="player-name">${p1Name}</div>
+              <div class="walls-badge" id="player-walls-0">${wallSvg}<span>${this.wallsCount}</span></div>
             </div>
-            <div class="player-stats">
-              <span class="walls-badge" id="player-walls-0">🚧 ${this.wallsCount}</span>
-              <span class="player-timer" id="player-time-0">05:00</span>
+          </div>
+
+          <!-- VS divider -->
+          <div class="vs-divider"><span class="vs-text">VS</span><span class="vs-dots"></span></div>
+
+          <!-- Blue Player (index 1) -->
+          <div class="player-panel player-blue" id="player-panel-1">
+            <div class="player-orb"></div>
+            <div class="player-card-body">
+              <div class="player-timer-pill">
+                ${clockSvg}
+                <span class="player-timer" id="player-time-1">${tt > 0 ? this.fmt(tt) : '0:00'}</span>
+                <span class="tpill-label">TIME</span>
+              </div>
+              <div class="player-name">${p2Name}</div>
+              <div class="walls-badge" id="player-walls-1">${wallSvg}<span>${this.wallsCount}</span></div>
             </div>
           </div>
         </div>
 
-        <!-- Timer / Status Bar -->
-        <div class="turn-banner" id="game-status-banner">
-          ...
-        </div>
+        <!-- Turn indicator line -->
+        <div class="turn-indicator" id="game-status-banner"></div>
 
         <!-- Board -->
         <div class="board-wrapper" id="game-board-container">
@@ -134,18 +163,35 @@ export class GameScreen {
           </div>
 
           <div class="wall-tray" id="wall-tray">
-            <span class="wall-tray-hint" id="wall-tray-hint">To'siqni sudrang →</span>
-            <div class="wall-chip wall-chip-h" id="wall-chip-h" title="Gorizontal to'siq">
-              <span class="wall-chip-bar bar-h"></span>
-            </div>
-            <div class="wall-chip wall-chip-v" id="wall-chip-v" title="Vertikal to'siq">
-              <span class="wall-chip-bar bar-v"></span>
+            <span class="wall-tray-hint" id="wall-tray-hint">${wallSvg} ${this.wallsCount} ${t('wallsLeftLabel')}</span>
+            <div class="wall-chips">
+              <div class="wall-chip wall-chip-h" id="wall-chip-h" title="Gorizontal to'siq">
+                <span class="wall-chip-bar bar-h"></span>
+              </div>
+              <div class="wall-chip wall-chip-v" id="wall-chip-v" title="Vertikal to'siq">
+                <span class="wall-chip-bar bar-v"></span>
+              </div>
             </div>
           </div>
         </div>
         ${isBot ? '' : this.renderChat()}
       </div>
     `;
+  }
+
+  // Quick mm:ss formatter for initial render (before the timer ticks).
+  fmt(sec) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  // Update a player's wall badge count while keeping its SVG icon intact.
+  setWallBadge(playerIndex, count) {
+    const el = document.getElementById(`player-walls-${playerIndex}`);
+    if (!el) return;
+    const span = el.querySelector('span');
+    if (span) span.innerText = count;
   }
 
   // In-game real-time chat (online/friend games only)
@@ -490,7 +536,7 @@ export class GameScreen {
       haptic.impact('medium');
 
       // Update wall count and redraw walls
-      document.getElementById(`player-walls-${playerIndex}`).innerText = `🚧 ${this.engine.playerWallsLeft[playerIndex]}`;
+      this.setWallBadge(playerIndex, this.engine.playerWallsLeft[playerIndex]);
       this.boardRenderer.drawWalls();
       this.boardRenderer.clearWallPreviews();
       
@@ -644,7 +690,8 @@ export class GameScreen {
     if (hint) {
       const sideForCount = this.vs === 'bot' ? this.engine.currentPlayer : this.mySide;
       const left = this.engine.playerWallsLeft[sideForCount];
-      hint.innerText = enabled ? `🚧 ${left} ta · sudrang` : `🚧 ${left}`;
+      const wallSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/><path d="M8 4v6M16 14v6M12 4v6"/></svg>`;
+      hint.innerHTML = `${wallSvg} ${left} ${t('wallsLeftLabel')}`;
     }
   }
 
@@ -660,7 +707,7 @@ export class GameScreen {
       this.engine.placeWall(botMove.r, botMove.c, botMove.wallType, 1 - this.mySide);
       Sound.wall();
       const botIdx = 1 - this.mySide;
-      document.getElementById(`player-walls-${botIdx}`).innerText = `🚧 ${this.engine.playerWallsLeft[botIdx]}`;
+      this.setWallBadge(botIdx, this.engine.playerWallsLeft[botIdx]);
       this.boardRenderer.drawWalls();
     }
 
@@ -690,7 +737,7 @@ export class GameScreen {
     const oppSide = 1 - this.mySide;
     this.engine.placeWall(data.r, data.c, data.wallType, oppSide);
     Sound.wall();
-    document.getElementById(`player-walls-${oppSide}`).innerText = `🚧 ${this.engine.playerWallsLeft[oppSide]}`;
+    this.setWallBadge(oppSide, this.engine.playerWallsLeft[oppSide]);
     this.boardRenderer.drawWalls();
     this.afterTurnChange();
   }
@@ -827,16 +874,30 @@ export class GameScreen {
 
     if (this.timer && this.timer.blitzTime > 0) return; // Managed by timer tick
 
-    const myTurn = this.engine.currentPlayer === this.mySide;
-    banner.innerText = myTurn ? t('yourTurn') : t('opponentTurn');
-    
-    if (myTurn) {
-      banner.style.color = 'var(--primary)';
-      banner.classList.add('my-turn');
-    } else {
-      banner.style.color = 'var(--text-color)';
-      banner.classList.remove('my-turn');
-    }
+    this.renderTurnIndicator();
+  }
+
+  // Render the colored turn line with the active player's name and an arrow,
+  // matching the mockups (red ▲ on top-goal side, blue ▼ on bottom).
+  renderTurnIndicator() {
+    const banner = document.getElementById('game-status-banner');
+    if (!banner) return;
+    const cur = this.engine.currentPlayer; // 0 = red, 1 = blue
+    const name = cur === 0 ? (this.p1Name || 'Red') : (this.p2Name || 'Blue');
+    const color = cur === 0 ? 'red' : 'blue';
+    const arrow = cur === 0 ? '▲' : '▼';
+    banner.className = `turn-indicator turn-${color}`;
+    banner.innerHTML = `
+      <span class="ti-line"></span>
+      <span class="ti-label">${arrow} ${this.esc(name)}</span>
+      <span class="ti-line"></span>
+    `;
+  }
+
+  esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
+    ));
   }
 
   async handleGameFinished(result) {

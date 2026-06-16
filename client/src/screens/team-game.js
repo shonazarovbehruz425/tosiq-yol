@@ -41,8 +41,20 @@ export class TeamGameScreen {
     return `
       <div class="game-container screen-enter" id="team-page">
         <div class="game-header">
-          <button class="game-logo-btn" id="logo-btn">🛑 ${t('appName')}</button>
-          <button class="btn btn-outline-red surrender-btn" id="exit-btn">${t('back')}</button>
+          <button class="game-logo-btn" id="logo-btn">
+            <span class="game-logo-mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 15v-3h-6v-2h6V7l4 4-4 4M5 15l-4-4 4-4v3h6v2H5v3"/>
+              </svg>
+            </span>
+            <span class="game-logo-text">${t('appName')}</span>
+          </button>
+          <button class="give-up-btn" id="exit-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            <span>${t('back')}</span>
+          </button>
         </div>
 
         <div class="team-status">

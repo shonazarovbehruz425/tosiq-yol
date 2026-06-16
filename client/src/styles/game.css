@@ -23,7 +23,10 @@
 }
 
 .game-logo-btn {
-  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
   font-weight: 800;
   color: var(--text-color);
   background: none;
@@ -31,19 +34,60 @@
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
+  padding: 0;
 }
+.game-logo-mark {
+  width: 30px; height: 30px;
+  border-radius: 9px;
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+}
+.game-logo-mark svg { width: 18px; height: 18px; }
+.game-logo-text { letter-spacing: -0.2px; }
 
-.btn.surrender-btn {
-  padding: 6px 14px;
+/* Give up / surrender button (white pill with flag) */
+.give-up-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 7px 16px;
+  border-radius: 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 700;
-  width: auto;
-  flex: 0 0 auto;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+  transition: transform 0.12s ease;
 }
+.give-up-btn svg { width: 18px; height: 18px; }
+.give-up-btn:active { transform: scale(0.94); }
+
+/* Mode / time pill under the header */
+.game-mode-pill {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 4px 0 2px 4px;
+  padding: 4px 12px;
+  border-radius: var(--border-radius-full);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.game-mode-pill svg { width: 14px; height: 14px; }
 
 /* Player Panels */
 .players-status {
   display: flex;
+  align-items: stretch;
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 0;
@@ -52,116 +96,150 @@
 }
 
 .player-panel {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
-  flex-direction: column;
-  background-color: var(--card-bg);
-  border: 1.5px solid var(--card-border);
-  border-radius: var(--border-radius-md);
-  padding: 5px 9px;
+  align-items: center;
+  gap: 10px;
+  border-radius: 18px;
+  padding: 10px 12px;
   position: relative;
-  transition: all var(--transition-normal);
-}
-
-.player-panel.active {
-  border-color: var(--active-color);
-  box-shadow: 0 0 12px var(--active-glow);
+  overflow: hidden;
+  transition: transform var(--transition-normal), box-shadow var(--transition-normal), filter var(--transition-normal);
 }
 
 .player-panel.player-red {
-  --active-color: var(--accent-red);
-  --active-glow: var(--accent-red-glow);
+  background: linear-gradient(135deg, #f87171, #dc2626);
+  box-shadow: 0 8px 20px rgba(220, 38, 38, 0.28);
 }
-
 .player-panel.player-blue {
-  --active-color: var(--accent-blue);
-  --active-glow: var(--accent-blue-glow);
+  background: linear-gradient(135deg, #60a5fa, #2563eb);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.28);
 }
 
-.player-info-top {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-bottom: 3px;
+/* Dim the inactive player slightly; lift & ring the active one. */
+.player-panel { filter: saturate(0.85) brightness(0.94); }
+.player-panel.active {
+  filter: saturate(1) brightness(1);
+  transform: translateY(-1px);
 }
+.player-panel.player-red.active { box-shadow: 0 10px 26px rgba(220, 38, 38, 0.5); }
+.player-panel.player-blue.active { box-shadow: 0 10px 26px rgba(37, 99, 235, 0.5); }
 
-.player-avatar {
-  width: 22px;
-  height: 22px;
+/* Glossy 3D orb representing the player's pawn colour */
+.player-orb {
+  flex-shrink: 0;
+  width: 40px; height: 40px;
   border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.1);
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255,255,255,0.9), rgba(255,255,255,0.15) 38%, transparent 60%),
+    radial-gradient(circle at 70% 75%, rgba(0,0,0,0.35), transparent 60%);
+  box-shadow: inset 0 -3px 6px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.25);
+}
+.player-panel.player-red .player-orb { background-color: #ef4444; }
+.player-panel.player-blue .player-orb { background-color: #3b82f6; }
+
+.player-card-body {
   display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.player-timer-pill {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 11px;
-  color: white;
+  gap: 4px;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: var(--border-radius-full);
+  background: rgba(255, 255, 255, 0.92);
+  color: #1f2937;
+  font-weight: 800;
+  font-size: 13px;
 }
-
-.player-panel.player-red .player-avatar {
-  background: var(--accent-red-gradient);
-}
-
-.player-panel.player-blue .player-avatar {
-  background: var(--accent-blue-gradient);
+.player-timer-pill svg { width: 12px; height: 12px; }
+.player-timer { font-family: var(--font-sans); letter-spacing: -0.3px; }
+.tpill-label {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #9ca3af;
 }
 
 .player-name {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 80px;
-}
-
-.player-stats {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  max-width: 100%;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .walls-badge {
-  font-size: 11px;
-  font-weight: 700;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
-  background-color: rgba(255, 255, 255, 0.05);
-  padding: 3px 6px;
-  border-radius: 6px;
-}
-
-.player-timer {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 800;
-  font-family: monospace;
+  color: rgba(255,255,255,0.95);
+}
+.walls-badge svg { width: 14px; height: 14px; }
+
+/* VS divider between the two player cards */
+.vs-divider {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--border-radius-full);
+  padding: 8px 0;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+}
+.vs-text { font-size: 11px; font-weight: 800; color: var(--text-secondary); }
+.vs-dots {
+  width: 3px; height: 3px; border-radius: 50%;
+  background: var(--text-secondary);
+  box-shadow: 0 4px 0 var(--text-secondary), 0 8px 0 var(--text-secondary);
+  margin-bottom: 8px;
+  opacity: 0.5;
 }
 
-.player-panel.active .player-timer {
-  color: var(--active-color);
-  animation: pulse 1s infinite alternate;
-}
-
-@keyframes pulse {
-  from { opacity: 0.7; }
-  to { opacity: 1; }
-}
-
-/* Turn Banner */
-.turn-banner {
-  text-align: center;
+/* Turn indicator: coloured line with the active player's name + arrow */
+.turn-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   font-size: 13px;
-  font-weight: 700;
-  padding: 2px;
-  border-radius: var(--border-radius-sm);
-  background-color: rgba(255, 255, 255, 0.02);
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  padding: 4px 2px;
   flex-shrink: 0;
 }
-
-.turn-banner.my-turn {
-  color: var(--primary);
+.turn-indicator .ti-line {
+  height: 2px;
+  width: 56px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.5;
 }
+.turn-indicator.turn-red { color: var(--accent-red); }
+.turn-indicator.turn-blue { color: var(--accent-blue); }
+.turn-indicator .ti-label { text-transform: uppercase; }
+
+/* keep legacy hook (blitz banner) usable */
+.turn-banner { text-align: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+.turn-banner.my-turn { color: var(--primary); }
 
 /* Board: a fixed SQUARE. Its exact pixel size is computed in JS (--board-size)
    to avoid aspect-ratio / min()/calc quirks in old desktop Telegram WebViews
@@ -541,37 +619,50 @@
   touch-action: none;
 }
 
-/* Wall tray holding draggable chips */
+/* Wall tray holding draggable chips — a floating card like the mockup */
 .wall-tray {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  background-color: rgba(255, 255, 255, 0.04);
+  gap: 8px;
+  flex: 1;
+  background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: var(--border-radius-md);
-  padding: 8px 12px;
+  border-radius: 20px;
+  padding: 10px 16px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.16);
   transition: opacity var(--transition-fast);
 }
 
 .wall-tray.disabled {
-  opacity: 0.4;
+  opacity: 0.5;
 }
 
 .wall-tray-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 12px;
   font-weight: 700;
   color: var(--text-secondary);
   white-space: nowrap;
+}
+.wall-tray-hint svg { width: 14px; height: 14px; }
+
+.wall-chips {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .wall-chip {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
-  background-color: rgba(255, 255, 255, 0.06);
+  width: 64px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--pill-bg, rgba(120,120,140,0.1));
   border: 1px solid var(--card-border);
   cursor: grab;
   touch-action: none;
@@ -601,19 +692,20 @@
 
 .wall-chip-bar {
   display: block;
-  border-radius: 4px;
-  background: var(--primary-gradient);
-  box-shadow: 0 0 8px var(--primary-glow);
+  border-radius: 5px;
+  background: #1f2433;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.35);
 }
+html.light-mode .wall-chip-bar { background: #1f2433; }
 
 .wall-chip-bar.bar-h {
   width: 30px;
-  height: 9px;
+  height: 10px;
 }
 
 .wall-chip-bar.bar-v {
-  width: 9px;
-  height: 30px;
+  width: 10px;
+  height: 26px;
 }
 
 /* Floating ghost that follows the finger/cursor while dragging */
@@ -649,13 +741,13 @@
 
 @media (max-width: 420px) {
   .wall-chip {
-    width: 42px;
+    width: 58px;
     height: 42px;
   }
 
   .wall-tray {
-    gap: 7px;
-    padding: 6px 9px;
+    gap: 6px;
+    padding: 8px 12px;
   }
 
   .wall-tray-hint {
@@ -676,17 +768,17 @@
   }
 
   .player-name {
-    max-width: 64px;
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .player-panel {
-    padding: 6px 10px;
+    padding: 8px 10px;
+    gap: 8px;
   }
 
-  .game-logo-btn {
-    font-size: 14px;
-  }
+  .player-orb { width: 34px; height: 34px; }
+
+  .game-logo-text { font-size: 15px; }
 }
 
 /* Short viewports (small phones / landscape): compress vertical chrome */
@@ -699,13 +791,10 @@
     margin-bottom: 0;
   }
 
-  .player-info-top {
-    margin-bottom: 2px;
-  }
+  .player-panel { padding: 7px 10px; }
 
-  .turn-banner {
-    padding: 1px;
-    font-size: 12px;
+  .turn-indicator {
+    padding: 2px;
   }
 
   .board-wrapper {

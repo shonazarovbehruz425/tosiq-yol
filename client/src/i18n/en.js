@@ -35,6 +35,9 @@ export const en = {
   opponentLeft: "A player left",
   openGames: "Open Games",
   waitingOpponent: "Waiting for opponent...",
+  findingMatch: "Finding Match",
+  searchingOpponent: "Searching for an opponent",
+  connectingServer: "Connecting to server...",
   join: "Join",
   lobbyCode: "Lobby Code",
   players: "Players",
@@ -164,6 +167,7 @@ export const en = {
   exportFailed: "Could not create the video",
   exportUnsupported: "Your browser does not support video recording",
   noMovesToExport: "No moves to record",
+  wallsLeftLabel: "walls left",
 
   // Settings
   systemSettings: "Settings",

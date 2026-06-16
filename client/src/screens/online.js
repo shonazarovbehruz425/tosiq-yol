@@ -34,17 +34,20 @@ export class OnlineScreen {
   render() {
     // Waiting view (after creating a public lobby)
     if (this.waitingLobby) {
-      const title = t('waitingOpponent');
-      const sub = t('modeDuellDesc');
       return `
-        <div class="screen screen-enter" style="justify-content: center; align-items: center; text-align: center;">
-          <div class="card" style="width: 100%; max-width: 340px; padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 18px;">
-            <div class="loader" style="width: 52px; height: 52px; border-width: 4px;"></div>
-            <h2 style="margin-bottom: 0;">${title}</h2>
-            <p class="muted" style="font-size: 14px;">${sub}</p>
-            <button class="btn btn-secondary" id="cancel-search-btn" style="margin-top: 6px; width: 100%;">
-              ${t('cancel')}
+        <div class="screen screen-enter mm-screen">
+          <div class="mm-wrap">
+            <button class="mm-orb" id="cancel-search-btn" aria-label="${t('cancel')}">
+              <span class="mm-ring mm-ring-1"></span>
+              <span class="mm-ring mm-ring-2"></span>
+              <span class="mm-ring mm-ring-3"></span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
+            <div class="mm-timer" id="mm-timer">0:00</div>
+            <div class="mm-title">${t('findingMatch')}</div>
+            <div class="mm-sub">${t('searchingOpponent')}</div>
+            <div class="mm-status"><span class="mm-status-dot"></span>${t('connectingServer')}</div>
+            <button class="mm-cancel" id="cancel-search-btn-2">${t('cancel')}</button>
           </div>
         </div>
       `;
@@ -152,15 +155,28 @@ export class OnlineScreen {
   afterRender() {
     // Bind UI for the current view. Socket listeners are registered once in onMount.
     if (this.waitingLobby) {
-      const cancelBtn = document.getElementById('cancel-search-btn');
-      cancelBtn?.addEventListener('click', () => {
+      const cancel = () => {
         haptic.impact('light');
         socket.send('cancel_search');
         this.waitingLobby = false;
+        if (this._mmTimer) { clearInterval(this._mmTimer); this._mmTimer = null; }
         socket.send('get_lobbies');
         this.router.reRenderActiveScreen();
         this.rebindList();
-      });
+      };
+      document.getElementById('cancel-search-btn')?.addEventListener('click', cancel);
+      document.getElementById('cancel-search-btn-2')?.addEventListener('click', cancel);
+
+      // Count-up timer.
+      this._mmStart = Date.now();
+      const tick = () => {
+        const el = document.getElementById('mm-timer');
+        if (!el) return;
+        const s = Math.floor((Date.now() - this._mmStart) / 1000);
+        el.innerText = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+      };
+      tick();
+      this._mmTimer = setInterval(tick, 1000);
       return;
     }
 
@@ -347,6 +363,7 @@ export class OnlineScreen {
 
   destroy() {
     this.closeInvitePopup();
+    if (this._mmTimer) { clearInterval(this._mmTimer); this._mmTimer = null; }
     socket.off('lobbies_list', this.onLobbiesList);
     socket.off('match_found', this.onMatchFound);
     socket.off('connect', this.onConnect);
