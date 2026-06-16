@@ -19,6 +19,7 @@ import { loginHandler, logoutHandler, requireAdmin } from './admin/auth.js';
 import { startBot, sendToUser, broadcastToAll, sendVideoToUser } from './bot/bot.js';
 import { presence } from './ws/presence.js';
 import { verifyTelegramWebAppData } from './middleware/auth.js';
+import { webmToMp4, isConversionAvailable } from './bot/video-convert.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -79,7 +80,26 @@ app.post('/api/replay/upload',
       const caption = (req.query.caption ? String(req.query.caption) : '').slice(0, 200)
         || '🎬 Wrong Way — o\'yin replayi';
 
-      const sent = await sendVideoToUser(result.user.id, buffer, `wrong-way-replay-${Date.now()}.webm`, caption);
+      // Convert WebM (VP8/VP9, looks blurry/cartoonish in Telegram) into a
+      // crisp H.264 MP4 when ffmpeg is available; otherwise fall back to webm.
+      let outBuf = buffer;
+      let filename = `wrong-way-replay-${Date.now()}.mp4`;
+      let mime = 'video/mp4';
+      if (isConversionAvailable()) {
+        try {
+          outBuf = await webmToMp4(buffer);
+        } catch (convErr) {
+          console.warn('[replay] mp4 conversion failed, sending webm:', convErr.message);
+          outBuf = buffer;
+          filename = `wrong-way-replay-${Date.now()}.webm`;
+          mime = 'video/webm';
+        }
+      } else {
+        filename = `wrong-way-replay-${Date.now()}.webm`;
+        mime = 'video/webm';
+      }
+
+      const sent = await sendVideoToUser(result.user.id, outBuf, filename, caption, mime);
       if (sent.ok) return res.json({ ok: true });
       return res.status(502).json({ error: sent.error || 'Failed to send' });
     } catch (err) {

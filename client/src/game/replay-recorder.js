@@ -191,7 +191,7 @@ export class ReplayRecorder {
 
       let recorder;
       try {
-        recorder = mime ? new window.MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4_000_000 })
+        recorder = mime ? new window.MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12_000_000 })
                         : new window.MediaRecorder(stream);
       } catch (e) {
         reject(e);

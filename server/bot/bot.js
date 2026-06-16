@@ -342,9 +342,9 @@ export async function broadcastToAll(text) {
 }
 
 // Send a recorded replay video to a specific user's chat. The video arrives as
-// a Buffer (webm). Uses multipart/form-data so we can upload the file bytes
-// directly. Returns { ok, error }.
-export async function sendVideoToUser(userId, buffer, filename = 'replay.webm', caption = '') {
+// a Buffer. `mime` selects how it's labelled ('video/mp4' or 'video/webm').
+// Returns { ok, error }.
+export async function sendVideoToUser(userId, buffer, filename = 'replay.mp4', caption = '', mime = 'video/mp4') {
   if (!activeToken) return { ok: false, error: 'Bot is not running' };
   if (!userId || !buffer || !buffer.length) return { ok: false, error: 'Missing userId or video' };
 
@@ -352,9 +352,9 @@ export async function sendVideoToUser(userId, buffer, filename = 'replay.webm', 
     const form = new FormData();
     form.append('chat_id', String(userId));
     if (caption) form.append('caption', caption);
-    // Telegram accepts webm under sendVideo; send as a Blob with a filename.
-    const blob = new Blob([buffer], { type: 'video/webm' });
+    const blob = new Blob([buffer], { type: mime });
     form.append('video', blob, filename);
+    form.append('supports_streaming', 'true');
 
     const res = await fetch(API(activeToken, 'sendVideo'), { method: 'POST', body: form });
     const data = await res.json().catch(() => null);
@@ -364,7 +364,7 @@ export async function sendVideoToUser(userId, buffer, filename = 'replay.webm', 
     const form2 = new FormData();
     form2.append('chat_id', String(userId));
     if (caption) form2.append('caption', caption);
-    form2.append('document', new Blob([buffer], { type: 'video/webm' }), filename);
+    form2.append('document', new Blob([buffer], { type: mime }), filename);
     const res2 = await fetch(API(activeToken, 'sendDocument'), { method: 'POST', body: form2 });
     const data2 = await res2.json().catch(() => null);
     if (data2 && data2.ok) return { ok: true };
