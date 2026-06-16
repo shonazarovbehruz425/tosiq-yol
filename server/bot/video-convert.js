@@ -47,14 +47,20 @@ export function webmToMp4(webmBuffer) {
 
     // H.264 + yuv420p so it plays everywhere (Telegram, iOS, Android).
     // AAC audio so the recorded move/wall sounds are preserved.
+    // MediaRecorder emits a VARIABLE-framerate webm; without forcing a constant
+    // output framerate ffmpeg replays it too fast. -fps_mode cfr -r 30 (with a
+    // fallback to -vsync cfr on older ffmpeg) resamples to real-time CFR.
     // -movflags +faststart puts the index up front for instant playback.
     const args = [
       '-y',
+      '-fflags', '+genpts',
       '-i', inPath,
       '-c:v', 'libx264',
       '-pix_fmt', 'yuv420p',
       '-preset', 'veryfast',
       '-crf', '18',
+      '-vsync', 'cfr',
+      '-r', '30',
       '-c:a', 'aac',
       '-b:a', '128k',
       '-movflags', '+faststart',

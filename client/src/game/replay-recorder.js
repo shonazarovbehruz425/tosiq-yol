@@ -69,7 +69,9 @@ export class ReplayRecorder {
   layout() {
     const N = this.boardSize;
     const avail = this.size - this.padding * 2;
-    const gapRatio = 0.16;
+    // Match the real board: wall gaps are a noticeable fraction of a cell so
+    // placed walls read clearly (the in-game --wall-gap is ~0.3 of a cell).
+    const gapRatio = 0.28;
     const cell = avail / (N + gapRatio * (N - 1));
     const gap = cell * gapRatio;
     return { N, cell, gap, top: this.headerH + this.padding, left: this.padding };
