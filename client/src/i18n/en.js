@@ -156,6 +156,14 @@ export const en = {
   pause: "Pause",
   stepForward: "Forward",
   stepBackward: "Backward",
+  downloadVideo: "Download video",
+  exportSpeed: "Export speed",
+  recordingVideo: "Recording video...",
+  recordingHint: "Please wait, capturing the game",
+  videoSaved: "Video saved!",
+  exportFailed: "Could not create the video",
+  exportUnsupported: "Your browser does not support video recording",
+  noMovesToExport: "No moves to record",
 
   // Settings
   systemSettings: "Settings",

@@ -2,6 +2,8 @@ import { t } from '../core/i18n.js';
 import { haptic } from '../core/telegram.js';
 import { BoardRenderer } from '../game/board.js';
 import { ReplayManager } from '../game/replay.js';
+import { ReplayRecorder } from '../game/replay-recorder.js';
+import { Toast } from '../components/toast.js';
 
 export class ReplayScreen {
   constructor(router, params) {
@@ -16,7 +18,9 @@ export class ReplayScreen {
     
     this.replay = new ReplayManager(this.boardSize, this.initialWalls, this.moveHistory, this.mode);
     this.boardRenderer = null;
-    
+    this.exportSpeed = 1.5;   // download speed multiplier
+    this.recording = false;
+
     this.onAutoplayStep = this.onAutoplayStep.bind(this);
   }
 
@@ -32,6 +36,11 @@ export class ReplayScreen {
           <span style="font-weight: 700; font-size: 15px;" id="replay-title-step">
             ${t('step', { current, total })}
           </span>
+          <button class="game-logo-btn" id="download-btn" title="${t('downloadVideo')}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;vertical-align:-3px;">
+              <path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/>
+            </svg>
+          </button>
         </div>
 
         <!-- Progress Bar -->
@@ -61,6 +70,17 @@ export class ReplayScreen {
             <button class="btn btn-secondary" id="step-forward-btn" style="flex: 1; padding: 12px;">
               ⏩ ${t('stepForward')}
             </button>
+          </div>
+
+          <!-- Export speed -->
+          <div class="replay-speed-row">
+            <span class="replay-speed-label">${t('exportSpeed')}</span>
+            <div class="btn-group" id="speed-selector">
+              <button class="btn-segment" data-speed="1.5">1.5x</button>
+              <button class="btn-segment" data-speed="2">2x</button>
+              <button class="btn-segment" data-speed="2.5">2.5x</button>
+              <button class="btn-segment" data-speed="3">3x</button>
+            </div>
           </div>
         </div>
       </div>
@@ -125,8 +145,106 @@ export class ReplayScreen {
       }
     });
 
+    // Export-speed selector (default highlighted)
+    const speedSel = document.getElementById('speed-selector');
+    const setSpeedActive = () => {
+      speedSel?.querySelectorAll('.btn-segment').forEach(b => {
+        b.classList.toggle('active', parseFloat(b.dataset.speed) === this.exportSpeed);
+      });
+    };
+    setSpeedActive();
+    speedSel?.querySelectorAll('.btn-segment').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.exportSpeed = parseFloat(btn.dataset.speed);
+        haptic.selection();
+        setSpeedActive();
+      });
+    });
+
+    // Download (record the game to a video file)
+    const downloadBtn = document.getElementById('download-btn');
+    downloadBtn?.addEventListener('click', () => {
+      haptic.impact('medium');
+      this.downloadVideo();
+    });
+
     // Draw initial state
     this.syncUI();
+  }
+
+  // Record the game to a .webm video and trigger a download.
+  async downloadVideo() {
+    if (this.recording) return;
+    if (!this.moveHistory.length) {
+      Toast.info(t('noMovesToExport'));
+      return;
+    }
+    if (!ReplayRecorder.isSupported()) {
+      Toast.error(t('exportUnsupported'));
+      return;
+    }
+
+    this.recording = true;
+    this.replay.stopAutoplay();
+    const overlay = this.showRecordingOverlay();
+
+    try {
+      const recorder = new ReplayRecorder({
+        boardSize: this.boardSize,
+        initialWalls: this.initialWalls,
+        moveHistory: this.moveHistory,
+        mode: this.mode,
+        size: 720
+      });
+
+      const blob = await recorder.record({
+        speed: this.exportSpeed,
+        onProgress: (step, total) => {
+          const pct = total > 0 ? Math.round((step / total) * 100) : 0;
+          const bar = overlay.querySelector('#rec-bar');
+          const txt = overlay.querySelector('#rec-pct');
+          if (bar) bar.style.width = `${pct}%`;
+          if (txt) txt.innerText = `${pct}%`;
+        }
+      });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `wrong-way-replay-${Date.now()}.webm`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+
+      haptic.notification('success');
+      Toast.success(t('videoSaved'));
+    } catch (e) {
+      haptic.notification('error');
+      Toast.error(t('exportFailed'));
+    } finally {
+      this.recording = false;
+      overlay.remove();
+    }
+  }
+
+  showRecordingOverlay() {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'rec-overlay';
+    overlay.innerHTML = `
+      <div class="modal-card" style="max-width: 320px; text-align: center;">
+        <div class="loader" style="width: 46px; height: 46px; margin: 4px auto 14px;"></div>
+        <h3 class="modal-title">${t('recordingVideo')}</h3>
+        <p class="modal-desc" style="margin-bottom: 14px;">${t('recordingHint')}</p>
+        <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden;">
+          <div id="rec-bar" style="width: 0%; height: 100%; background: var(--primary-gradient); transition: width 0.2s ease;"></div>
+        </div>
+        <div id="rec-pct" style="margin-top: 8px; font-weight: 700; color: var(--text-secondary);">0%</div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    return overlay;
   }
 
   onAutoplayStep(state) {
@@ -185,6 +303,7 @@ export class ReplayScreen {
 
   destroy() {
     this.replay.destroy();
+    document.getElementById('rec-overlay')?.remove();
   }
 }
 export default ReplayScreen;

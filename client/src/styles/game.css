@@ -974,3 +974,28 @@
 
 /* Smoothly animate the board when nudged. */
 #game-board-container, #team-board { transition: transform 0.2s ease; }
+
+/* ===== Replay: export-speed selector ===== */
+.replay-speed-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 2px;
+}
+.replay-speed-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.replay-speed-row .btn-group {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  justify-content: flex-end;
+}
+.replay-speed-row .btn-segment {
+  flex: 0 0 auto;
+  min-width: 52px;
+}

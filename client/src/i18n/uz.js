@@ -156,6 +156,14 @@ export const uz = {
   pause: "Pauza",
   stepForward: "Oldinga",
   stepBackward: "Orqaga",
+  downloadVideo: "Videoni yuklab olish",
+  exportSpeed: "Yuklash tezligi",
+  recordingVideo: "Video tayyorlanmoqda...",
+  recordingHint: "Iltimos kuting, o'yin yozib olinmoqda",
+  videoSaved: "Video saqlandi!",
+  exportFailed: "Videoni yaratib bo'lmadi",
+  exportUnsupported: "Brauzeringiz video yozishni qo'llab-quvvatlamaydi",
+  noMovesToExport: "Yozib olish uchun yurishlar yo'q",
 
   // Settings
   systemSettings: "Sozlamalar",
