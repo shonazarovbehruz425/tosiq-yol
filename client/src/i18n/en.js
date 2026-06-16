@@ -214,6 +214,7 @@ export const en = {
   tabRequests: "Requests",
   friendRequests: "Friend requests",
   sentRequests: "Sent requests",
+  removeFriendConfirm: "Remove this friend?",
   addFriend: "Add friend",
   friendRequestSent: "Request sent",
   friendAdded: "Friend added",

@@ -214,6 +214,7 @@ export const uz = {
   tabRequests: "So'rovlar",
   friendRequests: "Do'stlik so'rovlari",
   sentRequests: "Yuborilgan so'rovlar",
+  removeFriendConfirm: "Bu do'stni o'chirmoqchimisiz?",
   addFriend: "Do'st qo'shish",
   friendRequestSent: "So'rov yuborildi",
   friendAdded: "Do'stga qo'shildi",

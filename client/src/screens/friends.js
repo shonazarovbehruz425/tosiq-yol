@@ -2,6 +2,7 @@ import { t } from '../core/i18n.js';
 import { socket } from '../core/websocket.js';
 import { haptic } from '../core/telegram.js';
 import { Toast } from '../components/toast.js';
+import { Modal } from '../components/modal.js';
 
 function flagFromCode(code) {
   if (!code || code.length !== 2) return '';
@@ -330,7 +331,15 @@ export class FriendsScreen {
     document.querySelectorAll('[data-remove]').forEach(btn => {
       btn.addEventListener('click', () => {
         haptic.impact('light');
-        socket.send('remove_friend', { userId: btn.dataset.remove });
+        const userId = btn.dataset.remove;
+        Modal.show({
+          icon: '🗑️',
+          title: t('remove'),
+          message: t('removeFriendConfirm'),
+          confirmText: t('remove'),
+          cancelText: t('cancel'),
+          onConfirm: () => socket.send('remove_friend', { userId })
+        });
       });
     });
     document.querySelectorAll('[data-accept]').forEach(btn => {
