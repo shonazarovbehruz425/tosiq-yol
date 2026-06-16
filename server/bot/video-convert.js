@@ -46,6 +46,7 @@ export function webmToMp4(webmBuffer) {
     }
 
     // H.264 + yuv420p so it plays everywhere (Telegram, iOS, Android).
+    // AAC audio so the recorded move/wall sounds are preserved.
     // -movflags +faststart puts the index up front for instant playback.
     const args = [
       '-y',
@@ -53,7 +54,9 @@ export function webmToMp4(webmBuffer) {
       '-c:v', 'libx264',
       '-pix_fmt', 'yuv420p',
       '-preset', 'veryfast',
-      '-crf', '20',
+      '-crf', '18',
+      '-c:a', 'aac',
+      '-b:a', '128k',
       '-movflags', '+faststart',
       // Pad odd dimensions to even (H.264 requirement).
       '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',

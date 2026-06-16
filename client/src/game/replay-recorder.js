@@ -1,38 +1,48 @@
 import { QuoridorEngine } from './logic.js';
 
 // Renders a game's move history onto an offscreen <canvas> and records it to a
-// downloadable .webm video using MediaRecorder. Speed is configurable so the
-// exported clip can run faster than real time (1.5x .. 3x).
+// .webm video (with synthesized audio) using MediaRecorder. The server then
+// transcodes it to a crisp MP4. Speed is configurable (1.5x .. 3x).
 export class ReplayRecorder {
-  constructor({ boardSize, initialWalls, moveHistory, mode = 'duel', size = 720 }) {
+  constructor({ boardSize, initialWalls, moveHistory, mode = 'duel', size = 1080 }) {
     this.boardSize = boardSize || 9;
     this.initialWalls = initialWalls || 10;
     this.moveHistory = moveHistory || [];
     this.mode = mode;
 
-    this.size = size;          // square canvas (px)
-    this.headerH = 70;         // top strip for step counter
-    this.padding = 26;
+    // Render at a high resolution for a crisp export. `size` is the board area
+    // width; total canvas is square-ish with a header strip on top.
+    this.size = size;             // board area width (px)
+    this.headerH = Math.round(size * 0.1);
+    this.padding = Math.round(size * 0.04);
 
     this.canvas = document.createElement('canvas');
     this.canvas.width = this.size;
     this.canvas.height = this.size + this.headerH;
-    this.ctx = this.canvas.getContext('2d');
+    this.ctx = this.canvas.getContext('2d', { alpha: false });
 
     // Theme colours (kept independent of CSS so the export looks consistent).
     this.colors = {
-      bg: '#0f1020',
-      panel: '#1a1c2e',
-      cell: '#23263b',
-      cellEdge: '#2e3250',
+      bg: '#0b0f1d',
+      bg2: '#141a2e',
+      panel: '#1b2138',
+      cell: '#252b42',
+      cellEdge: '#323a59',
       red: '#ef4444',
+      redHi: '#f87171',
       blue: '#3b82f6',
-      redGoal: 'rgba(239,68,68,0.22)',
-      blueGoal: 'rgba(59,130,246,0.22)',
-      text: '#e6e8f0',
-      sub: '#9aa0b5',
-      accent: '#7c3aed'
+      blueHi: '#60a5fa',
+      wall: '#aab4d6',
+      wallEdge: '#5b647e',
+      redGoal: 'rgba(239,68,68,0.20)',
+      blueGoal: 'rgba(59,130,246,0.20)',
+      text: '#f1f3fb',
+      sub: '#9aa0b5'
     };
+
+    // Audio (synthesized move/wall sounds mixed into the recording).
+    this._audioCtx = null;
+    this._audioDest = null;
   }
 
   static isSupported() {
@@ -56,7 +66,7 @@ export class ReplayRecorder {
   layout() {
     const N = this.boardSize;
     const avail = this.size - this.padding * 2;
-    const gapRatio = 0.18;
+    const gapRatio = 0.16;
     const cell = avail / (N + gapRatio * (N - 1));
     const gap = cell * gapRatio;
     return { N, cell, gap, top: this.headerH + this.padding, left: this.padding };
@@ -81,28 +91,67 @@ export class ReplayRecorder {
     const ctx = this.ctx;
     const C = this.colors;
     const L = this.layout();
+    const W = this.canvas.width;
+    const H = this.canvas.height;
+    const s = this.size / 720; // scale factor relative to the old 720 design
 
-    // Background
-    ctx.fillStyle = C.bg;
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    // Background gradient
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+    bgGrad.addColorStop(0, C.bg2);
+    bgGrad.addColorStop(1, C.bg);
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, W, H);
 
-    // Header text
+    // Header: logo mark + title + step counter
+    const hy = this.headerH / 2;
+    const markR = 18 * s;
+    const markX = this.padding + markR;
+    ctx.save();
+    const lg = ctx.createLinearGradient(markX - markR, hy - markR, markX + markR, hy + markR);
+    lg.addColorStop(0, '#8b5cf6');
+    lg.addColorStop(1, '#4f46e5');
+    ctx.fillStyle = lg;
+    this.roundRect(markX - markR, hy - markR, markR * 2, markR * 2, markR * 0.5);
+    ctx.fill();
+    // arrows glyph
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3 * s;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(markX - 7 * s, hy - 4 * s);
+    ctx.lineTo(markX + 7 * s, hy - 4 * s);
+    ctx.moveTo(markX + 3 * s, hy - 8 * s);
+    ctx.lineTo(markX + 7 * s, hy - 4 * s);
+    ctx.lineTo(markX + 3 * s, hy);
+    ctx.moveTo(markX + 7 * s, hy + 4 * s);
+    ctx.lineTo(markX - 7 * s, hy + 4 * s);
+    ctx.moveTo(markX - 3 * s, hy);
+    ctx.lineTo(markX - 7 * s, hy + 4 * s);
+    ctx.lineTo(markX - 3 * s, hy + 8 * s);
+    ctx.stroke();
+    ctx.restore();
+
     ctx.fillStyle = C.text;
-    ctx.font = '700 30px system-ui, -apple-system, sans-serif';
+    ctx.font = `800 ${30 * s}px system-ui, -apple-system, sans-serif`;
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
-    ctx.fillText('Wrong Way', this.padding, this.headerH / 2);
+    ctx.fillText('Wrong Way', markX + markR + 14 * s, hy);
 
     ctx.fillStyle = C.sub;
-    ctx.font = '600 22px system-ui, -apple-system, sans-serif';
+    ctx.font = `700 ${24 * s}px system-ui, -apple-system, sans-serif`;
     ctx.textAlign = 'right';
-    ctx.fillText(`${step}/${this.moveHistory.length}`, this.size - this.padding, this.headerH / 2);
+    ctx.fillText(`${step}/${this.moveHistory.length}`, W - this.padding, hy);
 
-    // Board panel
+    // Board panel with subtle border
     const boardW = L.N * L.cell + (L.N - 1) * L.gap;
-    this.roundRect(L.left - 8, L.top - 8, boardW + 16, boardW + 16, 18);
+    const pad = 10 * s;
+    this.roundRect(L.left - pad, L.top - pad, boardW + pad * 2, boardW + pad * 2, 22 * s);
     ctx.fillStyle = C.panel;
     ctx.fill();
+    ctx.lineWidth = 2 * s;
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.stroke();
 
     // Cells + goal tint
     for (let r = 0; r < L.N; r++) {
@@ -118,52 +167,112 @@ export class ReplayRecorder {
         }
         ctx.fillStyle = fill;
         ctx.fill();
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 1.5 * s;
         ctx.strokeStyle = C.cellEdge;
         ctx.stroke();
       }
     }
 
-    // Walls
+    // Walls — glossy slate bars with owner-coloured glow
     (engine.walls || []).forEach(w => {
-      const color = w.player === 0 ? C.red : C.blue;
-      ctx.fillStyle = color;
+      const glow = w.player === 0 ? C.red : C.blue;
+      let x, y, ww, hh;
       if (w.type === 'H') {
-        const x = this.cellX(w.c, L);
-        const y = this.cellY(w.r, L) + L.cell;
-        this.roundRect(x, y, 2 * L.cell + L.gap, L.gap, L.gap / 2);
+        x = this.cellX(w.c, L);
+        y = this.cellY(w.r, L) + L.cell;
+        ww = 2 * L.cell + L.gap; hh = L.gap;
       } else {
-        const x = this.cellX(w.c, L) + L.cell;
-        const y = this.cellY(w.r, L);
-        this.roundRect(x, y, L.gap, 2 * L.cell + L.gap, L.gap / 2);
+        x = this.cellX(w.c, L) + L.cell;
+        y = this.cellY(w.r, L);
+        ww = L.gap; hh = 2 * L.cell + L.gap;
       }
+      ctx.save();
+      ctx.shadowColor = glow;
+      ctx.shadowBlur = 12 * s;
+      const wg = ctx.createLinearGradient(x, y, x, y + hh);
+      wg.addColorStop(0, '#c2cae3');
+      wg.addColorStop(1, '#6b76a0');
+      ctx.fillStyle = wg;
+      this.roundRect(x, y, ww, hh, Math.min(ww, hh) / 2);
       ctx.fill();
+      ctx.restore();
     });
 
-    // Pawns
-    const pawnColors = [C.red, C.blue];
+    // Pawns — glossy 3D spheres
+    const pawnFill = [C.red, C.blue];
+    const pawnHi = [C.redHi, C.blueHi];
     for (let i = 0; i < 2; i++) {
       const p = engine.pawnPos[i];
       if (!p) continue;
       const cx = this.cellX(p.c, L) + L.cell / 2;
       const cy = this.cellY(p.r, L) + L.cell / 2;
-      const rad = L.cell * 0.32;
+      const rad = L.cell * 0.34;
+      ctx.save();
+      ctx.shadowColor = pawnFill[i];
+      ctx.shadowBlur = 18 * s;
+      const pg = ctx.createRadialGradient(cx - rad * 0.3, cy - rad * 0.35, rad * 0.1, cx, cy, rad);
+      pg.addColorStop(0, pawnHi[i]);
+      pg.addColorStop(1, pawnFill[i]);
       ctx.beginPath();
       ctx.arc(cx, cy, rad, 0, Math.PI * 2);
-      ctx.fillStyle = pawnColors[i];
-      ctx.shadowColor = pawnColors[i];
-      ctx.shadowBlur = 16;
+      ctx.fillStyle = pg;
       ctx.fill();
-      ctx.shadowBlur = 0;
-      // inner highlight
+      ctx.restore();
+      // glossy highlight
       ctx.beginPath();
-      ctx.arc(cx - rad * 0.25, cy - rad * 0.25, rad * 0.4, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.arc(cx - rad * 0.28, cy - rad * 0.3, rad * 0.38, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
       ctx.fill();
     }
   }
 
-  // Record the whole game to a webm Blob.
+  // ---- audio ----
+  initAudio() {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      this._audioCtx = new AC();
+      if (this._audioCtx.state === 'suspended') this._audioCtx.resume().catch(() => {});
+      this._audioDest = this._audioCtx.createMediaStreamDestination();
+      return this._audioDest.stream;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Play a short tone into BOTH the recording destination and the speakers.
+  playSound(kind) {
+    const c = this._audioCtx;
+    if (!c || !this._audioDest) return;
+    try {
+      const now = c.currentTime;
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.connect(gain);
+      gain.connect(this._audioDest);   // into the recording
+      gain.connect(c.destination);     // and audible while recording
+
+      if (kind === 'move') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(150, now + 0.1);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
+        osc.start(now); osc.stop(now + 0.14);
+      } else { // wall
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.setValueAtTime(240, now + 0.05);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.22, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+        osc.start(now); osc.stop(now + 0.19);
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // Record the whole game to a webm Blob (video + audio).
   // speed: playback multiplier (1.5 .. 3). onProgress(step,total) optional.
   record({ speed = 1.5, baseDelay = 900, onProgress = () => {} } = {}) {
     return new Promise((resolve, reject) => {
@@ -172,8 +281,8 @@ export class ReplayRecorder {
         return;
       }
 
-      const delay = Math.max(120, baseDelay / speed);
-      const fps = 30;
+      const delay = Math.max(140, baseDelay / speed);
+      const fps = 60;
       let stream;
       try {
         stream = this.canvas.captureStream(fps);
@@ -182,17 +291,34 @@ export class ReplayRecorder {
         return;
       }
 
-      // Pick a supported mime type.
-      const candidates = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+      // Add a synthesized audio track so the export has sound.
+      const audioStream = this.initAudio();
+      if (audioStream) {
+        audioStream.getAudioTracks().forEach(tr => stream.addTrack(tr));
+      }
+
+      // Prefer higher-quality codecs when available.
+      const candidates = [
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm;codecs=vp9',
+        'video/webm;codecs=vp8',
+        'video/webm'
+      ];
       let mime = '';
-      for (const c of candidates) {
-        if (window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported(c)) { mime = c; break; }
+      for (const cnd of candidates) {
+        if (window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported(cnd)) { mime = cnd; break; }
       }
 
       let recorder;
       try {
-        recorder = mime ? new window.MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12_000_000 })
-                        : new window.MediaRecorder(stream);
+        recorder = mime
+          ? new window.MediaRecorder(stream, {
+              mimeType: mime,
+              videoBitsPerSecond: 16_000_000,
+              audioBitsPerSecond: 128_000
+            })
+          : new window.MediaRecorder(stream);
       } catch (e) {
         reject(e);
         return;
@@ -202,7 +328,9 @@ export class ReplayRecorder {
       recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
       recorder.onerror = (e) => reject(e.error || new Error('record_error'));
       recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: mime || 'video/webm' });
+        try { stream.getTracks().forEach(tr => tr.stop()); } catch (_) {}
+        try { if (this._audioCtx) this._audioCtx.close(); } catch (_) {}
+        const blob = new Blob(chunks, { type: (mime || 'video/webm').split(';')[0] });
         resolve(blob);
       };
 
@@ -220,12 +348,14 @@ export class ReplayRecorder {
           // Hold the final frame, then stop.
           setTimeout(() => {
             try { recorder.stop(); } catch (_) {}
-            stream.getTracks().forEach(tr => tr.stop());
-          }, 700);
+          }, 800);
           return;
         }
         step++;
+        const move = this.moveHistory[step - 1];
         this.drawState(this.engineAtStep(step), step);
+        // Play the matching sound for this move.
+        this.playSound(move && move.type === 'wall' ? 'wall' : 'move');
         onProgress(step, total);
         setTimeout(tick, delay);
       };

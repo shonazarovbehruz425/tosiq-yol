@@ -204,7 +204,7 @@ export class ReplayScreen {
         initialWalls: this.initialWalls,
         moveHistory: this.moveHistory,
         mode: this.mode,
-        size: 720
+        size: 1080
       });
 
       const blob = await recorder.record({

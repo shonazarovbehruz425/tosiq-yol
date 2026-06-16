@@ -58,7 +58,7 @@ app.get('/api/leaderboard', (req, res) => {
 // bytes here. We authenticate via the Telegram initData (Authorization: Bearer
 // <initData>) and forward the video to that user's chat through the bot.
 app.post('/api/replay/upload',
-  express.raw({ type: ['video/webm', 'application/octet-stream'], limit: '25mb' }),
+  express.raw({ type: ['video/webm', 'application/octet-stream'], limit: '60mb' }),
   async (req, res) => {
     try {
       const authHeader = req.headers.authorization || '';
@@ -73,7 +73,7 @@ app.post('/api/replay/upload',
         return res.status(400).json({ error: 'Empty video' });
       }
       // Hard cap (Telegram bots can send up to 50MB; we keep replays small).
-      if (buffer.length > 25 * 1024 * 1024) {
+      if (buffer.length > 50 * 1024 * 1024) {
         return res.status(413).json({ error: 'Video too large' });
       }
 
