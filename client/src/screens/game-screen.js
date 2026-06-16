@@ -224,6 +224,21 @@ export class GameScreen {
     const settings = await StorageManager.loadSettings();
     this.soundEnabled = settings.sound;
     setSoundEnabled(settings.sound);
+
+    // Bind online WebSocket listeners + chat FIRST, so even if a later step
+    // (skins, board sizing, etc.) throws, the joining player still has working
+    // chat and reactions.
+    if (this.vs !== 'bot') {
+      socket.on('opponent_moved', this.onOpponentMoved);
+      socket.on('opponent_wall', this.onOpponentWall);
+      socket.on('game_emoji', this.onEmojiReceived);
+      socket.on('opponent_resigned', this.onOpponentResigned);
+      socket.on('opponent_disconnected', this.onOpponentDisconnected);
+      socket.on('opponent_reconnected', this.onOpponentReconnected);
+      socket.on('game_chat', this.onChatMessage);
+      socket.connect();
+      try { this.setupChat(); } catch (e) { /* ignore */ }
+    }
     
     // 1. Initialize Board Renderer
     const container = document.getElementById('game-board-container');
@@ -241,11 +256,15 @@ export class GameScreen {
 
     // Pawn skins: render team crests. Apply skins passed in (online opponent +
     // me), and also ask the server for my equipped skin (bot games / fallback).
-    this.boardRenderer._crestSvg = crestSvg;
-    this.boardRenderer.pawnSkins = [null, null];
-    if (this.params.mySkin) this.boardRenderer.pawnSkins[this.mySide] = this.params.mySkin;
-    if (this.params.opponentSkin) this.boardRenderer.pawnSkins[1 - this.mySide] = this.params.opponentSkin;
-    if (this.params.mySkin || this.params.opponentSkin) this.boardRenderer.refreshSkins();
+    // Wrapped so a malformed skin id can never abort the rest of afterRender
+    // (which would leave chat/emoji unbound for this player).
+    try {
+      this.boardRenderer._crestSvg = crestSvg;
+      this.boardRenderer.pawnSkins = [null, null];
+      if (this.params.mySkin) this.boardRenderer.pawnSkins[this.mySide] = this.params.mySkin;
+      if (this.params.opponentSkin) this.boardRenderer.pawnSkins[1 - this.mySide] = this.params.opponentSkin;
+      if (this.params.mySkin || this.params.opponentSkin) this.boardRenderer.refreshSkins();
+    } catch (e) { /* skins are cosmetic — never block gameplay/chat */ }
 
     this._onShopState = (data) => {
       if (data && data.equipped && !this.boardRenderer.pawnSkins[this.mySide]) {
@@ -313,7 +332,7 @@ export class GameScreen {
 
     // 5. Bind Surrender Button
     const surrenderBtn = document.getElementById('surrender-btn');
-    surrenderBtn.addEventListener('click', () => {
+    surrenderBtn?.addEventListener('click', () => {
       Modal.show({
         title: t('surrender'),
         message: t('surrenderConfirm'),
@@ -361,26 +380,14 @@ export class GameScreen {
 
     // 7. Bind logo exit button (only if bot, otherwise confirm surrender first)
     const logoBtn = document.getElementById('logo-btn');
-    logoBtn.addEventListener('click', () => {
+    logoBtn?.addEventListener('click', () => {
       if (this.vs === 'bot') {
         this.timer.destroy();
         this.router.navigate('home');
       } else {
-        surrenderBtn.click();
+        surrenderBtn?.click();
       }
     });
-
-    // 8. WebSocket updates if online
-    if (this.vs !== 'bot') {
-      socket.on('opponent_moved', this.onOpponentMoved);
-      socket.on('opponent_wall', this.onOpponentWall);
-      socket.on('game_emoji', this.onEmojiReceived);
-      socket.on('opponent_resigned', this.onOpponentResigned);
-      socket.on('opponent_disconnected', this.onOpponentDisconnected);
-      socket.on('opponent_reconnected', this.onOpponentReconnected);
-      socket.on('game_chat', this.onChatMessage);
-      this.setupChat();
-    }
   }
 
   // Wire up the in-game chat panel (online/friend games only)
