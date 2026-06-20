@@ -227,6 +227,8 @@ export const uz = {
   inviteToPlay: "O'ynashga taklif",
   noFriends: "Hali do'stlaringiz yo'q. Reytingdan qo'shing!",
   noRequests: "Yangi so'rovlar yo'q",
+  add: "Qo'shish",
+  searchHint: "Do'st qo'shish uchun ID yoki username bilan qidiring",
   myFriends: "Mening do'stlarim",
   suggestions: "Tavsiya etilgan o'yinchilar",
   yourId: "Sizning ID",

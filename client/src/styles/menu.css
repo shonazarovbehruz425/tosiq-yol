@@ -2061,3 +2061,51 @@ html.light-mode .qbg-grid {
   padding: 8px 20px;
 }
 .mm-cancel:active { opacity: 0.7; }
+
+/* ===== Friends: tab bar (Friends / Requests / Add) ===== */
+.fr-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  margin: 14px 0 16px;
+  padding: 5px;
+  border-radius: var(--border-radius-full);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+}
+.fr-tab {
+  flex: 1 1 0;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 6px;
+  border: none;
+  border-radius: var(--border-radius-full);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.fr-tab svg { width: 18px; height: 18px; flex-shrink: 0; }
+.fr-tab.active {
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.18);
+}
+html:not(.light-mode) .fr-tab.active {
+  background: #ffffff;
+  color: #0f172a;
+}
+.fr-tab-badge {
+  min-width: 18px; height: 18px;
+  display: inline-grid; place-items: center;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent-red);
+  color: #fff;
+  font-size: 11px; font-weight: 800;
+}

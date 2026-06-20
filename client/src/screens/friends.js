@@ -15,11 +15,12 @@ export class FriendsScreen {
   constructor(router, params) {
     this.router = router;
     this.params = params || {};
-    this.data = null; // { me, friends, suggestions }
+    this.data = null; // { me, friends, incoming, outgoing, suggestions }
     this.loaded = false;
     this._bound = false;
     this.searchResults = null; // null = not searching; [] = no results
     this.searchQuery = '';
+    this.activeTab = 'friends'; // 'friends' | 'requests' | 'add'
 
     this.onFriendData = this.onFriendData.bind(this);
     this.onInviteResult = this.onInviteResult.bind(this);
@@ -28,7 +29,11 @@ export class FriendsScreen {
   }
 
   render() {
-    const myId = this.data && this.data.me ? this.data.me.gameId : '';
+    const incoming = (this.data && this.data.incoming) || [];
+    const peopleIco = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+    const mailIco = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>`;
+    const plusIco = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>`;
+
     return `
       <div class="screen screen-enter">
         <div class="menu-header" style="margin-top: 18px;">
@@ -40,16 +45,18 @@ export class FriendsScreen {
             </svg>
           </div>
           <h2 class="menu-title">${t('friendsTitle')}</h2>
-          <p class="menu-slogan">${t('friendsSubtitle')}</p>
-          ${myId ? `<div class="my-game-id" id="my-game-id">${t('yourId')}: <b>${myId}</b> <span class="copy-id">⧉</span></div>` : ''}
         </div>
 
-        <div class="fr-search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="fr-search-ico">
-            <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
-          </svg>
-          <input type="text" id="fr-search-input" class="fr-search-input" placeholder="${t('searchPlaceholder')}" autocomplete="off" />
-          <button class="fr-search-clear" id="fr-search-clear" style="display:none;">✕</button>
+        <div class="fr-tabs">
+          <button class="fr-tab ${this.activeTab === 'friends' ? 'active' : ''}" data-tab="friends">
+            ${peopleIco}<span>${t('tabFriends')}</span>
+          </button>
+          <button class="fr-tab ${this.activeTab === 'requests' ? 'active' : ''}" data-tab="requests">
+            ${mailIco}<span>${t('tabRequests')}</span>${incoming.length ? `<span class="fr-tab-badge">${incoming.length}</span>` : ''}
+          </button>
+          <button class="fr-tab ${this.activeTab === 'add' ? 'active' : ''}" data-tab="add">
+            ${plusIco}<span>${t('add')}</span>
+          </button>
         </div>
 
         <div id="fr-body" class="fr-body">
@@ -64,43 +71,70 @@ export class FriendsScreen {
   }
 
   renderBody() {
-    if (this.searchResults !== null) {
-      return this.renderSearch();
-    }
     if (!this.loaded) {
       return `<div class="fr-empty"><div class="loader"></div></div>`;
     }
+    if (this.activeTab === 'requests') return this.renderRequestsTab();
+    if (this.activeTab === 'add') return this.renderAddTab();
+    return this.renderFriendsTab();
+  }
+
+  // ===== Tab: Friends =====
+  renderFriendsTab() {
     const friends = this.data.friends || [];
+    if (friends.length === 0) {
+      return `<div class="fr-empty">${t('noFriends')}</div>`;
+    }
+    return `<div class="fr-list">${friends.map(f => this.friendRow(f)).join('')}</div>`;
+  }
+
+  // ===== Tab: Requests (incoming + outgoing) =====
+  renderRequestsTab() {
     const incoming = this.data.incoming || [];
     const outgoing = this.data.outgoing || [];
-    const suggestions = this.data.suggestions || [];
+    if (incoming.length === 0 && outgoing.length === 0) {
+      return `<div class="fr-empty">${t('noRequests')}</div>`;
+    }
     let html = '';
-
-    // Incoming friend requests (accept / decline) — shown first so they're seen.
     if (incoming.length > 0) {
       html += `<div class="fr-section-title">${t('friendRequests')} <span class="fr-badge">${incoming.length}</span></div>`;
       html += `<div class="fr-list">${incoming.map(r => this.requestRow(r)).join('')}</div>`;
     }
-
-    if (friends.length === 0) {
-      html += `<div class="fr-empty">${t('noFriends')}</div>`;
-    } else {
-      html += `<div class="fr-section-title">${t('myFriends')}</div>`;
-      html += `<div class="fr-list">${friends.map(f => this.friendRow(f)).join('')}</div>`;
-    }
-
-    // Pending sent requests.
     if (outgoing.length > 0) {
       html += `<div class="fr-section-title">${t('sentRequests')}</div>`;
       html += `<div class="fr-list">${outgoing.map(s => this.outgoingRow(s)).join('')}</div>`;
     }
-
-    // Random people-you-may-know suggestions from the bot's users.
-    if (suggestions.length > 0) {
-      html += `<div class="fr-section-title">${t('suggestions')}</div>`;
-      html += `<div class="fr-list">${suggestions.map(s => this.suggestionRow(s)).join('')}</div>`;
-    }
     return html;
+  }
+
+  // ===== Tab: Add (your ID + search + suggestions) =====
+  renderAddTab() {
+    const myId = this.data && this.data.me ? this.data.me.gameId : '';
+    return `
+      ${myId ? `<div class="my-game-id" id="my-game-id">${t('yourId')}: <b>${myId}</b> <span class="copy-id">⧉</span></div>` : ''}
+      <div class="fr-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="fr-search-ico">
+          <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+        </svg>
+        <input type="text" id="fr-search-input" class="fr-search-input" placeholder="${t('searchPlaceholder')}" autocomplete="off" />
+        <button class="fr-search-clear" id="fr-search-clear" style="display:${this.searchQuery ? 'block' : 'none'};">✕</button>
+      </div>
+      <div id="fr-add-results">${this.renderAddResults()}</div>
+    `;
+  }
+
+  // Just the results portion of the Add tab (search results or suggestions).
+  // Kept separate so updating it never blurs the search input.
+  renderAddResults() {
+    const suggestions = (this.data && this.data.suggestions) || [];
+    if (this.searchResults !== null) {
+      return this.renderSearch();
+    }
+    if (suggestions.length > 0) {
+      return `<div class="fr-section-title">${t('suggestions')}</div>
+        <div class="fr-list">${suggestions.map(s => this.suggestionRow(s)).join('')}</div>`;
+    }
+    return `<div class="fr-empty">${t('searchHint')}</div>`;
   }
 
   // Incoming request: accept (check) / decline (x).
@@ -253,6 +287,25 @@ export class FriendsScreen {
     const backBtn = document.getElementById('back-btn');
     if (backBtn) backBtn.addEventListener('click', () => { haptic.impact('light'); this.router.back(); });
 
+    // Tab switching.
+    document.querySelectorAll('.fr-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        if (tab === this.activeTab) return;
+        haptic.selection();
+        this.activeTab = tab;
+        // Switching away from Add clears any active search.
+        if (tab !== 'add') { this.searchQuery = ''; this.searchResults = null; }
+        document.querySelectorAll('.fr-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+        this.refreshBody();
+      });
+    });
+
+    this.bindBody();
+  }
+
+  // Bind controls that live INSIDE the body (re-run after each body re-render).
+  bindBody() {
     // Search input (debounced) — query by 8-digit ID or username/name.
     const input = document.getElementById('fr-search-input');
     const clearBtn = document.getElementById('fr-search-clear');
@@ -263,7 +316,7 @@ export class FriendsScreen {
         this.searchQuery = q;
         if (clearBtn) clearBtn.style.display = q ? 'block' : 'none';
         clearTimeout(this._searchTimer);
-        if (!q) { this.searchResults = null; this.refreshBody(); return; }
+        if (!q) { this.searchResults = null; this.refreshAddResults(); return; }
         this._searchTimer = setTimeout(() => {
           socket.send('search_users', { query: q });
         }, 300);
@@ -275,7 +328,8 @@ export class FriendsScreen {
         this.searchResults = null;
         if (input) input.value = '';
         clearBtn.style.display = 'none';
-        this.refreshBody();
+        this.refreshAddResults();
+        if (input) input.focus();
       });
     }
 
@@ -300,15 +354,21 @@ export class FriendsScreen {
     // valid responses when the query changed by a character mid-flight.
     if (this.searchQuery) {
       this.searchResults = data.results || [];
-      this.refreshBody();
+      this.refreshAddResults();
     }
+  }
+
+  // Update ONLY the Add-tab results (keeps the search input focused).
+  refreshAddResults() {
+    const box = document.getElementById('fr-add-results');
+    if (box) { box.innerHTML = this.renderAddResults(); this.bindRowActions(); }
   }
 
   // Re-render just the list body without re-running socket setup.
   refreshBody() {
     const body = document.getElementById('fr-body');
     if (body) body.innerHTML = this.renderBody();
-    this.bindRowActions();
+    this.bindBody();
   }
 
   bindRowActions() {
@@ -357,12 +417,34 @@ export class FriendsScreen {
   }
 
   onFriendData(data) {
+    const hadId = !!(this.data && this.data.me && this.data.me.gameId);
     this.data = data || { me: null, friends: [], incoming: [], outgoing: [], suggestions: [] };
     this.loaded = true;
-    this.refreshBody();
-    // Refresh the "your ID" line if it wasn't shown before.
-    if (this.data.me && this.data.me.gameId && !document.getElementById('my-game-id')) {
+
+    // Keep the Requests-tab badge in sync.
+    const incoming = this.data.incoming || [];
+    const tabBadgeHost = document.querySelector('.fr-tab[data-tab="requests"]');
+    if (tabBadgeHost) {
+      let badge = tabBadgeHost.querySelector('.fr-tab-badge');
+      if (incoming.length) {
+        if (!badge) { badge = document.createElement('span'); badge.className = 'fr-tab-badge'; tabBadgeHost.appendChild(badge); }
+        badge.innerText = incoming.length;
+      } else if (badge) {
+        badge.remove();
+      }
+    }
+
+    // If the player's ID only just arrived, a full re-render shows it. Otherwise
+    // update the body — but on the Add tab refresh only the results so a search
+    // in progress keeps its input focused.
+    if (this.data.me && this.data.me.gameId && !hadId) {
       this.router.reRenderActiveScreen();
+      return;
+    }
+    if (this.activeTab === 'add') {
+      this.refreshAddResults();
+    } else {
+      this.refreshBody();
     }
   }
 

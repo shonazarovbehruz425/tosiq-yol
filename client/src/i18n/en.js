@@ -227,6 +227,8 @@ export const en = {
   inviteToPlay: "Invite to play",
   noFriends: "No friends yet. Add some from the leaderboard!",
   noRequests: "No new requests",
+  add: "Add",
+  searchHint: "Search by ID or username to add friends",
   myFriends: "My friends",
   suggestions: "Suggested players",
   yourId: "Your ID",
