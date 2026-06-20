@@ -172,6 +172,7 @@ export const uz = {
   exportUnsupported: "Brauzeringiz video yozishni qo'llab-quvvatlamaydi",
   noMovesToExport: "Yozib olish uchun yurishlar yo'q",
   wallsLeftLabel: "to'siq qoldi",
+  thinking: "O'ylanmoqda",
 
   // Settings
   systemSettings: "Sozlamalar",

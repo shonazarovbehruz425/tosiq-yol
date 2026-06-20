@@ -172,6 +172,7 @@ export const en = {
   exportUnsupported: "Your browser does not support video recording",
   noMovesToExport: "No moves to record",
   wallsLeftLabel: "walls left",
+  thinking: "Thinking",
 
   // Settings
   systemSettings: "Settings",

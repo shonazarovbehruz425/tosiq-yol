@@ -112,7 +112,10 @@ export class GameScreen {
                 <span class="tpill-label">TIME</span>
               </div>
               <div class="player-name">${p1Name}</div>
-              <div class="walls-badge" id="player-walls-0">${wallSvg}<span>${this.wallsCount}</span></div>
+              <div class="player-meta-row">
+                <div class="walls-badge" id="player-walls-0">${wallSvg}<span>${this.wallsCount}</span></div>
+                <span class="thinking-tag" id="thinking-0"><span class="thinking-dot"></span>${t('thinking')}</span>
+              </div>
             </div>
           </div>
 
@@ -129,7 +132,10 @@ export class GameScreen {
                 <span class="tpill-label">TIME</span>
               </div>
               <div class="player-name">${p2Name}</div>
-              <div class="walls-badge" id="player-walls-1">${wallSvg}<span>${this.wallsCount}</span></div>
+              <div class="player-meta-row">
+                <div class="walls-badge" id="player-walls-1">${wallSvg}<span>${this.wallsCount}</span></div>
+                <span class="thinking-tag" id="thinking-1"><span class="thinking-dot"></span>${t('thinking')}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -989,6 +995,15 @@ export class GameScreen {
       bluePanel?.classList.add('active');
       redPanel?.classList.remove('active');
     }
+
+    // "Thinking…" pulse shows on whichever player must move now (and the game
+    // isn't over). Cleared when the game ends.
+    const over = this.engine.winner !== -1;
+    const cur = this.engine.currentPlayer;
+    const t0 = document.getElementById('thinking-0');
+    const t1 = document.getElementById('thinking-1');
+    if (t0) t0.classList.toggle('show', !over && cur === 0);
+    if (t1) t1.classList.toggle('show', !over && cur === 1);
   }
 
   updateStatusBanner() {

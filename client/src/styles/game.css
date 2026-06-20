@@ -193,6 +193,43 @@
 }
 .walls-badge svg { width: 13px; height: 13px; }
 
+/* Walls + "Thinking…" share a row under the name. */
+.player-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* "Thinking…" tag with a pulsing light — shown on the player who must move. */
+.thinking-tag {
+  display: none;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.95);
+  padding: 1px 8px 1px 6px;
+  border-radius: var(--border-radius-full);
+  background: rgba(0, 0, 0, 0.18);
+}
+.thinking-tag.show { display: inline-flex; }
+.thinking-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 6px rgba(255,255,255,0.9);
+  animation: thinkBlink 0.9s ease-in-out infinite;
+}
+@keyframes thinkBlink {
+  0%, 100% { opacity: 0.25; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .thinking-dot { animation: none; opacity: 0.9; }
+}
+
 /* VS divider between the two player cards */
 .vs-divider {
   flex: 0 0 auto;
