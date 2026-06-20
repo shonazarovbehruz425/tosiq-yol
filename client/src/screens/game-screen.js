@@ -8,6 +8,7 @@ import { QuoridorAI } from '../game/ai.js';
 import { BoardRenderer } from '../game/board.js';
 import { GameTimer } from '../game/timer.js';
 import { FloatingEmoji } from '../game/animations.js';
+import { Confetti } from '../game/animations.js';
 import { REACTIONS, reactionArt, playReactionSound, preloadReactionSounds } from '../game/reactions.js';
 import { crestSvg } from '../game/skins.js';
 import { sizeBoard } from '../game/board-shift.js';
@@ -1041,15 +1042,21 @@ export class GameScreen {
 
   async handleGameFinished(result) {
     this.timer.destroy();
-    
+
     // Save locally
     const isWin = result === 'win';
     if (isWin) Sound.win(); else Sound.lose();
     await StorageManager.recordGameResult(result);
-    
-    // Redirect to Result Screen
-    this.router.navigate('result', {
-      result, // 'win' or 'lose'
+
+    // Show the result as an overlay ON TOP of the finished board (not a
+    // separate screen / background).
+    this.showResultOverlay(result);
+  }
+
+  // Build the result params bundle (shared by overlay actions).
+  _resultParams(result) {
+    return {
+      result,
       vs: this.vs,
       roomCode: this.params.roomCode,
       boardSize: this.boardSize,
@@ -1066,7 +1073,164 @@ export class GameScreen {
       moveHistory: this.engine.moveHistory,
       playerSide: this.mySide,
       opponent: this.opponentUser
+    };
+  }
+
+  showResultOverlay(result) {
+    const isWin = result === 'win';
+    this._finished = true;
+    this._rematchRequested = false;
+    this._opponentRematchRequested = false;
+
+    const host = document.getElementById('game-page-container');
+    if (!host) return;
+
+    // Remove any prior overlay.
+    document.getElementById('result-overlay')?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'result-overlay';
+    overlay.id = 'result-overlay';
+    overlay.innerHTML = `
+      <div class="result-card result-pop ${isWin ? 'result-win' : 'result-lose'}">
+        <div class="result-icon-halo">
+          <div class="result-icon">
+            ${isWin ? `
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/>
+                <path d="M7 5H4v2a3 3 0 0 0 3 3M17 5h3v2a3 3 0 0 1-3 3"/>
+              </svg>
+            ` : `
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M8 15.5a4.5 4.5 0 0 1 8 0"/>
+                <path d="M8.5 9h.01M15.5 9h.01"/>
+              </svg>
+            `}
+          </div>
+        </div>
+        <h1 class="result-title">${isWin ? t('victory') : t('defeat')}</h1>
+        <p class="result-desc">${isWin ? t('victoryDesc') : t('defeatDesc')}</p>
+        <div class="result-stat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19V10M10 19V5M16 19v-7M20 19H3"/>
+          </svg>
+          ${t('movesCount', { count: this.engine.moveHistory.length })}
+        </div>
+        <div class="rematch-status-host" id="rematch-status-host"></div>
+        <div class="menu-actions result-actions">
+          <button class="menu-pill menu-pill-primary" id="ov-rematch-btn">
+            <span class="menu-pill-icon icon-rematch">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
+            </span>
+            <span class="menu-pill-label">${t('rematch')}</span>
+          </button>
+          <button class="menu-pill" id="ov-replay-btn">
+            <span class="menu-pill-icon icon-replay">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v5h5"/><path d="M10 9l5 3-5 3z" fill="currentColor" stroke="none"/></svg>
+            </span>
+            <span class="menu-pill-label">${t('replay')}</span>
+          </button>
+          <button class="menu-pill" id="ov-menu-btn">
+            <span class="menu-pill-icon icon-home">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9"/><path d="M9 21v-6h6v6"/></svg>
+            </span>
+            <span class="menu-pill-label">${t('menu')}</span>
+          </button>
+        </div>
+      </div>
+    `;
+    host.appendChild(overlay);
+
+    haptic.notification(isWin ? 'success' : 'error');
+    if (isWin) Confetti.spawn(overlay);
+
+    overlay.querySelector('#ov-rematch-btn')?.addEventListener('click', () => {
+      haptic.impact('medium');
+      this.handleRematchClick();
     });
+    overlay.querySelector('#ov-replay-btn')?.addEventListener('click', () => {
+      haptic.impact('medium');
+      this.router.navigate('replay-screen', {
+        moveHistory: this.engine.moveHistory,
+        boardSize: this.boardSize,
+        initialWalls: this.wallsCount,
+        mode: this.mode,
+        resultParams: this._resultParams(result)
+      });
+    });
+    overlay.querySelector('#ov-menu-btn')?.addEventListener('click', () => {
+      haptic.impact('light');
+      if (this.vs !== 'bot') socket.send('leave_room', { roomCode: this.params.roomCode });
+      this.router.navigate('home');
+    });
+
+    // Online rematch coordination.
+    if (this.vs !== 'bot') {
+      this._onRematchReq = () => {
+        this._opponentRematchRequested = true;
+        if (this._rematchRequested) {
+          socket.send('accept_rematch', { roomCode: this.params.roomCode });
+        } else {
+          haptic.notification('warning');
+          this._setRematchStatus('invite');
+          overlay.querySelector('#ov-rematch-btn')?.classList.add('rematch-pulse');
+        }
+      };
+      this._onRematchAcc = (data) => {
+        haptic.notification('success');
+        this.router.navigate('game', {
+          vs: this.vs, roomCode: data.roomCode, playerSide: data.side,
+          boardSize: this.boardSize, totalTime: this.params.totalTime,
+          blitzTime: this.params.blitzTime, wallsCount: this.wallsCount,
+          mode: this.mode, fog: this.fog, chaos: this.chaos, seed: this.params.seed,
+          mySkin: this.params.mySkin, opponentSkin: this.params.opponentSkin,
+          opponent: this.opponentUser
+        });
+      };
+      this._onOppLeft = () => {
+        Toast.warning(t('rematchDeclined'));
+        const b = overlay.querySelector('#ov-rematch-btn');
+        if (b) { b.disabled = true; b.style.opacity = '0.5'; }
+      };
+      socket.on('opponent_requested_rematch', this._onRematchReq);
+      socket.on('rematch_accepted', this._onRematchAcc);
+      socket.on('opponent_left', this._onOppLeft);
+    }
+  }
+
+  _setRematchStatus(kind) {
+    const host = document.getElementById('rematch-status-host');
+    if (!host) return;
+    if (kind === 'go') host.innerHTML = `<p class="rematch-status go">${t('rematchStarting')}</p>`;
+    else if (kind === 'wait') host.innerHTML = `<p class="rematch-status wait">${t('waitingOpponentRematch')}</p>`;
+    else if (kind === 'invite') host.innerHTML = `<p class="rematch-status invite">${t('opponentWantsRematch')}</p>`;
+    else host.innerHTML = '';
+  }
+
+  handleRematchClick() {
+    if (this.vs === 'bot') {
+      this.router.navigate('game', {
+        vs: 'bot',
+        difficulty: this.params.difficulty || 'normal',
+        boardSize: this.boardSize,
+        totalTime: this.params.totalTime,
+        blitzTime: this.params.blitzTime,
+        wallsCount: this.wallsCount,
+        mode: this.mode,
+        fog: this.fog,
+        chaos: this.chaos,
+        seed: (Date.now() & 0x7fffffff) || 1
+      });
+      return;
+    }
+    // Online rematch request.
+    this._rematchRequested = true;
+    socket.send('request_rematch', { roomCode: this.params.roomCode });
+    this._setRematchStatus(this._opponentRematchRequested ? 'go' : 'wait');
+    if (this._opponentRematchRequested) {
+      socket.send('accept_rematch', { roomCode: this.params.roomCode });
+    }
   }
 
   destroy() {
@@ -1091,6 +1255,10 @@ export class GameScreen {
     }
     if (this._detachSize) { this._detachSize(); this._detachSize = null; }
     if (this._aiWorker) { try { this._aiWorker.terminate(); } catch (e) {} this._aiWorker = null; }
+    // Result-overlay rematch listeners.
+    if (this._onRematchReq) { socket.off('opponent_requested_rematch', this._onRematchReq); this._onRematchReq = null; }
+    if (this._onRematchAcc) { socket.off('rematch_accepted', this._onRematchAcc); this._onRematchAcc = null; }
+    if (this._onOppLeft) { socket.off('opponent_left', this._onOppLeft); this._onOppLeft = null; }
     
     // Turn off sockets
     if (this.vs !== 'bot') {

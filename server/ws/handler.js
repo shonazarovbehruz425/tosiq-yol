@@ -58,6 +58,13 @@ export function handleWebSocketConnection(ws, wss, request) {
         return;
       }
 
+      // Online count request (Home screen asks for it when it mounts, since the
+      // broadcast only fires on brand-new connections).
+      if (type === 'get_online_count') {
+        ws.send(JSON.stringify({ type: 'users_count', payload: { count: wss.clients.size } }));
+        return;
+      }
+
       // 1. Authentication
       if (type === 'auth') {
         const BOT_TOKEN = process.env.BOT_TOKEN;

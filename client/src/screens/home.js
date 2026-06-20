@@ -127,6 +127,11 @@ export class HomeScreen {
     // Connect to WebSocket to track online count
     socket.connect();
     socket.on('users_count', this.onUsersCount);
+    // The server only broadcasts the count on brand-new connections, so ask for
+    // it explicitly whenever Home mounts (we may already be connected).
+    const askCount = () => socket.send('get_online_count');
+    if (socket.isConnected) askCount();
+    else { const once = () => { socket.off('connect', once); askCount(); }; socket.on('connect', once); }
     
     // Bind buttons
     const playOnlineBtn = document.getElementById('play-online-btn');
