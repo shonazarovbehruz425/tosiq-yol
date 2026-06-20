@@ -249,6 +249,11 @@ export class GameScreen {
     // Size the board in JS (square px) — old desktop WebViews lack aspect-ratio.
     this._detachSize = sizeBoard(container);
 
+    // Bind reactions, chat and online listeners EARLY — before skins/timer/etc.
+    // — so a later error can never leave them unbound (this previously broke
+    // chat/reactions for one of the players).
+    this.bindControlsAndSockets();
+
     // Pawn skins: render team crests. Apply skins passed in (online opponent +
     // me), and also ask the server for my equipped skin (bot games / fallback).
     // Wrapped so a malformed skin id can never abort the rest of afterRender
@@ -337,46 +342,7 @@ export class GameScreen {
       });
     });
 
-    // 6. Bind Emoji Buttons (popup that opens on the toggle button)
-    const emojiReactions = document.getElementById('emoji-reactions');
-    const emojiToggle = document.getElementById('emoji-toggle');
-    if (emojiToggle && emojiReactions) {
-      emojiToggle.addEventListener('click', (e) => {
-        e.stopPropagation();
-        haptic.impact('light');
-        emojiReactions.classList.toggle('open');
-      });
-      // Close the popup when tapping elsewhere
-      this._closeEmoji = () => emojiReactions.classList.remove('open');
-      document.addEventListener('click', this._closeEmoji);
-    }
-
-    const emojiBtns = document.querySelectorAll('.emoji-btn');
-    emojiBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const emoji = btn.dataset.emoji;
-        haptic.impact('light');
-
-        // Spawn the custom reaction artwork locally + play its sound
-        FloatingEmoji.spawn(reactionArt(emoji), document.getElementById('game-page-container'), btn.getBoundingClientRect());
-        // Prefer the uploaded meme sound; fall back to the synthesized voice.
-        if (!playReactionSound(emoji, this.soundEnabled)) {
-          const reaction = REACTIONS.find(r => r.key === emoji);
-          if (reaction && reaction.sound) Sound.reaction(reaction.sound);
-        }
-
-        if (this.vs !== 'bot') {
-          // Send to opponent online
-          socket.send('game_emoji', { roomCode: this.params.roomCode, emoji });
-        }
-
-        // Collapse the popup after picking
-        if (emojiReactions) emojiReactions.classList.remove('open');
-      });
-    });
-
-    // 7. Bind logo exit button (only if bot, otherwise confirm surrender first)
+    // 6. Bind logo exit button (only if bot, otherwise confirm surrender first)
     const logoBtn = document.getElementById('logo-btn');
     logoBtn?.addEventListener('click', () => {
       if (this.vs === 'bot') {
@@ -386,8 +352,42 @@ export class GameScreen {
         surrenderBtn?.click();
       }
     });
+  }
 
-    // 8. WebSocket updates + chat for online/friend games.
+  // Bind reactions, chat and online socket listeners. Called early in
+  // afterRender so a later failure can never leave them unbound for a player.
+  bindControlsAndSockets() {
+    // Emoji reactions popup.
+    const emojiReactions = document.getElementById('emoji-reactions');
+    const emojiToggle = document.getElementById('emoji-toggle');
+    if (emojiToggle && emojiReactions) {
+      emojiToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        haptic.impact('light');
+        emojiReactions.classList.toggle('open');
+      });
+      this._closeEmoji = () => emojiReactions.classList.remove('open');
+      document.addEventListener('click', this._closeEmoji);
+    }
+
+    document.querySelectorAll('.emoji-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const emoji = btn.dataset.emoji;
+        haptic.impact('light');
+        FloatingEmoji.spawn(reactionArt(emoji), document.getElementById('game-page-container'), btn.getBoundingClientRect());
+        if (!playReactionSound(emoji, this.soundEnabled)) {
+          const reaction = REACTIONS.find(r => r.key === emoji);
+          if (reaction && reaction.sound) Sound.reaction(reaction.sound);
+        }
+        if (this.vs !== 'bot') {
+          socket.send('game_emoji', { roomCode: this.params.roomCode, emoji });
+        }
+        if (emojiReactions) emojiReactions.classList.remove('open');
+      });
+    });
+
+    // Online/friend WebSocket listeners + chat.
     if (this.vs !== 'bot') {
       socket.on('opponent_moved', this.onOpponentMoved);
       socket.on('opponent_wall', this.onOpponentWall);
@@ -893,18 +893,12 @@ export class GameScreen {
     }
   }
 
-  // WebSocket event: opponent surrendered
+  // WebSocket event: opponent surrendered → I win.
   onOpponentResigned() {
+    if (this.engine.winner !== -1) return; // already finished
     this.timer.destroy();
-    haptic.notification('success');
-    Modal.show({
-      title: t('victory'),
-      message: t('winByDisconnect'),
-      confirmText: t('menu'),
-      onConfirm: () => {
-        this.handleGameFinished('win');
-      }
-    });
+    Toast.success(t('winByDisconnect'));
+    this.handleGameFinished('win');
   }
 
   onOpponentDisconnected() {
