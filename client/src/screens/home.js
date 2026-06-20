@@ -23,8 +23,9 @@ export class HomeScreen {
           </div>
           <h1 class="menu-title">${t('appName')}</h1>
           <p class="menu-slogan">${t('appSlogan')}</p>
-          <div class="badge badge-online" id="online-users-badge" style="margin-top: 12px; display: none;">
-            🟢 ${t('onlineUsers', { count: this.onlineCount })}
+          <div class="badge badge-online" id="online-users-badge" style="margin-top: 12px;">
+            <span class="online-dot"></span>
+            <span id="online-count-text">${t('onlineUsers', { count: this.onlineCount })}</span>
           </div>
         </div>
 
@@ -172,11 +173,8 @@ export class HomeScreen {
   onUsersCount(data) {
     if (data && typeof data.count !== 'undefined') {
       this.onlineCount = data.count;
-      const badge = document.getElementById('online-users-badge');
-      if (badge) {
-        badge.innerText = `🟢 ${t('onlineUsers', { count: this.onlineCount })}`;
-        badge.style.display = 'inline-flex';
-      }
+      const txt = document.getElementById('online-count-text');
+      if (txt) txt.innerText = t('onlineUsers', { count: this.onlineCount });
     }
   }
 

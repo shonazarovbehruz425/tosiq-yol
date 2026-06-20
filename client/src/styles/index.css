@@ -297,4 +297,24 @@ p {
   color: var(--accent-green);
   background-color: rgba(16, 185, 129, 0.1);
   border: 1px solid rgba(16, 185, 129, 0.2);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* Always-on, blinking online dot. */
+.online-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  box-shadow: 0 0 8px var(--accent-green);
+  flex-shrink: 0;
+  animation: onlinePulse 1.2s ease-in-out infinite;
+}
+@keyframes onlinePulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.82); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .online-dot { animation: none; opacity: 1; }
 }
