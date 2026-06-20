@@ -996,14 +996,15 @@ export class GameScreen {
       redPanel?.classList.remove('active');
     }
 
-    // "Thinking…" pulse shows on whichever player must move now (and the game
-    // isn't over). Cleared when the game ends.
+    // "Thinking…" pulse shows only on the OPPONENT/AI while they must move —
+    // never on your own card during your own turn. Cleared when the game ends.
     const over = this.engine.winner !== -1;
     const cur = this.engine.currentPlayer;
+    const opponentThinking = !over && cur !== this.mySide;
     const t0 = document.getElementById('thinking-0');
     const t1 = document.getElementById('thinking-1');
-    if (t0) t0.classList.toggle('show', !over && cur === 0);
-    if (t1) t1.classList.toggle('show', !over && cur === 1);
+    if (t0) t0.classList.toggle('show', opponentThinking && cur === 0);
+    if (t1) t1.classList.toggle('show', opponentThinking && cur === 1);
   }
 
   updateStatusBanner() {
