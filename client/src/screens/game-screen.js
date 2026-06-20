@@ -8,7 +8,7 @@ import { QuoridorAI } from '../game/ai.js';
 import { BoardRenderer } from '../game/board.js';
 import { GameTimer } from '../game/timer.js';
 import { FloatingEmoji } from '../game/animations.js';
-import { REACTIONS, reactionArt } from '../game/reactions.js';
+import { REACTIONS, reactionArt, playReactionSound } from '../game/reactions.js';
 import { crestSvg } from '../game/skins.js';
 import { sizeBoard } from '../game/board-shift.js';
 import { Modal } from '../components/modal.js';
@@ -224,21 +224,6 @@ export class GameScreen {
     const settings = await StorageManager.loadSettings();
     this.soundEnabled = settings.sound;
     setSoundEnabled(settings.sound);
-
-    // Bind online WebSocket listeners + chat FIRST, so even if a later step
-    // (skins, board sizing, etc.) throws, the joining player still has working
-    // chat and reactions.
-    if (this.vs !== 'bot') {
-      socket.on('opponent_moved', this.onOpponentMoved);
-      socket.on('opponent_wall', this.onOpponentWall);
-      socket.on('game_emoji', this.onEmojiReceived);
-      socket.on('opponent_resigned', this.onOpponentResigned);
-      socket.on('opponent_disconnected', this.onOpponentDisconnected);
-      socket.on('opponent_reconnected', this.onOpponentReconnected);
-      socket.on('game_chat', this.onChatMessage);
-      socket.connect();
-      try { this.setupChat(); } catch (e) { /* ignore */ }
-    }
     
     // 1. Initialize Board Renderer
     const container = document.getElementById('game-board-container');
@@ -363,10 +348,13 @@ export class GameScreen {
         const emoji = btn.dataset.emoji;
         haptic.impact('light');
 
-        // Spawn the custom reaction artwork locally + play its voice
+        // Spawn the custom reaction artwork locally + play its sound
         FloatingEmoji.spawn(reactionArt(emoji), document.getElementById('game-page-container'), btn.getBoundingClientRect());
-        const reaction = REACTIONS.find(r => r.key === emoji);
-        if (reaction && reaction.sound) Sound.reaction(reaction.sound);
+        // Prefer the uploaded meme sound; fall back to the synthesized voice.
+        if (!playReactionSound(emoji, this.soundEnabled)) {
+          const reaction = REACTIONS.find(r => r.key === emoji);
+          if (reaction && reaction.sound) Sound.reaction(reaction.sound);
+        }
 
         if (this.vs !== 'bot') {
           // Send to opponent online
@@ -829,8 +817,10 @@ export class GameScreen {
     const oppIdx = 1 - this.mySide;
     const oppPanel = document.getElementById(`player-panel-${oppIdx}`);
     FloatingEmoji.spawn(reactionArt(data.emoji), document.getElementById('game-page-container'), oppPanel?.getBoundingClientRect());
-    const reaction = REACTIONS.find(r => r.key === data.emoji);
-    if (reaction && reaction.sound) Sound.reaction(reaction.sound);
+    if (!playReactionSound(data.emoji, this.soundEnabled)) {
+      const reaction = REACTIONS.find(r => r.key === data.emoji);
+      if (reaction && reaction.sound) Sound.reaction(reaction.sound);
+    }
   }
 
   // WebSocket event: opponent surrendered

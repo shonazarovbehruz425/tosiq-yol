@@ -107,3 +107,43 @@ export function reactionArt(key) {
 export function getReaction(key) {
   return REACTIONS.find(x => x.key === key) || null;
 }
+
+// Meme sound files (in /public/sounds) mapped to reactions by their position:
+//   1st reaction (laugh) -> sound3
+//   2nd reaction (fire)  -> sound2
+//   3rd reaction (wow)   -> sound4
+//   4th reaction (angry) -> sound1
+// The 5th (wave) has no meme sound.
+const MEME_SOUNDS = {
+  laugh: '/sounds/sound3.m4a',
+  fire:  '/sounds/sound2.m4a',
+  wow:   '/sounds/sound4.m4a',
+  angry: '/sounds/sound1.m4a'
+};
+
+// Cache one Audio element per file so repeated reactions are instant.
+const _audioCache = {};
+
+// Play the meme sound for a reaction key. Returns true if a meme sound was
+// played (so callers can skip the synthesized fallback). Respects the global
+// sound setting.
+export function playReactionSound(key, soundEnabled = true) {
+  if (!soundEnabled) return true; // muted — but still "handled" so no synth beep
+  const src = MEME_SOUNDS[key];
+  if (!src) return false;
+  try {
+    let a = _audioCache[src];
+    if (!a) {
+      a = new Audio(src);
+      a.preload = 'auto';
+      _audioCache[src] = a;
+    }
+    a.currentTime = 0;
+    a.volume = 1;
+    const p = a.play();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
