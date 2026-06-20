@@ -386,6 +386,19 @@ export class GameScreen {
         surrenderBtn?.click();
       }
     });
+
+    // 8. WebSocket updates + chat for online/friend games.
+    if (this.vs !== 'bot') {
+      socket.on('opponent_moved', this.onOpponentMoved);
+      socket.on('opponent_wall', this.onOpponentWall);
+      socket.on('game_emoji', this.onEmojiReceived);
+      socket.on('opponent_resigned', this.onOpponentResigned);
+      socket.on('opponent_disconnected', this.onOpponentDisconnected);
+      socket.on('opponent_reconnected', this.onOpponentReconnected);
+      socket.on('game_chat', this.onChatMessage);
+      socket.connect();
+      try { this.setupChat(); } catch (e) { /* ignore */ }
+    }
   }
 
   // Wire up the in-game chat panel (online/friend games only)
