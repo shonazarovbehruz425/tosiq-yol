@@ -1118,6 +1118,17 @@ export class GameScreen {
           ${t('movesCount', { count: this.engine.moveHistory.length })}
         </div>
         <div class="rematch-status-host" id="rematch-status-host"></div>
+        ${this.vs !== 'bot' ? `
+        <div class="result-social">
+          <button class="result-social-btn" id="ov-addfriend-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+            <span>${t('addFriend')}</span>
+          </button>
+          <button class="result-social-btn" id="ov-profile-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+            <span>${t('viewProfile')}</span>
+          </button>
+        </div>` : ''}
         <div class="menu-actions result-actions">
           <button class="menu-pill menu-pill-primary" id="ov-rematch-btn">
             <span class="menu-pill-icon icon-rematch">
@@ -1163,6 +1174,23 @@ export class GameScreen {
       haptic.impact('light');
       if (this.vs !== 'bot') socket.send('leave_room', { roomCode: this.params.roomCode });
       this.router.navigate('home');
+    });
+
+    // Online/friend social actions: add the opponent / view their profile.
+    const oppId = this.opponentUser && this.opponentUser.id;
+    overlay.querySelector('#ov-addfriend-btn')?.addEventListener('click', (e) => {
+      const btn = e.currentTarget;
+      haptic.impact('medium');
+      if (!oppId) { Toast.warning(t('error')); return; }
+      socket.send('send_friend_request', { userId: oppId });
+      Toast.success(t('friendRequestSent'));
+      btn.disabled = true;
+      btn.style.opacity = '0.55';
+    });
+    overlay.querySelector('#ov-profile-btn')?.addEventListener('click', () => {
+      haptic.impact('light');
+      if (!oppId) return;
+      this.showOpponentProfile(oppId);
     });
 
     // Online rematch coordination.
@@ -1231,6 +1259,40 @@ export class GameScreen {
     if (this._opponentRematchRequested) {
       socket.send('accept_rematch', { roomCode: this.params.roomCode });
     }
+  }
+
+  // Fetch + show the opponent's public profile in a modal.
+  showOpponentProfile(userId) {
+    const flag = (code) => {
+      if (!code || code.length !== 2) return '';
+      const A = 0x1f1e6; const up = code.toUpperCase();
+      return String.fromCodePoint(A + (up.charCodeAt(0) - 65), A + (up.charCodeAt(1) - 65));
+    };
+    const onProfile = (p) => {
+      socket.off('profile_data', onProfile);
+      if (!p) return;
+      const total = (p.wins || 0) + (p.losses || 0) + (p.draws || 0);
+      const winRate = total ? Math.round((p.wins / total) * 100) : 0;
+      const msg = `
+        <div class="profile-modal">
+          <div class="profile-name">${this.esc(p.name || 'Player')} ${flag(p.country_code)}</div>
+          <div class="profile-id">ID: <b>${p.gameId || '—'}</b></div>
+          <div class="profile-stats">
+            <div class="pstat"><span class="pstat-v">${p.wins || 0}</span><span class="pstat-k">${t('wins')}</span></div>
+            <div class="pstat"><span class="pstat-v">${p.losses || 0}</span><span class="pstat-k">${t('losses')}</span></div>
+            <div class="pstat"><span class="pstat-v">${winRate}%</span><span class="pstat-k">${t('winRate')}</span></div>
+          </div>
+          <div class="profile-status ${p.online ? 'on' : ''}">${p.online ? t('online') : t('offline')}</div>
+        </div>`;
+      Modal.show({
+        icon: '👤',
+        title: t('viewProfile'),
+        message: msg,
+        confirmText: t('close')
+      });
+    };
+    socket.on('profile_data', onProfile);
+    socket.send('get_profile', { userId });
   }
 
   destroy() {

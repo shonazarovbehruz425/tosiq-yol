@@ -181,6 +181,26 @@ export function handleWebSocketConnection(ws, wss, request) {
         return;
       }
 
+      // Public profile + stats for a user (shown on the end-of-game overlay).
+      if (type === 'get_profile') {
+        const uid = payload && payload.userId;
+        if (!uid) return;
+        const pub = db.publicProfile(uid);
+        const full = db.getUser(uid) || {};
+        const onlineIds = presence.onlineIds();
+        ws.send(JSON.stringify({
+          type: 'profile_data',
+          payload: {
+            ...pub,
+            draws: full.draws || 0,
+            rating: full.rating || 0,
+            online: onlineIds.has(Number(uid)) || onlineIds.has(String(uid)),
+            isFriend: db.areFriends(userProfile.id, uid)
+          }
+        }));
+        return;
+      }
+
       // Search users by 8-digit game ID or username/name.
       if (type === 'search_users') {
         const q = payload && payload.query;

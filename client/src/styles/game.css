@@ -1206,3 +1206,53 @@ html.light-mode .wall-chip-bar {
   .result-overlay, .result-pop { animation: none; }
 }
 .rematch-status-host:empty { display: none; }
+
+/* ===== Result overlay: social actions (Add friend / View profile) ===== */
+.result-social {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+.result-social-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 8px;
+  border-radius: 12px;
+  background: var(--pill-bg, rgba(255,255,255,0.06));
+  border: 1px solid var(--card-border);
+  color: var(--text-color);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.12s ease, background var(--transition-fast);
+}
+.result-social-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+.result-social-btn:active { transform: scale(0.95); }
+
+/* Opponent profile modal body */
+.profile-modal { text-align: center; }
+.profile-name { font-size: 17px; font-weight: 800; color: var(--text-color); }
+.profile-id { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+.profile-id b { color: var(--text-color); font-family: monospace; letter-spacing: 1px; }
+.profile-stats {
+  display: flex; justify-content: center; gap: 10px;
+  margin: 14px 0 10px;
+}
+.profile-stats .pstat {
+  flex: 1;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 6px;
+  border-radius: 12px;
+  background: rgba(124, 58, 237, 0.1);
+  border: 1px solid var(--card-border);
+}
+.pstat-v { font-size: 18px; font-weight: 800; color: var(--text-color); }
+.pstat-k { font-size: 11px; font-weight: 700; color: var(--text-secondary); }
+.profile-status {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 700; color: var(--text-secondary);
+}
+.profile-status.on { color: var(--accent-green); }
