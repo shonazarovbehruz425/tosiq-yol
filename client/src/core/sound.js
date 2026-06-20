@@ -64,6 +64,68 @@ export function isSoundEnabled() {
   return enabled;
 }
 
+// ===== Meme reaction sounds (decoded into Web Audio buffers for instant,
+// gapless playback with leading-silence auto-trimmed) =====
+const memeBuffers = {}; // id -> { buffer, offset }
+
+// Find where real sound starts so we skip any silent intro in the file.
+function detectStartOffset(buffer) {
+  try {
+    const ch = buffer.getChannelData(0);
+    const threshold = 0.015;
+    const sr = buffer.sampleRate;
+    for (let i = 0; i < ch.length; i++) {
+      if (Math.abs(ch[i]) > threshold) {
+        // Back off ~15ms so the attack isn't clipped.
+        return Math.max(0, i / sr - 0.015);
+      }
+    }
+  } catch (e) { /* ignore */ }
+  return 0;
+}
+
+// Preload + decode a list of { id, url } meme sounds.
+export async function preloadMemes(entries) {
+  const c = ensureContext();
+  if (!c) return;
+  await Promise.all((entries || []).map(async ({ id, url }) => {
+    if (memeBuffers[id]) return;
+    try {
+      const res = await fetch(url);
+      const arr = await res.arrayBuffer();
+      const buf = await new Promise((resolve, reject) => {
+        // Callback form for older Safari compatibility.
+        const p = c.decodeAudioData(arr, resolve, reject);
+        if (p && typeof p.then === 'function') p.then(resolve).catch(reject);
+      });
+      memeBuffers[id] = { buffer: buf, offset: detectStartOffset(buf) };
+    } catch (e) { /* leave unloaded; caller falls back */ }
+  }));
+}
+
+// Play a preloaded meme sound instantly (trimmed). Returns true if it played
+// (or is muted), false if the buffer isn't available (so caller can fall back).
+export function playMeme(id) {
+  if (!enabled) return true;
+  const c = ensureContext();
+  const m = memeBuffers[id];
+  if (!c || !m) return false;
+  const fire = () => {
+    try {
+      const src = c.createBufferSource();
+      src.buffer = m.buffer;
+      const gain = c.createGain();
+      gain.gain.value = 1;
+      src.connect(gain);
+      gain.connect(c.destination);
+      src.start(0, m.offset);
+    } catch (e) { /* ignore */ }
+  };
+  if (c.state === 'suspended') resumeContext().then(fire);
+  else fire();
+  return true;
+}
+
 // Internal: play a simple tone after making sure the context is running.
 function playTone(configure) {
   if (!enabled) return;

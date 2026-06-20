@@ -3,6 +3,7 @@
 //   key   - sent over the network
 //   color - accent colour for the glow/ring
 //   sound - id passed to Sound.reaction() for an expressive synthesized voice
+import { preloadMemes, playMeme } from '../core/sound.js';
 //   icon  - small static SVG used in the picker button
 //   art   - large SVG (rendered with its own CSS animation) that floats up and
 //           plays for >= 1 second when triggered
@@ -114,36 +115,34 @@ export function getReaction(key) {
 //   3rd reaction (wow)   -> sound4
 //   4th reaction (angry) -> sound1
 // The 5th (wave) has no meme sound.
-const MEME_SOUNDS = {
-  laugh: '/sounds/sound3.m4a',
-  fire:  '/sounds/sound2.m4a',
-  wow:   '/sounds/sound4.m4a',
-  angry: '/sounds/sound1.m4a'
+const MEME_SOUND_ID = {
+  laugh: 'sound3',
+  fire:  'sound2',
+  wow:   'sound4',
+  angry: 'sound1'
 };
 
-// Cache one Audio element per file so repeated reactions are instant.
-const _audioCache = {};
+const MEME_FILES = [
+  { id: 'sound1', url: '/sounds/sound1.m4a' },
+  { id: 'sound2', url: '/sounds/sound2.m4a' },
+  { id: 'sound3', url: '/sounds/sound3.m4a' },
+  { id: 'sound4', url: '/sounds/sound4.m4a' }
+];
+
+let _preloaded = false;
+// Decode all meme sounds up-front so playback is instant (no late-loading delay).
+export function preloadReactionSounds() {
+  if (_preloaded) return;
+  _preloaded = true;
+  preloadMemes(MEME_FILES);
+}
 
 // Play the meme sound for a reaction key. Returns true if a meme sound was
 // played (so callers can skip the synthesized fallback). Respects the global
-// sound setting.
+// sound setting via the Sound module.
 export function playReactionSound(key, soundEnabled = true) {
-  if (!soundEnabled) return true; // muted — but still "handled" so no synth beep
-  const src = MEME_SOUNDS[key];
-  if (!src) return false;
-  try {
-    let a = _audioCache[src];
-    if (!a) {
-      a = new Audio(src);
-      a.preload = 'auto';
-      _audioCache[src] = a;
-    }
-    a.currentTime = 0;
-    a.volume = 1;
-    const p = a.play();
-    if (p && typeof p.catch === 'function') p.catch(() => {});
-    return true;
-  } catch (e) {
-    return false;
-  }
+  if (!soundEnabled) return true;
+  const id = MEME_SOUND_ID[key];
+  if (!id) return false;
+  return playMeme(id);
 }

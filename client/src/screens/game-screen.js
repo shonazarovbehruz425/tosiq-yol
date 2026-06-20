@@ -8,7 +8,7 @@ import { QuoridorAI } from '../game/ai.js';
 import { BoardRenderer } from '../game/board.js';
 import { GameTimer } from '../game/timer.js';
 import { FloatingEmoji } from '../game/animations.js';
-import { REACTIONS, reactionArt, playReactionSound } from '../game/reactions.js';
+import { REACTIONS, reactionArt, playReactionSound, preloadReactionSounds } from '../game/reactions.js';
 import { crestSvg } from '../game/skins.js';
 import { sizeBoard } from '../game/board-shift.js';
 import { Modal } from '../components/modal.js';
@@ -224,6 +224,9 @@ export class GameScreen {
     const settings = await StorageManager.loadSettings();
     this.soundEnabled = settings.sound;
     setSoundEnabled(settings.sound);
+
+    // Decode meme reaction sounds up-front so they play instantly when tapped.
+    preloadReactionSounds();
     
     // 1. Initialize Board Renderer
     const container = document.getElementById('game-board-container');
@@ -764,23 +767,70 @@ export class GameScreen {
     }
   }
 
-  // AI bot calculation and trigger
+  // AI bot calculation and trigger. The search runs in a Web Worker so the
+  // main thread (chat, reactions, animations) never freezes while the bot
+  // thinks. Falls back to a synchronous call if Workers aren't available.
   runBotAI() {
-    const botMove = this.botAI.getMove(this.engine, this.params.difficulty);
-    
-    if (botMove.type === 'move') {
-      this.engine.movePawn(botMove.r, botMove.c, 1 - this.mySide);
-      Sound.move();
-      this.boardRenderer.updatePawns();
-    } else {
-      this.engine.placeWall(botMove.r, botMove.c, botMove.wallType, 1 - this.mySide);
-      Sound.wall();
-      const botIdx = 1 - this.mySide;
-      this.setWallBadge(botIdx, this.engine.playerWallsLeft[botIdx]);
-      this.boardRenderer.drawWalls();
+    const botSide = 1 - this.mySide;
+
+    const applyMove = (botMove) => {
+      if (!botMove) return;
+      if (botMove.type === 'move') {
+        this.engine.movePawn(botMove.r, botMove.c, botSide);
+        Sound.move();
+        this.boardRenderer.updatePawns();
+      } else {
+        this.engine.placeWall(botMove.r, botMove.c, botMove.wallType, botSide);
+        Sound.wall();
+        this.setWallBadge(botSide, this.engine.playerWallsLeft[botSide]);
+        this.boardRenderer.drawWalls();
+      }
+      this.afterTurnChange();
+    };
+
+    // Lazily create the worker.
+    if (this._aiWorker === undefined) {
+      try {
+        this._aiWorker = new Worker(new URL('../game/ai.worker.js', import.meta.url), { type: 'module' });
+      } catch (e) {
+        this._aiWorker = null;
+      }
     }
 
-    this.afterTurnChange();
+    if (this._aiWorker) {
+      const state = {
+        boardSize: this.engine.boardSize,
+        wallsCount: this.engine.wallsCount,
+        mode: this.engine.mode,
+        chaos: this.chaos,
+        seed: this.params.seed || 1,
+        pawnPos: this.engine.pawnPos.map(p => ({ ...p })),
+        walls: this.engine.walls.map(w => ({ ...w })),
+        playerWallsLeft: [...this.engine.playerWallsLeft],
+        currentPlayer: this.engine.currentPlayer,
+        winner: this.engine.winner
+      };
+      let settled = false;
+      const finish = (move) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(fallbackTimer);
+        this._aiWorker.removeEventListener('message', onMsg);
+        this._aiWorker.removeEventListener('error', onErr);
+        applyMove(move || this.botAI.getMove(this.engine, this.params.difficulty));
+      };
+      const onMsg = (ev) => finish(ev.data && ev.data.ok ? ev.data.move : null);
+      const onErr = () => { this._aiWorker = null; finish(null); };
+      // Safety: if the worker never answers (e.g. module workers unsupported),
+      // compute synchronously after a short grace period.
+      const fallbackTimer = setTimeout(() => { onErr(); }, 8000);
+      this._aiWorker.addEventListener('message', onMsg);
+      this._aiWorker.addEventListener('error', onErr);
+      this._aiWorker.postMessage({ state, difficulty: this.params.difficulty, botSide });
+    } else {
+      // No worker support — run synchronously.
+      applyMove(this.botAI.getMove(this.engine, this.params.difficulty));
+    }
   }
 
   // WebSocket event: opponent moved
@@ -1024,6 +1074,7 @@ export class GameScreen {
       this._chatVVHandler = null;
     }
     if (this._detachSize) { this._detachSize(); this._detachSize = null; }
+    if (this._aiWorker) { try { this._aiWorker.terminate(); } catch (e) {} this._aiWorker = null; }
     
     // Turn off sockets
     if (this.vs !== 'bot') {

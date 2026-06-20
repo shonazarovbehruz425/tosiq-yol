@@ -144,9 +144,12 @@ export class BoardRenderer {
     this.updatePawns();
   }
 
-  // Draw pawns on board. Pawns are placed directly into their cells. We use a
-  // CSS transition on the pawn's position so moves still look smooth, without
-  // the fragile FLIP transform that glitched on Android / flipped boards.
+  // Draw pawns on board. Pawns live inside their cell, but when a pawn changes
+  // cell we animate the move with a FLIP transform computed from LAYOUT offsets
+  // (offsetLeft/offsetTop) — not getBoundingClientRect. This is the key to it
+  // working on a 180°-flipped board and on Android: both the measurement and
+  // the transform live in the board's own (possibly rotated) coordinate space,
+  // so the slide direction is always correct and there is no stuck class.
   updatePawns() {
     const colors = ['red', 'blue'];
     for (let i = 0; i < 2; i++) {
@@ -156,7 +159,7 @@ export class BoardRenderer {
 
       let pawn = this.pawnElements[i];
 
-      // Create the pawn once; afterwards just re-parent it to the new cell.
+      // Create the pawn once (no animation on first placement).
       if (!pawn || !pawn.isConnected) {
         pawn = document.createElement('div');
         pawn.className = `pawn pawn-${colors[i]}`;
@@ -170,10 +173,42 @@ export class BoardRenderer {
         continue;
       }
 
-      // Move to the new cell (no-op if already there).
-      if (pawn.parentElement !== cell) {
-        cell.appendChild(pawn);
-      }
+      // Same cell — nothing to do.
+      if (pawn.parentElement === cell) continue;
+
+      // FLIP: capture old layout position, re-parent, then animate from the
+      // delta back to zero.
+      const oldParent = pawn.parentElement;
+      const oldLeft = oldParent ? oldParent.offsetLeft : cell.offsetLeft;
+      const oldTop = oldParent ? oldParent.offsetTop : cell.offsetTop;
+
+      cell.appendChild(pawn);
+
+      const dx = oldLeft - cell.offsetLeft;
+      const dy = oldTop - cell.offsetTop;
+
+      if (dx === 0 && dy === 0) continue;
+
+      // Start at the old spot with no transition, then glide to the new cell.
+      pawn.style.transition = 'none';
+      pawn.style.transform = `translate(${dx}px, ${dy}px)`;
+      pawn.classList.add('pawn-moving');
+      // Force a reflow so the starting transform is committed before we animate.
+      void pawn.offsetWidth;
+
+      requestAnimationFrame(() => {
+        pawn.style.transition = 'transform 0.26s cubic-bezier(0.22, 0.61, 0.36, 1)';
+        pawn.style.transform = 'translate(0, 0)';
+      });
+
+      // Clean up the moving class without relying on transitionend (which can
+      // silently never fire on Android if interrupted).
+      clearTimeout(pawn._moveTimer);
+      pawn._moveTimer = setTimeout(() => {
+        pawn.classList.remove('pawn-moving');
+        pawn.style.transition = '';
+        pawn.style.transform = '';
+      }, 320);
     }
   }
 
