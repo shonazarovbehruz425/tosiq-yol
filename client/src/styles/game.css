@@ -895,7 +895,7 @@ html.light-mode .wall-chip-bar {
 .chat-fab {
   position: fixed;
   left: calc(12px + var(--safe-left));
-  bottom: calc(86px + var(--safe-bottom));
+  bottom: calc(152px + var(--safe-bottom));
   width: 46px; height: 46px;
   border-radius: 50%;
   display: grid; place-items: center;

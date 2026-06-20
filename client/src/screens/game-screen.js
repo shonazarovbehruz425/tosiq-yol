@@ -420,17 +420,17 @@ export class GameScreen {
       panel.classList.remove('open');
       if (input) input.blur();
     };
-
-    fab.addEventListener('click', () => {
+    const togglePanel = () => {
       haptic.impact('light');
       panel.classList.contains('open') ? closePanel() : openPanel();
-    });
+    };
+
     if (closeBtn) closeBtn.addEventListener('click', closePanel);
 
-    // Make the chat button draggable so the player can move it to any spot
-    // along the bottom of the screen. A small movement threshold distinguishes
-    // a drag from a tap (tap still opens the chat).
-    this.setupChatFabDrag(fab);
+    // Draggable FAB. The tap-to-open is handled inside the drag logic (on
+    // pointerup, when no drag occurred) — relying on the synthetic `click`
+    // event is unreliable on mobile when pointer capture is used.
+    this.setupChatFabDrag(fab, togglePanel);
 
     // Keep the chat panel above the on-screen keyboard using the VisualViewport
     // API: when the keyboard shrinks the visual viewport, lift the panel by the
@@ -463,7 +463,7 @@ export class GameScreen {
   // Drag the chat FAB anywhere on screen (positioned via left/top). The button
   // suppresses its click when an actual drag happened so dragging never opens
   // the chat. Position is clamped to stay fully on screen.
-  setupChatFabDrag(fab) {
+  setupChatFabDrag(fab, onTap) {
     let dragging = false;
     let moved = false;
     let startX = 0, startY = 0;
@@ -473,7 +473,6 @@ export class GameScreen {
     const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 
     const onDown = (e) => {
-      // Only the primary pointer; ignore while chat panel is open.
       dragging = true;
       moved = false;
       const rect = fab.getBoundingClientRect();
@@ -481,7 +480,7 @@ export class GameScreen {
       startY = e.clientY;
       offX = e.clientX - rect.left;
       offY = e.clientY - rect.top;
-      fab.setPointerCapture && fab.setPointerCapture(e.pointerId);
+      try { fab.setPointerCapture && fab.setPointerCapture(e.pointerId); } catch (_) {}
     };
 
     const onMove = (e) => {
@@ -499,7 +498,6 @@ export class GameScreen {
       const left = clamp(e.clientX - offX, 6, maxX);
       const top = clamp(e.clientY - offY, 6, maxY);
 
-      // Switch to absolute left/top positioning (overrides the CSS bottom/left).
       fab.style.left = `${left}px`;
       fab.style.top = `${top}px`;
       fab.style.right = 'auto';
@@ -511,10 +509,11 @@ export class GameScreen {
       dragging = false;
       try { fab.releasePointerCapture && fab.releasePointerCapture(e.pointerId); } catch (_) {}
       if (moved) {
-        // Swallow the click that follows a drag so it doesn't open the chat.
-        this._fabSuppressClick = true;
-        setTimeout(() => { this._fabSuppressClick = false; }, 50);
         haptic.selection();
+      } else {
+        // A tap (no drag) opens/closes the chat. Handled here instead of via a
+        // synthetic click, which pointer capture can swallow on mobile.
+        if (typeof onTap === 'function') onTap();
       }
     };
 
@@ -522,11 +521,6 @@ export class GameScreen {
     fab.addEventListener('pointermove', onMove);
     fab.addEventListener('pointerup', onUp);
     fab.addEventListener('pointercancel', onUp);
-
-    // Block the synthetic click after a drag.
-    fab.addEventListener('click', (e) => {
-      if (this._fabSuppressClick) { e.stopImmediatePropagation(); e.preventDefault(); }
-    }, true);
   }
 
   // Append a chat bubble; side = 'me' | 'them'
