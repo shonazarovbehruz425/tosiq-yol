@@ -2,8 +2,8 @@ import { haptic } from '../core/telegram.js';
 
 /**
  * DotBoxScreen
- * Loads the DotBox (Dots & Boxes) game in a full-screen iframe overlay.
- * The iframe points to /dotbox/index.html which is a separate React build.
+ * Renders the DotBox game in a true full-viewport overlay using fixed positioning,
+ * so the iframe always fills 100vw × 100vh regardless of parent layout.
  */
 export class DotBoxScreen {
   constructor(router, params) {
@@ -13,29 +13,22 @@ export class DotBoxScreen {
 
   render() {
     return `
-      <div class="screen dotbox-screen-wrapper" style="padding:0;overflow:hidden;position:relative;">
-        <!-- Back button overlay -->
+      <div class="dotbox-fullscreen" id="dotbox-fullscreen">
+        <!-- Floating back button — always above the iframe -->
         <button class="dotbox-back-btn" id="dotbox-back-btn" aria-label="Orqaga">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+               stroke-linecap="round" stroke-linejoin="round">
             <path d="M15 18l-6-6 6-6"/>
           </svg>
         </button>
 
-        <!-- DotBox game iframe -->
+        <!-- DotBox game — true full-screen iframe -->
         <iframe
           id="dotbox-iframe"
           src="/dotbox/index.html"
           title="Dots & Boxes"
+          allow="vibrate"
           sandbox="allow-scripts allow-same-origin allow-forms"
-          style="
-            width: 100%;
-            height: 100%;
-            border: none;
-            display: block;
-            position: absolute;
-            top: 0; left: 0;
-            background: #0b0f19;
-          "
         ></iframe>
       </div>
     `;
@@ -52,7 +45,7 @@ export class DotBoxScreen {
   }
 
   destroy() {
-    // Remove iframe src to stop any running audio/timers inside DotBox
+    // Blank the iframe so any audio / timers inside DotBox stop immediately
     const iframe = document.getElementById('dotbox-iframe');
     if (iframe) iframe.src = 'about:blank';
   }
