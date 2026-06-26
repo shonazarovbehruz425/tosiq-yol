@@ -1,20 +1,21 @@
-import { verifyTelegramWebAppData } from '../middleware/auth.js';
-import { db } from '../db/database.js';
-import { roomManager } from './rooms.js';
-import { teamRoomManager } from './team-rooms.js';
-import { matchmaking } from './matchmaking.js';
-import { QuoridorEngine } from '../game/quoridor.js';
-import { presence } from './presence.js';
-import { socketRegistry } from './sockets.js';
-import { getClientIp, lookupCountry } from './geoip.js';
+import { verifyTelegramWebAppData } from "../middleware/auth.js";
+import { db } from "../db/database.js";
+import { roomManager } from "./rooms.js";
+import { teamRoomManager } from "./team-rooms.js";
+import { matchmaking } from "./matchmaking.js";
+import { QuoridorEngine } from "../game/quoridor.js";
+import { presence } from "./presence.js";
+import { socketRegistry } from "./sockets.js";
+import { getClientIp, lookupCountry } from "./geoip.js";
 
 // Send active online count to everyone
 function broadcastOnlineCount(wss) {
   const count = wss.clients.size;
-  const message = JSON.stringify({ type: 'users_count', payload: { count } });
-  
-  wss.clients.forEach(client => {
-    if (client.readyState === 1) { // OPEN
+  const message = JSON.stringify({ type: "users_count", payload: { count } });
+
+  wss.clients.forEach((client) => {
+    if (client.readyState === 1) {
+      // OPEN
       client.send(message);
     }
   });
@@ -23,62 +24,89 @@ function broadcastOnlineCount(wss) {
 // Get lists of all open lobbies
 function getOpenLobbies() {
   return Object.values(roomManager.rooms)
-    .filter(room => !room.isPrivate && !room.isStarted && room.players.length === 1)
-    .map(room => ({
+    .filter(
+      (room) => !room.isPrivate && !room.isStarted && room.players.length === 1,
+    )
+    .map((room) => ({
       id: room.roomCode,
       boardSize: room.config.boardSize,
       totalTime: room.config.totalTime,
       wallsCount: room.config.wallsCount,
       player: {
-        first_name: room.players[0].first_name
-      }
+        first_name: room.players[0].first_name,
+      },
     }));
 }
 
+// ── DOTBOX: lightweight move-relay rooms (no server-side game validation) ──────
+const _dbQueue = new Map(); // userId → { id, name, ws, size }
+const _dbRooms = new Map(); // code   → { code, size, p1, p2 }
+function _dbRandCode() {
+  const C = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let s = "";
+  for (let i = 0; i < 4; i++) s += C[Math.floor(Math.random() * C.length)];
+  return _dbRooms.has(s) ? _dbRandCode() : s;
+}
+
 export function handleWebSocketConnection(ws, wss, request) {
-  console.log('New WebSocket connection established.');
-  
+  console.log("New WebSocket connection established.");
+
   // Track user profile on the socket object
   let userProfile = null;
 
   // Client IP for geolocation (resolved to a country on auth)
-  const clientIp = request ? getClientIp(request) : '';
-  
+  const clientIp = request ? getClientIp(request) : "";
+
   // Send active count on new connection
   broadcastOnlineCount(wss);
 
-  ws.on('message', (messageStr) => {
+  ws.on("message", (messageStr) => {
     try {
       const message = JSON.parse(messageStr);
       const { type, payload } = message;
-      
+
       // 0. Heartbeat ping
-      if (type === 'ping') {
-        ws.send(JSON.stringify({ type: 'pong' }));
+      if (type === "ping") {
+        ws.send(JSON.stringify({ type: "pong" }));
         return;
       }
 
       // Online count request (Home screen asks for it when it mounts, since the
       // broadcast only fires on brand-new connections).
-      if (type === 'get_online_count') {
-        ws.send(JSON.stringify({ type: 'users_count', payload: { count: wss.clients.size } }));
+      if (type === "get_online_count") {
+        ws.send(
+          JSON.stringify({
+            type: "users_count",
+            payload: { count: wss.clients.size },
+          }),
+        );
         return;
       }
 
       // 1. Authentication
-      if (type === 'auth') {
+      if (type === "auth") {
         const BOT_TOKEN = process.env.BOT_TOKEN;
-        const authResult = verifyTelegramWebAppData(payload.initData, BOT_TOKEN);
+        const authResult = verifyTelegramWebAppData(
+          payload.initData,
+          BOT_TOKEN,
+        );
 
         if (!authResult.isValid) {
           console.log(`Auth failed: ${authResult.reason}`);
-          ws.send(JSON.stringify({ type: 'auth_failed', payload: { reason: authResult.reason } }));
-          ws.close(4003, 'Auth failed');
+          ws.send(
+            JSON.stringify({
+              type: "auth_failed",
+              payload: { reason: authResult.reason },
+            }),
+          );
+          ws.close(4003, "Auth failed");
           return;
         }
 
         userProfile = authResult.user;
-        console.log(`Auth success for user: ${userProfile.first_name} (ID: ${userProfile.id})`);
+        console.log(
+          `Auth success for user: ${userProfile.first_name} (ID: ${userProfile.id})`,
+        );
 
         // Do NOT create a user here — only the bot's /start registers accounts.
         // If the user already exists (started the bot), update their last_seen/info.
@@ -91,142 +119,205 @@ export function handleWebSocketConnection(ws, wss, request) {
 
         // Resolve real country from IP — but only persist it for known users
         if (known) {
-          lookupCountry(clientIp).then(geo => {
-            if (geo && geo.code) {
-              db.setUserCountry(userProfile.id, geo.code, geo.country);
-            }
-          }).catch(() => {});
+          lookupCountry(clientIp)
+            .then((geo) => {
+              if (geo && geo.code) {
+                db.setUserCountry(userProfile.id, geo.code, geo.country);
+              }
+            })
+            .catch(() => {});
         }
 
         // check if user has an active room to reconnect to!
         const existingRoom = roomManager.getRoomByPlayerId(userProfile.id);
         if (existingRoom && !existingRoom.isFinished) {
-          console.log(`User reconnecting to active room: ${existingRoom.roomCode}`);
-          
+          console.log(
+            `User reconnecting to active room: ${existingRoom.roomCode}`,
+          );
+
           // Bind new socket to room profile
           const pProfile = {
             id: userProfile.id,
             first_name: userProfile.first_name,
             username: userProfile.username,
-            ws
+            ws,
           };
           existingRoom.handleReconnect(pProfile);
         }
 
-        ws.send(JSON.stringify({ type: 'auth_success', payload: { user: userProfile } }));
+        ws.send(
+          JSON.stringify({
+            type: "auth_success",
+            payload: { user: userProfile },
+          }),
+        );
         return;
       }
 
       // Must be authenticated to run subsequent messages
       if (!userProfile) {
-        console.warn('Unauthenticated message received, closing socket.');
-        ws.close(4001, 'Unauthenticated');
+        console.warn("Unauthenticated message received, closing socket.");
+        ws.close(4001, "Unauthenticated");
         return;
       }
 
       // 1b. Set display name (username for the leaderboard)
-      if (type === 'set_username') {
-        const raw = (payload && payload.name != null) ? String(payload.name) : '';
+      if (type === "set_username") {
+        const raw = payload && payload.name != null ? String(payload.name) : "";
         const name = raw.trim().slice(0, 20);
         if (!name) {
-          ws.send(JSON.stringify({ type: 'username_set', payload: { ok: false, error: 'empty' } }));
+          ws.send(
+            JSON.stringify({
+              type: "username_set",
+              payload: { ok: false, error: "empty" },
+            }),
+          );
           return;
         }
         const updated = db.setDisplayName(userProfile.id, name);
         if (updated) {
-          ws.send(JSON.stringify({ type: 'username_set', payload: { ok: true, name } }));
+          ws.send(
+            JSON.stringify({
+              type: "username_set",
+              payload: { ok: true, name },
+            }),
+          );
         } else {
           // User not registered yet (hasn't pressed /start in the bot)
-          ws.send(JSON.stringify({ type: 'username_set', payload: { ok: false, error: 'not_registered' } }));
+          ws.send(
+            JSON.stringify({
+              type: "username_set",
+              payload: { ok: false, error: "not_registered" },
+            }),
+          );
         }
         return;
       }
 
       // 1c. Leaderboard request (includes the requester's own rank)
-      if (type === 'get_leaderboard') {
+      if (type === "get_leaderboard") {
         const board = db.getLeaderboard(20, userProfile.id);
-        ws.send(JSON.stringify({ type: 'leaderboard', payload: board }));
+        ws.send(JSON.stringify({ type: "leaderboard", payload: board }));
         return;
       }
 
       // ===== Shop: coins & pawn skins =====
-      if (type === 'get_shop') {
+      if (type === "get_shop") {
         const state = db.getShopState(userProfile.id);
-        ws.send(JSON.stringify({ type: 'shop_state', payload: state || { coins: 0, owned: [], equipped: '' } }));
+        ws.send(
+          JSON.stringify({
+            type: "shop_state",
+            payload: state || { coins: 0, owned: [], equipped: "" },
+          }),
+        );
         return;
       }
 
-      if (type === 'buy_skin') {
-        const res = db.buySkin(userProfile.id, payload && payload.skinId, (payload && payload.price) | 0);
-        ws.send(JSON.stringify({ type: 'shop_result', payload: { action: 'buy', skinId: payload && payload.skinId, ...res } }));
+      if (type === "buy_skin") {
+        const res = db.buySkin(
+          userProfile.id,
+          payload && payload.skinId,
+          (payload && payload.price) | 0,
+        );
+        ws.send(
+          JSON.stringify({
+            type: "shop_result",
+            payload: {
+              action: "buy",
+              skinId: payload && payload.skinId,
+              ...res,
+            },
+          }),
+        );
         return;
       }
 
-      if (type === 'equip_skin') {
+      if (type === "equip_skin") {
         const res = db.equipSkin(userProfile.id, payload && payload.skinId);
-        ws.send(JSON.stringify({ type: 'shop_result', payload: { action: 'equip', skinId: payload && payload.skinId, ...res } }));
+        ws.send(
+          JSON.stringify({
+            type: "shop_result",
+            payload: {
+              action: "equip",
+              skinId: payload && payload.skinId,
+              ...res,
+            },
+          }),
+        );
         return;
       }
 
       // ===== Friend system =====
       const pushFriendData = (uid) => {
         const data = db.getFriendData(uid, presence.onlineIds());
-        socketRegistry.sendToUser(uid, 'friend_data', data);
+        socketRegistry.sendToUser(uid, "friend_data", data);
       };
 
       // Get my friends + pending requests
-      if (type === 'get_friends') {
+      if (type === "get_friends") {
         const data = db.getFriendData(userProfile.id, presence.onlineIds());
-        ws.send(JSON.stringify({ type: 'friend_data', payload: data }));
+        ws.send(JSON.stringify({ type: "friend_data", payload: data }));
         return;
       }
 
       // Public profile + stats for a user (shown on the end-of-game overlay).
-      if (type === 'get_profile') {
+      if (type === "get_profile") {
         const uid = payload && payload.userId;
         if (!uid) return;
         const pub = db.publicProfile(uid);
         const full = db.getUser(uid) || {};
         const onlineIds = presence.onlineIds();
-        ws.send(JSON.stringify({
-          type: 'profile_data',
-          payload: {
-            ...pub,
-            draws: full.draws || 0,
-            rating: full.rating || 0,
-            online: onlineIds.has(Number(uid)) || onlineIds.has(String(uid)),
-            isFriend: db.areFriends(userProfile.id, uid)
-          }
-        }));
+        ws.send(
+          JSON.stringify({
+            type: "profile_data",
+            payload: {
+              ...pub,
+              draws: full.draws || 0,
+              rating: full.rating || 0,
+              online: onlineIds.has(Number(uid)) || onlineIds.has(String(uid)),
+              isFriend: db.areFriends(userProfile.id, uid),
+            },
+          }),
+        );
         return;
       }
 
       // Search users by 8-digit game ID or username/name.
-      if (type === 'search_users') {
+      if (type === "search_users") {
         const q = payload && payload.query;
         const onlineIds = presence.onlineIds();
-        const results = db.searchUsers(q, userProfile.id, 12).map(p => {
+        const results = db.searchUsers(q, userProfile.id, 12).map((p) => {
           p.online = onlineIds.has(Number(p.id)) || onlineIds.has(String(p.id));
           return p;
         });
-        ws.send(JSON.stringify({ type: 'search_results', payload: { query: q, results } }));
+        ws.send(
+          JSON.stringify({
+            type: "search_results",
+            payload: { query: q, results },
+          }),
+        );
         return;
       }
 
       // Send a friend request to another user
-      if (type === 'send_friend_request') {
+      if (type === "send_friend_request") {
         const targetId = payload && payload.userId;
         if (!targetId) return;
         const res = db.sendFriendRequest(userProfile.id, targetId);
-        ws.send(JSON.stringify({ type: 'friend_request_result', payload: { ...res, targetId } }));
+        ws.send(
+          JSON.stringify({
+            type: "friend_request_result",
+            payload: { ...res, targetId },
+          }),
+        );
         if (res.ok) {
           // Refresh both users' friend panels
           pushFriendData(userProfile.id);
           pushFriendData(targetId);
           // Notify the target of a new incoming request (if just sent)
-          if (res.status === 'sent') {
-            socketRegistry.sendToUser(targetId, 'friend_request_received', {
-              from: db.publicProfile(userProfile.id)
+          if (res.status === "sent") {
+            socketRegistry.sendToUser(targetId, "friend_request_received", {
+              from: db.publicProfile(userProfile.id),
             });
           }
         }
@@ -234,22 +325,22 @@ export function handleWebSocketConnection(ws, wss, request) {
       }
 
       // Accept an incoming friend request
-      if (type === 'accept_friend_request') {
+      if (type === "accept_friend_request") {
         const otherId = payload && payload.userId;
         if (!otherId) return;
         const res = db.acceptFriendRequest(userProfile.id, otherId);
         if (res.ok) {
           pushFriendData(userProfile.id);
           pushFriendData(otherId);
-          socketRegistry.sendToUser(otherId, 'friend_request_accepted', {
-            by: db.publicProfile(userProfile.id)
+          socketRegistry.sendToUser(otherId, "friend_request_accepted", {
+            by: db.publicProfile(userProfile.id),
           });
         }
         return;
       }
 
       // Decline an incoming friend request
-      if (type === 'decline_friend_request') {
+      if (type === "decline_friend_request") {
         const otherId = payload && payload.userId;
         if (!otherId) return;
         db.declineFriendRequest(userProfile.id, otherId);
@@ -259,7 +350,7 @@ export function handleWebSocketConnection(ws, wss, request) {
       }
 
       // Remove an existing friend
-      if (type === 'remove_friend') {
+      if (type === "remove_friend") {
         const otherId = payload && payload.userId;
         if (!otherId) return;
         db.removeFriend(userProfile.id, otherId);
@@ -269,91 +360,147 @@ export function handleWebSocketConnection(ws, wss, request) {
       }
 
       // ===== 2v2 Team (online) =====
-      if (type === 'enter_team_matchmaking') {
-        const player = { id: userProfile.id, first_name: userProfile.first_name, username: userProfile.username, ws };
-        const cfg = { boardSize: 11, wallsPerTeam: (payload && payload.wallsPerTeam) || 10 };
+      if (type === "enter_team_matchmaking") {
+        const player = {
+          id: userProfile.id,
+          first_name: userProfile.first_name,
+          username: userProfile.username,
+          ws,
+        };
+        const cfg = {
+          boardSize: 11,
+          wallsPerTeam: (payload && payload.wallsPerTeam) || 10,
+        };
         const res = teamRoomManager.enqueue(player, cfg);
-        ws.send(JSON.stringify({ type: 'team_queue', payload: { size: teamRoomManager.queueSize(), ...res } }));
+        ws.send(
+          JSON.stringify({
+            type: "team_queue",
+            payload: { size: teamRoomManager.queueSize(), ...res },
+          }),
+        );
         return;
       }
 
-      if (type === 'cancel_team_search') {
+      if (type === "cancel_team_search") {
         teamRoomManager.dequeue(userProfile.id);
         return;
       }
 
-      if (type === 'team_move') {
+      if (type === "team_move") {
         const room = teamRoomManager.getRoom(payload && payload.roomCode);
         if (room) room.handleMove(userProfile.id, payload.r, payload.c);
         return;
       }
 
-      if (type === 'team_wall') {
+      if (type === "team_wall") {
         const room = teamRoomManager.getRoom(payload && payload.roomCode);
-        if (room) room.handleWall(userProfile.id, payload.r, payload.c, payload.wallType);
+        if (room)
+          room.handleWall(
+            userProfile.id,
+            payload.r,
+            payload.c,
+            payload.wallType,
+          );
         return;
       }
 
-      if (type === 'leave_team_room') {
+      if (type === "leave_team_room") {
         const room = teamRoomManager.getRoom(payload && payload.roomCode);
         if (room) {
           room.handleDisconnect(userProfile.id);
           room.removePlayer(userProfile.id);
-          if (room.players.length === 0) teamRoomManager.deleteRoom(room.roomCode);
+          if (room.players.length === 0)
+            teamRoomManager.deleteRoom(room.roomCode);
         }
         return;
       }
 
       // ===== Game invite (challenge a friend to play) =====
-      if (type === 'invite_to_game') {
+      if (type === "invite_to_game") {
         const targetId = payload && payload.userId;
         if (!targetId) return;
         if (!socketRegistry.isOnline(targetId)) {
-          ws.send(JSON.stringify({ type: 'invite_result', payload: { ok: false, error: 'offline', targetId } }));
+          ws.send(
+            JSON.stringify({
+              type: "invite_result",
+              payload: { ok: false, error: "offline", targetId },
+            }),
+          );
           return;
         }
         // Create a private room and tell the inviter to wait in it.
-        const cfg = payload.config || { mode: 'duel', boardSize: 9, totalTime: 300, blitzTime: 0, wallsCount: 10 };
+        const cfg = payload.config || {
+          mode: "duel",
+          boardSize: 9,
+          totalTime: 300,
+          blitzTime: 0,
+          wallsCount: 10,
+        };
         const room = roomManager.createRoom({ ...cfg, isPrivate: true });
-        const inviter = { id: userProfile.id, first_name: userProfile.first_name, username: userProfile.username, ws };
+        const inviter = {
+          id: userProfile.id,
+          first_name: userProfile.first_name,
+          username: userProfile.username,
+          ws,
+        };
         room.addPlayer(inviter);
 
-        ws.send(JSON.stringify({ type: 'invite_result', payload: { ok: true, targetId, roomCode: room.roomCode } }));
-        socketRegistry.sendToUser(targetId, 'game_invite_received', {
+        ws.send(
+          JSON.stringify({
+            type: "invite_result",
+            payload: { ok: true, targetId, roomCode: room.roomCode },
+          }),
+        );
+        socketRegistry.sendToUser(targetId, "game_invite_received", {
           from: db.publicProfile(userProfile.id),
           roomCode: room.roomCode,
-          config: room.config
+          config: room.config,
         });
         return;
       }
 
       // Friend accepts a game invite -> join the room and start.
-      if (type === 'accept_game_invite') {
+      if (type === "accept_game_invite") {
         const roomCode = payload && payload.roomCode;
         const room = roomManager.getRoom(roomCode);
         if (!room) {
-          ws.send(JSON.stringify({ type: 'error', payload: { message: "Xona topilmadi yoki bekor qilindi!" } }));
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              payload: { message: "Xona topilmadi yoki bekor qilindi!" },
+            }),
+          );
           return;
         }
         if (room.players.length >= 2) {
-          ws.send(JSON.stringify({ type: 'error', payload: { message: "Xona to'la!" } }));
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              payload: { message: "Xona to'la!" },
+            }),
+          );
           return;
         }
-        const player = { id: userProfile.id, first_name: userProfile.first_name, username: userProfile.username, ws };
+        const player = {
+          id: userProfile.id,
+          first_name: userProfile.first_name,
+          username: userProfile.username,
+          ws,
+        };
         room.addPlayer(player);
         room.start();
         return;
       }
 
       // Friend declines a game invite -> tidy up the room, notify inviter.
-      if (type === 'decline_game_invite') {
+      if (type === "decline_game_invite") {
         const roomCode = payload && payload.roomCode;
         const room = roomManager.getRoom(roomCode);
         if (room && !room.isStarted) {
           const inviter = room.players[0];
           if (inviter) {
-            socketRegistry.sendToUser(inviter.id, 'game_invite_declined', {
-              by: db.publicProfile(userProfile.id)
+            socketRegistry.sendToUser(inviter.id, "game_invite_declined", {
+              by: db.publicProfile(userProfile.id),
             });
           }
           roomManager.deleteRoom(roomCode);
@@ -362,31 +509,39 @@ export function handleWebSocketConnection(ws, wss, request) {
       }
 
       // ===== In-game real-time chat =====
-      if (type === 'game_chat') {
+      if (type === "game_chat") {
         const roomCode = payload && payload.roomCode;
-        const text = payload && typeof payload.text === 'string' ? payload.text.trim().slice(0, 200) : '';
+        const text =
+          payload && typeof payload.text === "string"
+            ? payload.text.trim().slice(0, 200)
+            : "";
         if (!roomCode || !text) return;
         const room = roomManager.getRoom(roomCode);
         if (!room) return;
         const opp = room.getOpponent(userProfile.id);
         if (opp) {
-          room.sendTo(opp.id, 'game_chat', {
+          room.sendTo(opp.id, "game_chat", {
             text,
-            from: userProfile.first_name || 'Player',
-            ts: Date.now()
+            from: userProfile.first_name || "Player",
+            ts: Date.now(),
           });
         }
         return;
       }
 
       // 2. Matchmaking
-      if (type === 'enter_matchmaking') {
-        const player = { id: userProfile.id, first_name: userProfile.first_name, username: userProfile.username, ws };
+      if (type === "enter_matchmaking") {
+        const player = {
+          id: userProfile.id,
+          first_name: userProfile.first_name,
+          username: userProfile.username,
+          ws,
+        };
         matchmaking.enter(player, payload);
         return;
       }
 
-      if (type === 'cancel_search') {
+      if (type === "cancel_search") {
         matchmaking.leave(userProfile.id);
 
         // Also clean up any open (not-yet-started) public lobby this user created
@@ -394,9 +549,14 @@ export function handleWebSocketConnection(ws, wss, request) {
         if (openRoom && !openRoom.isStarted) {
           roomManager.deleteRoom(openRoom.roomCode);
           // Broadcast updated lobbies list to everyone online
-          wss.clients.forEach(client => {
+          wss.clients.forEach((client) => {
             if (client.readyState === 1) {
-              client.send(JSON.stringify({ type: 'lobbies_list', payload: getOpenLobbies() }));
+              client.send(
+                JSON.stringify({
+                  type: "lobbies_list",
+                  payload: getOpenLobbies(),
+                }),
+              );
             }
           });
         }
@@ -404,79 +564,133 @@ export function handleWebSocketConnection(ws, wss, request) {
       }
 
       // 3. Lobby List
-      if (type === 'get_lobbies') {
-        ws.send(JSON.stringify({ type: 'lobbies_list', payload: getOpenLobbies() }));
+      if (type === "get_lobbies") {
+        ws.send(
+          JSON.stringify({ type: "lobbies_list", payload: getOpenLobbies() }),
+        );
         return;
       }
 
       // 4. Create Public Lobby
-      if (type === 'create_public_lobby') {
-        const player = { id: userProfile.id, first_name: userProfile.first_name, username: userProfile.username, ws };
+      if (type === "create_public_lobby") {
+        const player = {
+          id: userProfile.id,
+          first_name: userProfile.first_name,
+          username: userProfile.username,
+          ws,
+        };
         const room = roomManager.createRoom({ ...payload, isPrivate: false });
         room.addPlayer(player);
-        
-        ws.send(JSON.stringify({ type: 'lobby_created', payload: { success: true } }));
-        
+
+        ws.send(
+          JSON.stringify({ type: "lobby_created", payload: { success: true } }),
+        );
+
         // Broadcast new lobbies list to everyone online
-        wss.clients.forEach(client => {
+        wss.clients.forEach((client) => {
           if (client.readyState === 1) {
-            client.send(JSON.stringify({ type: 'lobbies_list', payload: getOpenLobbies() }));
+            client.send(
+              JSON.stringify({
+                type: "lobbies_list",
+                payload: getOpenLobbies(),
+              }),
+            );
           }
         });
         return;
       }
 
       // 5. Create Private Room
-      if (type === 'create_private_room') {
-        const player = { id: userProfile.id, first_name: userProfile.first_name, username: userProfile.username, ws };
+      if (type === "create_private_room") {
+        const player = {
+          id: userProfile.id,
+          first_name: userProfile.first_name,
+          username: userProfile.username,
+          ws,
+        };
         const room = roomManager.createRoom({ ...payload, isPrivate: true });
         room.addPlayer(player);
-        
-        ws.send(JSON.stringify({ type: 'room_created', payload: { roomCode: room.roomCode } }));
+
+        ws.send(
+          JSON.stringify({
+            type: "room_created",
+            payload: { roomCode: room.roomCode },
+          }),
+        );
         return;
       }
 
       // 6. Join Private Room
-      if (type === 'join_private_room') {
+      if (type === "join_private_room") {
         const room = roomManager.getRoom(payload.roomCode);
         if (!room) {
-          ws.send(JSON.stringify({ type: 'error', payload: { message: "Xona topilmadi!" } }));
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              payload: { message: "Xona topilmadi!" },
+            }),
+          );
           return;
         }
         if (room.players.length >= 2) {
-          ws.send(JSON.stringify({ type: 'error', payload: { message: "Xona to'la!" } }));
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              payload: { message: "Xona to'la!" },
+            }),
+          );
           return;
         }
 
-        const player = { id: userProfile.id, first_name: userProfile.first_name, username: userProfile.username, ws };
+        const player = {
+          id: userProfile.id,
+          first_name: userProfile.first_name,
+          username: userProfile.username,
+          ws,
+        };
         room.addPlayer(player);
         room.start();
         return;
       }
 
       // 7. Join Public Lobby
-      if (type === 'join_lobby') {
+      if (type === "join_lobby") {
         const room = roomManager.getRoom(payload.lobbyId);
         if (!room) {
-          ws.send(JSON.stringify({ type: 'error', payload: { message: "Lobby topilmadi!" } }));
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              payload: { message: "Lobby topilmadi!" },
+            }),
+          );
           return;
         }
 
-        const player = { id: userProfile.id, first_name: userProfile.first_name, username: userProfile.username, ws };
+        const player = {
+          id: userProfile.id,
+          first_name: userProfile.first_name,
+          username: userProfile.username,
+          ws,
+        };
         room.addPlayer(player);
         room.start();
 
         // Broadcast lobbies update
-        wss.clients.forEach(client => {
+        wss.clients.forEach((client) => {
           if (client.readyState === 1) {
-            client.send(JSON.stringify({ type: 'lobbies_list', payload: getOpenLobbies() }));
+            client.send(
+              JSON.stringify({
+                type: "lobbies_list",
+                payload: getOpenLobbies(),
+              }),
+            );
           }
         });
         return;
       }
 
       // 7b. Leave a private room before the match starts (creator cancels)
-      if (type === 'leave_private_room') {
+      if (type === "leave_private_room") {
         const pendingRoom = roomManager.getRoom(payload.roomCode);
         if (pendingRoom && !pendingRoom.isStarted) {
           roomManager.deleteRoom(pendingRoom.roomCode);
@@ -488,51 +702,53 @@ export function handleWebSocketConnection(ws, wss, request) {
       const room = roomManager.getRoom(payload.roomCode);
       if (!room) return;
 
-      if (type === 'game_move') {
+      if (type === "game_move") {
         room.handleMove(userProfile.id, payload.r, payload.c);
         return;
       }
 
-      if (type === 'game_wall') {
+      if (type === "game_wall") {
         room.handleWall(userProfile.id, payload.r, payload.c, payload.wallType);
         return;
       }
 
-      if (type === 'game_emoji') {
+      if (type === "game_emoji") {
         const opp = room.getOpponent(userProfile.id);
         if (opp) {
-          room.sendTo(opp.id, 'game_emoji', { emoji: payload.emoji });
+          room.sendTo(opp.id, "game_emoji", { emoji: payload.emoji });
         }
         return;
       }
 
-      if (type === 'surrender') {
+      if (type === "surrender") {
         const side = room.playerSides[userProfile.id];
         room.finish(1 - side);
         const opp = room.getOpponent(userProfile.id);
         if (opp) {
-          room.sendTo(opp.id, 'opponent_resigned', null);
+          room.sendTo(opp.id, "opponent_resigned", null);
         }
         return;
       }
 
       // 9. Rematches
-      if (type === 'request_rematch') {
+      if (type === "request_rematch") {
         room.rematchRequests.add(userProfile.id);
         const opp = room.getOpponent(userProfile.id);
         if (opp) {
-          room.sendTo(opp.id, 'opponent_requested_rematch', null);
+          room.sendTo(opp.id, "opponent_requested_rematch", null);
         }
         return;
       }
 
-      if (type === 'accept_rematch') {
+      if (type === "accept_rematch") {
         // Double check both sides requested
         room.rematchRequests.add(userProfile.id);
-        
+
         if (room.rematchRequests.size === 2) {
-          console.log(`Rematch accepted! Swapping sides for room: ${room.roomCode}`);
-          
+          console.log(
+            `Rematch accepted! Swapping sides for room: ${room.roomCode}`,
+          );
+
           // Swap sides for fairness
           const keys = Object.keys(room.playerSides);
           const old0 = room.playerSides[keys[0]];
@@ -540,25 +756,29 @@ export function handleWebSocketConnection(ws, wss, request) {
           room.playerSides[keys[1]] = old0;
 
           // Re-initialize engine
-          room.engine = new QuoridorEngine(room.config.boardSize, room.config.wallsCount, room.config.mode);
+          room.engine = new QuoridorEngine(
+            room.config.boardSize,
+            room.config.wallsCount,
+            room.config.mode,
+          );
           room.rematchRequests.clear();
           room.isFinished = false;
 
           // Send to both players
-          room.players.forEach(p => {
-            room.sendTo(p.id, 'rematch_accepted', {
+          room.players.forEach((p) => {
+            room.sendTo(p.id, "rematch_accepted", {
               roomCode: room.roomCode,
-              side: room.playerSides[p.id]
+              side: room.playerSides[p.id],
             });
           });
         }
         return;
       }
 
-      if (type === 'leave_room') {
+      if (type === "leave_room") {
         const opp = room.getOpponent(userProfile.id);
         if (opp) {
-          room.sendTo(opp.id, 'opponent_left', null);
+          room.sendTo(opp.id, "opponent_left", null);
         }
         room.removePlayer(userProfile.id);
         if (room.players.length === 0) {
@@ -567,14 +787,146 @@ export function handleWebSocketConnection(ws, wss, request) {
         return;
       }
 
+      // ── DOTBOX RELAY ─────────────────────────────────────────────────────────
+      if (type === "dotbox_join_queue") {
+        const size = payload?.size || 4;
+        _dbQueue.set(userProfile.id, {
+          id: userProfile.id,
+          name: userProfile.first_name || "O'yinchi",
+          ws,
+          size,
+        });
+        let opp = null;
+        for (const [uid, p] of _dbQueue) {
+          if (uid !== userProfile.id && p.size === size) {
+            opp = p;
+            break;
+          }
+        }
+        if (opp) {
+          const me = _dbQueue.get(userProfile.id);
+          _dbQueue.delete(userProfile.id);
+          _dbQueue.delete(opp.id);
+          const code = _dbRandCode();
+          _dbRooms.set(code, { code, size, p1: me, p2: opp });
+          const notify = (player, side, opponent) => {
+            if (player.ws.readyState === 1)
+              player.ws.send(
+                JSON.stringify({
+                  type: "dotbox_match_found",
+                  payload: {
+                    code,
+                    size,
+                    side,
+                    opponent: { name: opponent.name },
+                  },
+                }),
+              );
+          };
+          notify(me, 1, opp);
+          notify(opp, 2, me);
+        }
+        return;
+      }
+      if (type === "dotbox_cancel_queue") {
+        _dbQueue.delete(userProfile.id);
+        return;
+      }
+
+      if (type === "dotbox_create_room") {
+        const size = payload?.size || 4;
+        const code = _dbRandCode();
+        _dbRooms.set(code, {
+          code,
+          size,
+          p1: {
+            id: userProfile.id,
+            name: userProfile.first_name || "O'yinchi",
+            ws,
+          },
+          p2: null,
+        });
+        ws.send(
+          JSON.stringify({
+            type: "dotbox_room_created",
+            payload: { code, size },
+          }),
+        );
+        return;
+      }
+      if (type === "dotbox_join_room") {
+        const code = (payload?.code || "").toUpperCase();
+        const dbRoom = _dbRooms.get(code);
+        if (!dbRoom) {
+          ws.send(
+            JSON.stringify({
+              type: "dotbox_error",
+              payload: { message: "Xona topilmadi!" },
+            }),
+          );
+          return;
+        }
+        if (dbRoom.p2) {
+          ws.send(
+            JSON.stringify({
+              type: "dotbox_error",
+              payload: { message: "Xona to'la!" },
+            }),
+          );
+          return;
+        }
+        dbRoom.p2 = {
+          id: userProfile.id,
+          name: userProfile.first_name || "O'yinchi",
+          ws,
+        };
+        const notify = (player, side, opponent) => {
+          if (player.ws.readyState === 1)
+            player.ws.send(
+              JSON.stringify({
+                type: "dotbox_match_found",
+                payload: {
+                  code,
+                  size: dbRoom.size,
+                  side,
+                  opponent: { name: opponent.name },
+                },
+              }),
+            );
+        };
+        notify(dbRoom.p1, 1, dbRoom.p2);
+        notify(dbRoom.p2, 2, dbRoom.p1);
+        return;
+      }
+      if (type === "dotbox_move") {
+        const dbRoom = _dbRooms.get(payload?.code);
+        if (!dbRoom) return;
+        const opp2 = dbRoom.p1.id === userProfile.id ? dbRoom.p2 : dbRoom.p1;
+        if (opp2 && opp2.ws.readyState === 1)
+          opp2.ws.send(JSON.stringify({ type: "dotbox_move", payload }));
+        return;
+      }
+      if (type === "dotbox_leave") {
+        _dbQueue.delete(userProfile.id);
+        const dbRoom = _dbRooms.get(payload?.code);
+        if (dbRoom) {
+          const opp2 = dbRoom.p1.id === userProfile.id ? dbRoom.p2 : dbRoom.p1;
+          if (opp2?.ws?.readyState === 1)
+            opp2.ws.send(
+              JSON.stringify({ type: "dotbox_opponent_left", payload: {} }),
+            );
+          _dbRooms.delete(payload.code);
+        }
+        return;
+      }
     } catch (err) {
-      console.error('Error handling WebSocket message', err);
+      console.error("Error handling WebSocket message", err);
     }
   });
 
-  ws.on('close', () => {
-    console.log('WebSocket connection closed.');
-    
+  ws.on("close", () => {
+    console.log("WebSocket connection closed.");
+
     if (userProfile) {
       // 0. Mark offline
       presence.remove(userProfile.id);
@@ -583,18 +935,34 @@ export function handleWebSocketConnection(ws, wss, request) {
       // Team mode: drop from queue and notify any active team room.
       teamRoomManager.dequeue(userProfile.id);
       const teamRoom = teamRoomManager.getRoomByPlayerId(userProfile.id);
-      if (teamRoom && !teamRoom.isFinished) teamRoom.handleDisconnect(userProfile.id);
+      if (teamRoom && !teamRoom.isFinished)
+        teamRoom.handleDisconnect(userProfile.id);
 
       // 1. Remove from matchmaking queue
       matchmaking.leave(userProfile.id);
-      
+
       // 2. Alert active game rooms of disconnection
       const room = roomManager.getRoomByPlayerId(userProfile.id);
       if (room && !room.isFinished) {
         room.handleDisconnect(userProfile.id);
       }
+      // DotBox relay cleanup
+      _dbQueue.delete(userProfile.id);
+      _dbRooms.forEach((dbRoom, code) => {
+        if (
+          dbRoom.p1?.id === userProfile.id ||
+          dbRoom.p2?.id === userProfile.id
+        ) {
+          const opp2 = dbRoom.p1?.id === userProfile.id ? dbRoom.p2 : dbRoom.p1;
+          if (opp2?.ws?.readyState === 1)
+            opp2.ws.send(
+              JSON.stringify({ type: "dotbox_opponent_left", payload: {} }),
+            );
+          _dbRooms.delete(code);
+        }
+      });
     }
-    
+
     broadcastOnlineCount(wss);
   });
 }
