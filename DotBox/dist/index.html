@@ -28,6 +28,11 @@
     /* ══ SCREENS ══ */
     .screen { display: none; flex-direction: column; height: 100%; overflow: hidden; position: relative; z-index: 1; }
     .screen.active { display: flex; }
+    /* Menu scroll fix */
+    #s-menu { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    #s-menu .menu-header,
+    #s-menu .menu-actions,
+    #s-menu .menu-footer { flex-shrink: 0; }
 
     /* ══════════════════════════════════
        WRONGWAY BACKGROUND (qbg)
@@ -67,6 +72,10 @@
       justify-content: flex-start;
       background: radial-gradient(ellipse 120% 55% at 50% 0%, #1b1040 0%, transparent 70%);
       overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      /* Must be at least screen height but can grow */
+      height: 100%; min-height: 100%;
     }
 
     /* Header */
@@ -507,31 +516,118 @@ if(isWin)spawnConfetti(sR);
 document.getElementById('res-again').addEventListener('click',()=>{initG(G.size,G.mode,G.diff);goScreen('s-game');draw();updateUI();});
 document.getElementById('res-menu').addEventListener('click',()=>goScreen('s-menu'));}
 
-// ══ NAVIGATION ══
-function showOnly(id){['main-pills','size-pills','diff-pills','bot-size-pills'].forEach(x=>{document.getElementById(x).style.display=x===id?'':'none';});}
+// ══ NAVIGATION STACK ══
+// Tracks where user came from: 'main' | 'size' | 'diff' | 'bot-size' | 'game' | 'result'
+const NAV = { screenStack: [], menuStep: 'main' };
 
-function goScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');if(id==='s-game')setTimeout(resizeCvs,30);}
+function showOnly(id) {
+  ['main-pills','size-pills','diff-pills','bot-size-pills'].forEach(x => {
+    document.getElementById(x).style.display = x === id ? '' : 'none';
+  });
+  // Map panel id → step name
+  const stepMap = { 'main-pills':'main','size-pills':'size','diff-pills':'diff','bot-size-pills':'bot-size' };
+  NAV.menuStep = stepMap[id] || 'main';
+  updateTgBackBtn();
+}
+
+function goScreen(id) {
+  const prev = document.querySelector('.screen.active')?.id;
+  if (prev && prev !== id) NAV.screenStack.push(prev);
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 's-game') setTimeout(resizeCvs, 30);
+  // Scroll menu to top when returning
+  if (id === 's-menu') document.getElementById('s-menu').scrollTop = 0;
+  updateTgBackBtn();
+}
+
+// Smart back — respects menu steps and screen stack
+function goBack() {
+  const active = document.querySelector('.screen.active')?.id;
+
+  if (active === 's-result') {
+    // From result: offer replay same config
+    initG(G.size, G.mode, G.diff);
+    NAV.screenStack = []; // clear stack
+    showOnly('main-pills');
+    goScreen('s-menu');
+    return;
+  }
+
+  if (active === 's-game') {
+    stopNoise();
+    // Go back to whichever menu step launched us
+    const fromStep = G.mode === 'ai' ? 'bot-size-pills' : 'size-pills';
+    showOnly(fromStep);
+    // Pop game from stack if present
+    NAV.screenStack = NAV.screenStack.filter(s => s !== 's-game');
+    goScreen('s-menu');
+    return;
+  }
+
+  if (active === 's-menu') {
+    // Navigate backwards through menu sub-steps
+    if (NAV.menuStep === 'size')     { showOnly('main-pills'); return; }
+    if (NAV.menuStep === 'diff')     { showOnly('main-pills'); return; }
+    if (NAV.menuStep === 'bot-size') { showOnly('diff-pills'); return; }
+    // At main step — nothing to go back to inside DotBox
+    return;
+  }
+}
+
+// Telegram native BackButton integration
+function updateTgBackBtn() {
+  try {
+    const tg = window.Telegram?.WebApp;
+    if (!tg) return;
+    const active = document.querySelector('.screen.active')?.id;
+    const showBtn = active === 's-game' || active === 's-result' ||
+                    (active === 's-menu' && NAV.menuStep !== 'main');
+    if (showBtn) tg.BackButton.show();
+    else         tg.BackButton.hide();
+  } catch(e) {}
+}
+
+// Bind Telegram back button
+try {
+  window.Telegram?.WebApp?.BackButton?.onClick(() => goBack());
+} catch(e) {}
 
 let _selMode='local',_selDiff='easy';
 
 // Main pills
-document.getElementById('btn-local').addEventListener('click',()=>{try{actx();preloadMemes();}catch(e){}_selMode='local';showOnly('size-pills');});
-document.getElementById('btn-vs-bot').addEventListener('click',()=>{try{actx();preloadMemes();}catch(e){}_selMode='ai';showOnly('diff-pills');});
+document.getElementById('btn-local').addEventListener('click',()=>{
+  try{actx();preloadMemes();}catch(e){}
+  _selMode='local'; showOnly('size-pills');
+});
+document.getElementById('btn-vs-bot').addEventListener('click',()=>{
+  try{actx();preloadMemes();}catch(e){}
+  _selMode='ai'; showOnly('diff-pills');
+});
 
 // Size pills (local mode)
-document.getElementById('size-pills').addEventListener('click',e=>{const b=e.target.closest('[data-size]');if(!b)return;initG(+b.dataset.size,'local','easy');goScreen('s-game');updateUI();});
+document.getElementById('size-pills').addEventListener('click',e=>{
+  const b=e.target.closest('[data-size]'); if(!b)return;
+  initG(+b.dataset.size,'local','easy'); goScreen('s-game'); updateUI();
+});
 document.getElementById('back-to-main').addEventListener('click',()=>showOnly('main-pills'));
 
 // Diff pills
-document.getElementById('diff-pills').addEventListener('click',e=>{const b=e.target.closest('[data-diff]');if(!b)return;_selDiff=b.dataset.diff;showOnly('bot-size-pills');});
+document.getElementById('diff-pills').addEventListener('click',e=>{
+  const b=e.target.closest('[data-diff]'); if(!b)return;
+  _selDiff=b.dataset.diff; showOnly('bot-size-pills');
+});
 document.getElementById('back-to-main-2').addEventListener('click',()=>showOnly('main-pills'));
 
 // Bot size pills
-document.getElementById('bot-size-pills').addEventListener('click',e=>{const b=e.target.closest('[data-bsize]');if(!b)return;initG(+b.dataset.bsize,'ai',_selDiff);goScreen('s-game');updateUI();});
+document.getElementById('bot-size-pills').addEventListener('click',e=>{
+  const b=e.target.closest('[data-bsize]'); if(!b)return;
+  initG(+b.dataset.bsize,'ai',_selDiff); goScreen('s-game'); updateUI();
+});
 document.getElementById('back-to-diff').addEventListener('click',()=>showOnly('diff-pills'));
 
-// Game controls
-document.getElementById('btn-back').addEventListener('click',()=>{stopNoise();showOnly('main-pills');goScreen('s-menu');});
+// Game header back button
+document.getElementById('btn-back').addEventListener('click',()=>goBack());
 document.getElementById('btn-reset').addEventListener('click',()=>{stopNoise();initG(G.size,G.mode,G.diff);draw();updateUI();});
 document.getElementById('btn-undo').addEventListener('click',()=>undoMove());
 
