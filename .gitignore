@@ -6,6 +6,9 @@ node_modules/
 dist/
 dist-ssr/
 build/
+# Keep DotBox pre-built files (no build step on Render for this sub-app)
+!DotBox/dist/
+!DotBox/dist/**
 
 # Environment & secrets
 .env

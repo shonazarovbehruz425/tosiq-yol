@@ -100,6 +100,23 @@ export class HomeScreen {
             </span>
           </button>
 
+          <button class="menu-pill" id="dotbox-btn">
+            <span class="menu-pill-icon icon-dotbox">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+              </svg>
+            </span>
+            <span class="menu-pill-label">Dots &amp; Boxes</span>
+            <span class="menu-pill-chevron">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 6l6 6-6 6"/>
+              </svg>
+            </span>
+          </button>
+
           <button class="menu-pill" id="settings-btn">
             <span class="menu-pill-icon icon-settings">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -165,6 +182,14 @@ export class HomeScreen {
       shopBtn.addEventListener('click', () => {
         haptic.impact('medium');
         this.router.navigate('shop');
+      });
+    }
+
+    const dotboxBtn = document.getElementById('dotbox-btn');
+    if (dotboxBtn) {
+      dotboxBtn.addEventListener('click', () => {
+        haptic.impact('medium');
+        this.router.navigate('dotbox');
       });
     }
 
