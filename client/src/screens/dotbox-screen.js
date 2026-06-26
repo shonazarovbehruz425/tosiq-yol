@@ -1,4 +1,4 @@
-import { haptic } from '../core/telegram.js';
+import { haptic, getInitData } from "../core/telegram.js";
 
 /**
  * DotBoxScreen
@@ -35,19 +35,39 @@ export class DotBoxScreen {
   }
 
   afterRender() {
-    const backBtn = document.getElementById('dotbox-back-btn');
+    const backBtn = document.getElementById("dotbox-back-btn");
     if (backBtn) {
-      backBtn.addEventListener('click', () => {
-        haptic.impact('medium');
-        this.router.navigate('home');
+      backBtn.addEventListener("click", () => {
+        haptic.impact("medium");
+        this.router.navigate("home");
       });
+    }
+
+    // Inject Telegram initData into the DotBox iframe so it can
+    // authenticate its own WebSocket connection to the server.
+    const iframe = document.getElementById("dotbox-iframe");
+    if (iframe) {
+      const sendInit = () => {
+        try {
+          const initData = getInitData();
+          iframe.contentWindow?.postMessage(
+            { type: "dotbox_init", initData },
+            "*",
+          );
+        } catch (e) {
+          /* cross-origin or iframe not ready */
+        }
+      };
+      iframe.addEventListener("load", sendInit);
+      // Try immediately in case the iframe already finished loading
+      sendInit();
     }
   }
 
   destroy() {
     // Blank the iframe so any audio / timers inside DotBox stop immediately
-    const iframe = document.getElementById('dotbox-iframe');
-    if (iframe) iframe.src = 'about:blank';
+    const iframe = document.getElementById("dotbox-iframe");
+    if (iframe) iframe.src = "about:blank";
   }
 }
 

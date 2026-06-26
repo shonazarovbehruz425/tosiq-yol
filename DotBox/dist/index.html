@@ -60,14 +60,16 @@
             .screen.active {
                 display: flex;
             }
-            /* Menu scroll fix */
+            /* Menu scroll — flex child pattern for reliable iOS scroll */
             #s-menu {
+                flex: 1 1 0 !important;
+                min-height: 0 !important;
                 overflow-y: auto;
+                overflow-x: hidden;
                 -webkit-overflow-scrolling: touch;
+                overscroll-behavior-y: contain;
             }
-            #s-menu .menu-header,
-            #s-menu .menu-actions,
-            #s-menu .menu-footer {
+            #s-menu > * {
                 flex-shrink: 0;
             }
 
@@ -399,6 +401,27 @@
                 box-shadow: 0 2px 5px rgba(37, 99, 235, 0.4);
             }
 
+            /* Panel transition animation */
+            @keyframes dbPanelIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(16px) scale(0.98);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0) scale(1);
+                }
+            }
+            .menu-actions.entering {
+                animation: dbPanelIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1)
+                    both;
+            }
+            @media (prefers-reduced-motion: reduce) {
+                .menu-actions.entering {
+                    animation: none;
+                }
+            }
+
             /* ══════════════════════════════════
        MENU SCREEN (WrongWay uslubida)
     ═══════════════════════════════════ */
@@ -409,12 +432,7 @@
                     #1b1040 0%,
                     transparent 70%
                 );
-                overflow-y: auto;
-                overflow-x: hidden;
-                -webkit-overflow-scrolling: touch;
-                /* Must be at least screen height but can grow */
-                height: 100%;
-                min-height: 100%;
+                padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
             }
 
             /* Header */
@@ -3319,7 +3337,16 @@
                     "friend-waiting",
                 ].forEach((x) => {
                     const el = document.getElementById(x);
-                    if (el) el.style.display = x === id ? "" : "none";
+                    if (!el) return;
+                    if (x === id) {
+                        el.style.display = "";
+                        el.classList.remove("entering");
+                        void el.offsetWidth; // force reflow to restart animation
+                        el.classList.add("entering");
+                    } else {
+                        el.style.display = "none";
+                        el.classList.remove("entering");
+                    }
                 });
                 const stepMap = {
                     "main-pills": "main",
@@ -3639,8 +3666,19 @@
             let _dbFriendSize = 4,
                 _dbMmStart = 0,
                 _dbMmTimer = null;
+            let _dbAuthed = false,
+                _dbPendingCb = null,
+                _dbInitData = "";
+
+            // Receive initData injected by the parent frame (dotbox-screen.js)
+            window.addEventListener("message", (ev) => {
+                if (ev.data?.type === "dotbox_init" && ev.data.initData) {
+                    _dbInitData = ev.data.initData;
+                }
+            });
 
             function dbGetInitData() {
+                if (_dbInitData) return _dbInitData;
                 try {
                     const d = window.Telegram?.WebApp?.initData;
                     if (d) return d;
@@ -3651,21 +3689,20 @@
                 } catch (e) {}
                 return "";
             }
+
             function dbConnect(cb) {
-                if (_dbWs && _dbWs.readyState === 1) {
+                // Already connected and authenticated — fire immediately
+                if (_dbWs && _dbWs.readyState === 1 && _dbAuthed) {
                     if (cb) cb();
                     return;
                 }
-                if (_dbWs && _dbWs.readyState === 0) {
-                    if (cb) {
-                        const o = _dbWs.onopen;
-                        _dbWs.onopen = (ev) => {
-                            if (o) o(ev);
-                            cb();
-                        };
-                    }
+                // Connecting or connected-but-not-authed — queue callback
+                _dbPendingCb = cb;
+                if (_dbWs && (_dbWs.readyState === 0 || _dbWs.readyState === 1))
                     return;
-                }
+
+                // Fresh connection
+                _dbAuthed = false;
                 const proto = location.protocol === "https:" ? "wss:" : "ws:";
                 _dbWs = new WebSocket(`${proto}//${location.host}/ws`);
                 _dbWs.onopen = () => {
@@ -3675,12 +3712,29 @@
                             payload: { initData: dbGetInitData() },
                         }),
                     );
-                    if (cb) cb();
                 };
                 _dbWs.onmessage = (ev) => {
                     try {
                         const { type, payload } = JSON.parse(ev.data);
-                        if (type === "dotbox_match_found") onDbMatch(payload);
+                        if (type === "auth_success") {
+                            _dbAuthed = true;
+                            if (_dbPendingCb) {
+                                const fn = _dbPendingCb;
+                                _dbPendingCb = null;
+                                fn();
+                            }
+                        } else if (type === "auth_failed") {
+                            _dbAuthed = false;
+                            _dbPendingCb = null;
+                            clearInterval(_dbMmTimer);
+                            _dbMmTimer = null;
+                            showOnly("main-pills");
+                            const e2 = document.getElementById("join-err");
+                            if (e2)
+                                e2.textContent =
+                                    "Ulanishda xatolik. Telegram orqali kiring.";
+                        } else if (type === "dotbox_match_found")
+                            onDbMatch(payload);
                         else if (type === "dotbox_move") onDbOppMove(payload);
                         else if (type === "dotbox_room_created")
                             onDbRoomCreated(payload);
@@ -3690,6 +3744,7 @@
                 };
                 _dbWs.onclose = () => {
                     _dbWs = null;
+                    _dbAuthed = false;
                 };
             }
             function dbSend(type, payload) {
@@ -3701,35 +3756,70 @@
             }
 
             // ── Matchmaking ───────────────────────────────────────────────────────────────────────────
+            let _dbCancelFn = null;
             function dbJoinQueue(size) {
                 clearInterval(_dbMmTimer);
                 _dbMmStart = Date.now();
-                _dbMmTimer = setInterval(() => {
+                // Update timer display
+                const updateTimer = () => {
                     const el = document.getElementById("mm-timer");
                     if (!el) return;
                     const s = Math.floor((Date.now() - _dbMmStart) / 1000);
                     el.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-                }, 1000);
+                };
+                _dbMmTimer = setInterval(updateTimer, 1000);
+                showOnly("online-matchmaking");
                 const tmEl = document.getElementById("mm-timer");
                 if (tmEl) tmEl.textContent = "0:00";
-                showOnly("online-matchmaking");
-                const cancel = () => {
+
+                // Show "connecting" status until auth completes
+                const titleEl = document.querySelector(
+                    "#online-matchmaking .mm-title",
+                );
+                const subEl = document.querySelector(
+                    "#online-matchmaking .mm-sub",
+                );
+                if (titleEl) titleEl.textContent = "Ulanmoqda\u2026";
+                if (subEl)
+                    subEl.textContent =
+                        "Server bilan bog\u02bclanish o\u02bcrnatilyapti";
+
+                // Remove any old cancel listeners
+                if (_dbCancelFn) {
+                    document
+                        .getElementById("mm-cancel-btn")
+                        ?.removeEventListener("click", _dbCancelFn);
+                    document
+                        .getElementById("mm-orb-cancel")
+                        ?.removeEventListener("click", _dbCancelFn);
+                }
+                _dbCancelFn = () => {
                     clearInterval(_dbMmTimer);
                     _dbMmTimer = null;
+                    _dbPendingCb = null;
                     dbSend("dotbox_cancel_queue", {});
                     showOnly("main-pills");
                 };
                 document
                     .getElementById("mm-cancel-btn")
-                    ?.addEventListener("click", cancel, { once: true });
+                    ?.addEventListener("click", _dbCancelFn, { once: true });
                 document
                     .getElementById("mm-orb-cancel")
-                    ?.addEventListener("click", cancel, { once: true });
-                dbConnect(() => dbSend("dotbox_join_queue", { size }));
+                    ?.addEventListener("click", _dbCancelFn, { once: true });
+
+                dbConnect(() => {
+                    // Auth succeeded — now actually join queue
+                    if (titleEl)
+                        titleEl.textContent = "Raqib axtarilmoqda\u2026";
+                    if (subEl)
+                        subEl.textContent = "Bir necha soniya kutib turing";
+                    dbSend("dotbox_join_queue", { size });
+                });
             }
             function dbCancelSearch() {
                 clearInterval(_dbMmTimer);
                 _dbMmTimer = null;
+                _dbPendingCb = null;
                 dbSend("dotbox_cancel_queue", {});
             }
 
