@@ -32,19 +32,7 @@ async function bootstrap() {
   // 1b. Arm audio so the first user gesture unlocks Web Audio (mobile/Telegram)
   initSound();
 
-  // 2. Load stored settings (language, theme, sounds, vibration).
-  //    Never let this block the app — guard with a timeout so a stalled
-  //    storage backend can't leave the screen blank (seen on desktop Telegram).
-  try {
-    await Promise.race([
-      StorageManager.loadSettings(),
-      new Promise((resolve) => setTimeout(resolve, 1200))
-    ]);
-  } catch (e) {
-    console.warn('loadSettings failed, continuing with defaults:', e);
-  }
-
-  // 3. Register routing screens
+  // 2. Register routing screens FIRST (synchronous)
   router.register('home', HomeScreen);
   router.register('settings', SettingsScreen);
   router.register('leaderboard', LeaderboardScreen);
@@ -60,23 +48,21 @@ async function bootstrap() {
   router.register('replay-screen', ReplayScreen);
   router.register('dotbox', DotBoxScreen);
 
-  // 4. Hook router to DOM target
+  // 3. Hook router to DOM target
   router.init('#app');
 
-  // 4a. Mount the persistent animated background (shown on menus, hidden in-game)
+  // 4. Mount persistent background + back button
   initBackground();
   initBackButton();
 
-  // 4b. Bind app-wide social notifications (friend requests / game invites)
+  // 4b. Social notifications
   initSocial();
 
-  // 5. Deep Link joining check (Telegram WebApp start_param parameter)
-  // Check if user launched app via a link: t.me/BotName/app?startapp=join_1234
+  // 5. Deep Link check (synchronous read — no await needed)
   let startParam = null;
   if (isTelegram() && window.Telegram.WebApp.initDataUnsafe) {
     startParam = window.Telegram.WebApp.initDataUnsafe.start_param;
   } else {
-    // Local query string fallback for desktop testing
     const params = new URLSearchParams(window.location.search);
     startParam = params.get('tgWebAppStartParam') || params.get('startapp');
   }
@@ -85,11 +71,7 @@ async function bootstrap() {
     const roomCode = startParam.split('join_')[1];
     if (roomCode && roomCode.length === 4) {
       console.log(`Deep link join detected for room: ${roomCode}`);
-      
-      // Route immediately to Friend screen waiting room to connect
       router.navigate('friend');
-      
-      // Fill digits and click join automatically after DOM loads
       setTimeout(() => {
         const digits = roomCode.split('');
         for (let i = 0; i < 4; i++) {
@@ -99,12 +81,19 @@ async function bootstrap() {
         const joinBtn = document.getElementById('join-room-btn');
         if (joinBtn) joinBtn.click();
       }, 300);
+      // Load settings in background (non-blocking)
+      StorageManager.loadSettings().catch(e => console.warn('loadSettings bg error:', e));
       return;
     }
   }
 
-  // Fallback: load default screen
+  // ══ RENDER HOME IMMEDIATELY — do NOT await settings ══
+  // This guarantees the screen appears on every platform within milliseconds.
+  // Settings are applied in the background once loaded.
   router.navigate('home');
+
+  // Load stored settings in background and apply them (non-blocking)
+  StorageManager.loadSettings().catch(e => console.warn('loadSettings bg error:', e));
 }
 
 // Render a visible error instead of a blank screen, so failures are diagnosable.
@@ -138,3 +127,6 @@ window.addEventListener('unhandledrejection', (e) => {
   console.error('Unhandled rejection:', e.reason);
   if (!document.querySelector('.screen, .game-container')) showFatal(e.reason);
 });
+
+// Expose router globally so the watchdog can attempt recovery
+window._router = router;
