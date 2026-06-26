@@ -38,7 +38,7 @@ async function bootstrap() {
   try {
     await Promise.race([
       StorageManager.loadSettings(),
-      new Promise((resolve) => setTimeout(resolve, 2500))
+      new Promise((resolve) => setTimeout(resolve, 1200))
     ]);
   } catch (e) {
     console.warn('loadSettings failed, continuing with defaults:', e);
