@@ -8,13 +8,13 @@ import './styles/global.css';
 const _getTgUser = () => {
   try {
     const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
-    if (u) return { name: u.first_name || 'Siz', username: u.username || '' };
+    if (u) return { name: u.first_name || '', username: u.username || '' };
   } catch {}
   try {
     const u = window.parent?.Telegram?.WebApp?.initDataUnsafe?.user;
-    if (u) return { name: u.first_name || 'Siz', username: u.username || '' };
+    if (u) return { name: u.first_name || '', username: u.username || '' };
   } catch {}
-  return { name: 'Siz', username: '' };
+  return { name: '', username: '' };
 };
 window.__dbMe = _getTgUser();
 

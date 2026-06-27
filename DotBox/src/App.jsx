@@ -11,7 +11,7 @@ import * as ws from './ws/client.js';
 import { t } from './i18n/index.js';
 import styles from './App.module.css';
 
-const ME = window.__dbMe || { name: t('nameYou'), username: '' };
+const meName = () => (window.__dbMe && window.__dbMe.name) || t('nameYou');
 
 export default function App() {
   const [screen, setScreen] = useState('menu');   // 'menu' | 'game' | 'result'
@@ -21,7 +21,7 @@ export default function App() {
   const G = useRef(createGame());
 
   // React UI state (drives scoreboard, turn bar, button states)
-  const [ui, setUi] = useState({ scores: [0,0], cur: 1, over: false, aiOn: false, mode: 'local', size: 4, names: [ME.name, t('nameOpponent')] });
+  const [ui, setUi] = useState({ scores: [0,0], cur: 1, over: false, aiOn: false, mode: 'local', size: 4, names: [meName(), t('nameOpponent')] });
 
   // Online state
   const [online, setOnline] = useState({ roomCode: null, side: 0, connecting: false });
@@ -36,7 +36,7 @@ export default function App() {
   const launch = useCallback((size, mode, diff, names = null) => {
     const g = createGame(size, mode, diff);
     G.current = g;
-    const playerNames = names || [ME.name, mode === 'ai' ? t('nameBot') : t('nameOpponent')];
+    const playerNames = names || [meName(), mode === 'ai' ? t('nameBot') : t('nameOpponent')];
     setUi({ scores: [0,0], cur: 1, over: false, aiOn: false, mode, size, names: playerNames });
     setScreen('game');
   }, []);
@@ -125,7 +125,7 @@ export default function App() {
       const { code, size, side, opponent } = payload;
       const oppName = opponent?.name || t('nameOpponent');
       setOnline(prev => ({ ...prev, roomCode: code, side, connecting: false }));
-      const names = side === 1 ? [ME.name, oppName] : [oppName, ME.name];
+      const names = side === 1 ? [meName(), oppName] : [oppName, meName()];
       launch(size, 'online', 'easy', names);
     };
     const onOppMove = payload => {
@@ -220,8 +220,8 @@ export default function App() {
           step={menuStep}
           onStep={setMenuStep}
           online={online}
-          onStartLocal={size => launch(size, 'local', 'easy', [ME.name, t('nameFriend')])}
-          onStartBot={(size, diff) => launch(size, 'ai', diff, [ME.name, `${t('nameBot')} (${t('diff'+diff.charAt(0).toUpperCase()+diff.slice(1))})`])}
+          onStartLocal={size => launch(size, 'local', 'easy', [meName(), t('nameFriend')])}
+          onStartBot={(size, diff) => launch(size, 'ai', diff, [meName(), `${t('nameBot')} (${t('diff'+diff.charAt(0).toUpperCase()+diff.slice(1))})`])}
           onJoinOnline={size => {
             setOnline(p => ({ ...p, connecting: true }));
             setMenuStep('online-mm');
