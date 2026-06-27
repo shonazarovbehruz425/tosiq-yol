@@ -1,4 +1,5 @@
 import GameBoard from '../components/GameBoard.jsx';
+import { playReaction } from '../audio/sounds.js';
 import styles from './GameScreen.module.css';
 
 const REACTIONS = [
@@ -62,7 +63,7 @@ export default function GameScreen({ G, ui, online, onMove, onUndo, onBack, sync
         {REACTIONS.map(({ key, color, label }) => (
           <button key={key} className={styles.rxBtn}
             style={{ '--rc': color }}
-            onClick={() => { try { const { playReaction } = require('../audio/sounds.js'); playReaction(key); } catch {} }}>
+            onClick={() => { try { playReaction(key); } catch {} }}>
             {label}
           </button>
         ))}
