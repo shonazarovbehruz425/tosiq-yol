@@ -1,21 +1,28 @@
-/* ── Design tokens ─────────────────────────────── */
+/* Match the WrongWay (parent app) typeface for a consistent premium feel */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap');
+
+/* ── Design tokens (aligned with WrongWay client) ── */
 :root {
   --primary:       #7c3aed;
-  --primary-grad:  linear-gradient(135deg, #7c3aed, #4338ca);
-  --primary-glow:  rgba(124, 58, 237, 0.38);
+  --primary-grad:  linear-gradient(135deg, #7c3aed, #4f46e5);
+  --primary-glow:  rgba(124, 58, 237, 0.40);
   --blue-grad:     linear-gradient(135deg, #38bdf8, #2563eb);
   --blue-glow:     rgba(37, 99, 235, 0.42);
-  --text:          #f1f5f9;
-  --text-dim:      #6b7280;
-  --bg:            #090c14;
-  --surface:       #111624;
-  --surface-border:rgba(255,255,255, 0.08);
+  --text:          #f3f4f6;
+  --text-dim:      #9ca3af;
+  --bg:            #0b0f19;
+  --surface:       #111827;
+  --surface-2:     #1a2236;
+  --surface-border:rgba(255,255,255, 0.07);
   --pill-bg:       rgba(255,255,255, 0.06);
-  --pill-border:   rgba(255,255,255, 0.10);
+  --pill-border:   rgba(255,255,255, 0.11);
+  /* Deep-purple portrait backdrop, same recipe as the WrongWay app */
+  --app-bg:        radial-gradient(125% 80% at 50% 0%, #2a1b4e 0%, #15102e 45%, #0b0f19 100%);
   --radius-full:   999px;
+  --radius-lg:     24px;
   --radius-md:     16px;
   --radius-sm:     10px;
-  --font:         -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --font:          'Outfit', -apple-system, 'Segoe UI', system-ui, sans-serif;
   --ease:          cubic-bezier(0.4, 0, 0.2, 1);
   --bounce:        cubic-bezier(0.34, 1.56, 0.64, 1);
 }

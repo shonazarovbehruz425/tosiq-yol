@@ -7,7 +7,7 @@
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   padding: 24px 20px;
-  background: radial-gradient(ellipse 100% 60% at 50% 0%,#12102a 0%,#090c14 65%);
+  background: transparent;
 }
 .card {
   background: var(--surface);
