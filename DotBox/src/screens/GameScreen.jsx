@@ -1,11 +1,13 @@
+import { useState } from 'react';
 import GameBoard from '../components/GameBoard.jsx';
 import { playReaction } from '../audio/sounds.js';
 import { REACTIONS } from '../game/reactions.js';
 import { useT } from '../i18n/index.js';
 import styles from './GameScreen.module.css';
 
-export default function GameScreen({ G, ui, online, onMove, onUndo, onBack, sync }) {
+export default function GameScreen({ G, ui, online, onMove, onUndo, onBack, onSurrender, sync }) {
   const t = useT();
+  const [confirmSurrender, setConfirmSurrender] = useState(false);
   const { scores, cur, over, aiOn, names, mode } = ui;
   const myTurn = mode === 'online' ? cur === online.side : true;
   const isOnline = mode === 'online';
@@ -71,7 +73,23 @@ export default function GameScreen({ G, ui, online, onMove, onUndo, onBack, sync
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 7h10a5 5 0 0 1 0 10H3"/><path d="M7 3l-4 4 4 4"/></svg>
           {t('undo')}
         </button>
+        <button className={styles.surrenderBtn} onClick={() => setConfirmSurrender(true)} disabled={over}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 21V4"/><path d="M4 4h11l-1.5 3L15 10H4"/></svg>
+          {t('surrender')}
+        </button>
       </div>
+
+      {confirmSurrender && (
+        <div className={styles.confirmOverlay} onClick={() => setConfirmSurrender(false)}>
+          <div className={styles.confirmBox} onClick={e => e.stopPropagation()}>
+            <p className={styles.confirmTitle}>{t('surrenderQ')}</p>
+            <div className={styles.confirmActions}>
+              <button className={styles.confirmNo} onClick={() => setConfirmSurrender(false)}>{t('surrenderNo')}</button>
+              <button className={styles.confirmYes} onClick={() => { setConfirmSurrender(false); onSurrender(); }}>{t('surrenderYes')}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

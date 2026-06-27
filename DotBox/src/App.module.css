@@ -1,6 +1,8 @@
 .app {
   position: relative;
-  height: 100%;
+  /* Lock to a 9:16 portrait frame that always fits inside the viewport. */
+  width: min(100vw, calc(100vh * 9 / 16));
+  height: min(100vh, calc(100vw * 16 / 9));
   display: flex;
   flex-direction: column;
   overflow: hidden;

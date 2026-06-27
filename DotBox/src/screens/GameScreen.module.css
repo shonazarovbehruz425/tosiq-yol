@@ -87,12 +87,13 @@
 }
 
 .footer {
-  display: flex; justify-content: center; padding: 8px 16px calc(env(safe-area-inset-bottom,12px)+8px);
+  display: flex; justify-content: center; gap: 10px;
+  padding: 8px 16px calc(env(safe-area-inset-bottom,12px)+8px);
   flex-shrink: 0;
 }
 .undoBtn {
   display: flex; align-items: center; gap: 6px;
-  padding: 10px 24px; border-radius: var(--radius-full);
+  padding: 10px 22px; border-radius: var(--radius-full);
   background: rgba(255,255,255,.07); border: 1.5px solid rgba(255,255,255,.1);
   font-family: var(--font); font-size: 14px; font-weight: 600; color: var(--text);
   cursor: pointer; transition: .15s;
@@ -100,3 +101,50 @@
 .undoBtn:active { background: rgba(255,255,255,.14); }
 .undoBtn:disabled { opacity: .3; pointer-events: none; }
 .undoBtn svg { width: 16px; height: 16px; }
+
+.surrenderBtn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 22px; border-radius: var(--radius-full);
+  background: rgba(225,29,72,.12); border: 1.5px solid rgba(251,113,133,.4);
+  font-family: var(--font); font-size: 14px; font-weight: 600; color: #fb7185;
+  cursor: pointer; transition: .15s;
+}
+.surrenderBtn:active { background: rgba(225,29,72,.24); }
+.surrenderBtn:disabled { opacity: .3; pointer-events: none; }
+.surrenderBtn svg { width: 16px; height: 16px; }
+
+/* Surrender confirmation overlay */
+.confirmOverlay {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  background: rgba(4,6,12,.66); backdrop-filter: blur(3px);
+  animation: fadeSlideIn .18s var(--ease);
+}
+.confirmBox {
+  width: 100%; max-width: 300px;
+  background: var(--surface); border: 1.5px solid var(--surface-border);
+  border-radius: var(--radius-md); padding: 22px 20px;
+  box-shadow: 0 20px 50px rgba(0,0,0,.5);
+  animation: popIn .2s var(--bounce);
+}
+.confirmTitle {
+  font-size: 16px; font-weight: 700; color: var(--text);
+  text-align: center; margin-bottom: 18px; line-height: 1.4;
+}
+.confirmActions { display: flex; gap: 10px; }
+.confirmNo, .confirmYes {
+  flex: 1 1 0; padding: 12px 8px; border-radius: var(--radius-full);
+  font-family: var(--font); font-size: 14px; font-weight: 700; cursor: pointer;
+  transition: .15s;
+}
+.confirmNo {
+  background: rgba(255,255,255,.08); border: 1.5px solid rgba(255,255,255,.12);
+  color: var(--text);
+}
+.confirmNo:active { background: rgba(255,255,255,.16); }
+.confirmYes {
+  background: linear-gradient(135deg,#fb7185,#e11d48); border: none;
+  color: #fff;
+}
+.confirmYes:active { transform: scale(.96); }
