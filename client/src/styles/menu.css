@@ -1005,10 +1005,11 @@ input:checked + .slider:before {
 
 /* ===== DotBox full-screen overlay ===== */
 
-/* Fixed wrapper that covers the entire viewport — ignores all parent layout */
+/* Absolute wrapper that fills the #app 9:16 frame — not the full viewport */
 .dotbox-fullscreen {
-    position: fixed;
-    inset: 0; /* top:0; right:0; bottom:0; left:0 */
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     z-index: 200;
@@ -1028,7 +1029,7 @@ input:checked + .slider:before {
 /* Floating back button — sits above the iframe */
 .dotbox-back-btn {
     position: absolute;
-    top: calc(14px + env(safe-area-inset-top, 0px));
+    top: 14px;
     left: 14px;
     z-index: 201;
     width: 40px;
