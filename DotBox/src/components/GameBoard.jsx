@@ -142,7 +142,7 @@ export default function GameBoard({ G, onMove, online, sync }) {
     draw();
   }, [G, online, nearDot, dXY, draw]);
 
-  const onMove = useCallback(e => {
+  const onPointerMove = useCallback(e => {
     e.preventDefault();
     if (!drag.current.dot) return;
     const { px, py } = evPt(e);
@@ -185,24 +185,24 @@ export default function GameBoard({ G, onMove, online, sync }) {
     const cvs = canvasRef.current;
     if (!cvs) return;
     cvs.addEventListener('mousedown', onStart);
-    cvs.addEventListener('mousemove', onMove);
+    cvs.addEventListener('mousemove', onPointerMove);
     cvs.addEventListener('mouseup', onEnd);
     cvs.addEventListener('mouseleave', onCancel);
     cvs.addEventListener('touchstart', onStart, { passive: false });
-    cvs.addEventListener('touchmove', onMove, { passive: false });
+    cvs.addEventListener('touchmove', onPointerMove, { passive: false });
     cvs.addEventListener('touchend', onEnd, { passive: false });
     cvs.addEventListener('touchcancel', onCancel, { passive: false });
     return () => {
       cvs.removeEventListener('mousedown', onStart);
-      cvs.removeEventListener('mousemove', onMove);
+      cvs.removeEventListener('mousemove', onPointerMove);
       cvs.removeEventListener('mouseup', onEnd);
       cvs.removeEventListener('mouseleave', onCancel);
       cvs.removeEventListener('touchstart', onStart);
-      cvs.removeEventListener('touchmove', onMove);
+      cvs.removeEventListener('touchmove', onPointerMove);
       cvs.removeEventListener('touchend', onEnd);
       cvs.removeEventListener('touchcancel', onCancel);
     };
-  }, [onStart, onMove, onEnd, onCancel]);
+  }, [onStart, onPointerMove, onEnd, onCancel]);
 
   useEffect(() => {
     resize();
