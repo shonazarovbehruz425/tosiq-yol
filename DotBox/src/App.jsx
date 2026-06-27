@@ -110,6 +110,21 @@ export default function App() {
     }
   }, [online, sync, runAI]);
 
+  // Surrender / forfeit the current game. The local player loses; in online
+  // mode we also tell the server we left so the opponent is awarded the win.
+  const handleSurrender = useCallback(() => {
+    const g = G.current;
+    if (g.over) return;
+    g.aiOn = false;
+    g.over = true;
+    g.forfeit = true;
+    if (g.mode === 'online' && online.roomCode) {
+      ws.send('dotbox_leave', { code: online.roomCode });
+    }
+    sync();
+    setTimeout(() => { playLose(); setScreen('result'); }, 300);
+  }, [online, sync]);
+
   // Undo
   const handleUndo = useCallback(() => {
     const g = G.current;
@@ -253,6 +268,7 @@ export default function App() {
           onMove={doMove}
           onUndo={handleUndo}
           onBack={goMenu}
+          onSurrender={handleSurrender}
           sync={sync}
         />
       )}

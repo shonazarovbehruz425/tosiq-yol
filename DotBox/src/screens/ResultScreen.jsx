@@ -8,6 +8,7 @@ export default function ResultScreen({ G, ui, online, onPlayAgain, onMenu }) {
   const { scores, names, mode } = ui;
   const s = online.side || 1;
 
+  const forfeit = !!g.forfeit;
   let isWin, isDraw;
   if (mode === 'online') {
     isWin = scores[s - 1] > scores[2 - s];
@@ -16,6 +17,7 @@ export default function ResultScreen({ G, ui, online, onPlayAgain, onMenu }) {
     isWin = scores[0] > scores[1];
     isDraw = scores[0] === scores[1];
   }
+  if (forfeit) { isWin = false; isDraw = false; }
   const type = isDraw ? 'draw' : isWin ? 'win' : 'lose';
 
   const emoji = { win: '🏆', lose: '😔', draw: '🤝' }[type];
@@ -30,7 +32,7 @@ export default function ResultScreen({ G, ui, online, onPlayAgain, onMenu }) {
           <div className={styles.icon}>{emoji}</div>
         </div>
         <h2 className={styles.title}>{title}</h2>
-        <p className={styles.desc}>{isDraw ? t('descDraw') : isWin ? t('descWin') : t('descLose')}</p>
+        <p className={styles.desc}>{forfeit ? t('descForfeit') : isDraw ? t('descDraw') : isWin ? t('descWin') : t('descLose')}</p>
         <div className={styles.scoreRow}>
           <div className={styles.scoreBox}>
             <div className={styles.scoreName}>{p1}</div>
