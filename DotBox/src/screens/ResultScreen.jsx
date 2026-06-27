@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
+import { useT } from '../i18n/index.js';
 import styles from './ResultScreen.module.css';
 
 export default function ResultScreen({ G, ui, online, onPlayAgain, onMenu }) {
+  const t = useT();
   const g = G.current;
   const { scores, names, mode } = ui;
   const s = online.side || 1;
@@ -17,7 +19,7 @@ export default function ResultScreen({ G, ui, online, onPlayAgain, onMenu }) {
   const type = isDraw ? 'draw' : isWin ? 'win' : 'lose';
 
   const emoji = { win: '🏆', lose: '😔', draw: '🤝' }[type];
-  const title = { win: 'G\'alaba!', lose: 'Yutqazdingiz', draw: "Durrang!" }[type];
+  const title = { win: t('resWin'), lose: t('resLose'), draw: t('resDraw') }[type];
   const p1 = mode === 'online' && s === 2 ? names[1] : names[0];
   const p2 = mode === 'online' && s === 2 ? names[0] : names[1];
 
@@ -28,7 +30,7 @@ export default function ResultScreen({ G, ui, online, onPlayAgain, onMenu }) {
           <div className={styles.icon}>{emoji}</div>
         </div>
         <h2 className={styles.title}>{title}</h2>
-        <p className={styles.desc}>{isDraw ? 'Teng kuchli o\'yin!' : isWin ? 'Ajoyib o\'yin!' : 'Keyingisida omad!'}</p>
+        <p className={styles.desc}>{isDraw ? t('descDraw') : isWin ? t('descWin') : t('descLose')}</p>
         <div className={styles.scoreRow}>
           <div className={styles.scoreBox}>
             <div className={styles.scoreName}>{p1}</div>
@@ -42,10 +44,10 @@ export default function ResultScreen({ G, ui, online, onPlayAgain, onMenu }) {
         </div>
         <div className={styles.actions}>
           <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={onPlayAgain}>
-            {mode === 'online' ? '🏠 Bosh menyu' : '🔄 Qayta o\'ynash'}
+            {mode === 'online' ? `🏠 ${t('mainMenu')}` : `🔄 ${t('playAgain')}`}
           </button>
           <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={onMenu}>
-            🏠 Bosh menyu
+            🏠 {t('mainMenu')}
           </button>
         </div>
       </div>

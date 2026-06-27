@@ -8,9 +8,10 @@ import { makeMove, undoMove, applyOpponentMove } from './game/logic.js';
 import { pickAI } from './game/ai.js';
 import { playSnap, playBoxDing, playWin, playLose, stopNoise, preloadMemes, unlockAudio } from './audio/sounds.js';
 import * as ws from './ws/client.js';
+import { t } from './i18n/index.js';
 import styles from './App.module.css';
 
-const ME = window.__dbMe || { name: 'Siz', username: '' };
+const meName = () => (window.__dbMe && window.__dbMe.name) || t('nameYou');
 
 export default function App() {
   const [screen, setScreen] = useState('menu');   // 'menu' | 'game' | 'result'
@@ -20,7 +21,7 @@ export default function App() {
   const G = useRef(createGame());
 
   // React UI state (drives scoreboard, turn bar, button states)
-  const [ui, setUi] = useState({ scores: [0,0], cur: 1, over: false, aiOn: false, mode: 'local', size: 4, names: [ME.name, 'Raqib'] });
+  const [ui, setUi] = useState({ scores: [0,0], cur: 1, over: false, aiOn: false, mode: 'local', size: 4, names: [meName(), t('nameOpponent')] });
 
   // Online state
   const [online, setOnline] = useState({ roomCode: null, side: 0, connecting: false });
@@ -35,7 +36,7 @@ export default function App() {
   const launch = useCallback((size, mode, diff, names = null) => {
     const g = createGame(size, mode, diff);
     G.current = g;
-    const playerNames = names || [ME.name, mode === 'ai' ? 'Bot' : 'Raqib'];
+    const playerNames = names || [meName(), mode === 'ai' ? t('nameBot') : t('nameOpponent')];
     setUi({ scores: [0,0], cur: 1, over: false, aiOn: false, mode, size, names: playerNames });
     setScreen('game');
   }, []);
@@ -122,9 +123,9 @@ export default function App() {
   useEffect(() => {
     const onMatch = payload => {
       const { code, size, side, opponent } = payload;
-      const oppName = opponent?.name || 'Raqib';
+      const oppName = opponent?.name || t('nameOpponent');
       setOnline(prev => ({ ...prev, roomCode: code, side, connecting: false }));
-      const names = side === 1 ? [ME.name, oppName] : [oppName, ME.name];
+      const names = side === 1 ? [meName(), oppName] : [oppName, meName()];
       launch(size, 'online', 'easy', names);
     };
     const onOppMove = payload => {
@@ -194,6 +195,22 @@ export default function App() {
     return () => window.removeEventListener('pointerdown', fn);
   }, []);
 
+  // Presence: open the WebSocket as soon as DotBox loads (not only when an
+  // online game starts) so the WrongWay server marks the user online while
+  // they are inside DotBox. The server registers presence on `auth`, which
+  // needs the parent-injected initData — wait for it, then connect.
+  useEffect(() => {
+    let cancelled = false;
+    let tries = 0;
+    const tryConnect = () => {
+      if (cancelled) return;
+      if (window.__dbInitData) { ws.connect(); return; }
+      if (tries++ < 25) setTimeout(tryConnect, 200);
+    };
+    tryConnect();
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <div className={styles.app}>
       <Background />
@@ -203,8 +220,8 @@ export default function App() {
           step={menuStep}
           onStep={setMenuStep}
           online={online}
-          onStartLocal={size => launch(size, 'local', 'easy', [ME.name, "Do'st"])}
-          onStartBot={(size, diff) => launch(size, 'ai', diff, [ME.name, `Bot (${diff})`])}
+          onStartLocal={size => launch(size, 'local', 'easy', [meName(), t('nameFriend')])}
+          onStartBot={(size, diff) => launch(size, 'ai', diff, [meName(), `${t('nameBot')} (${t('diff'+diff.charAt(0).toUpperCase()+diff.slice(1))})`])}
           onJoinOnline={size => {
             setOnline(p => ({ ...p, connecting: true }));
             setMenuStep('online-mm');

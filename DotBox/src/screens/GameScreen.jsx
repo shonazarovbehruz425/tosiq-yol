@@ -1,24 +1,19 @@
 import GameBoard from '../components/GameBoard.jsx';
 import { playReaction } from '../audio/sounds.js';
+import { REACTIONS } from '../game/reactions.js';
+import { useT } from '../i18n/index.js';
 import styles from './GameScreen.module.css';
 
-const REACTIONS = [
-  { key:'laugh', color:'#34d399', label:'😄' },
-  { key:'fire',  color:'#f97316', label:'🔥' },
-  { key:'wow',   color:'#a78bfa', label:'😮' },
-  { key:'angry', color:'#fb7185', label:'😤' },
-  { key:'wave',  color:'#38bdf8', label:'👋' },
-];
-
 export default function GameScreen({ G, ui, online, onMove, onUndo, onBack, sync }) {
+  const t = useT();
   const { scores, cur, over, aiOn, names, mode } = ui;
   const myTurn = mode === 'online' ? cur === online.side : true;
   const isOnline = mode === 'online';
 
-  const turnText = aiOn ? 'Bot o\'ylamoqda…'
-    : over ? 'O\'yin tugadi!'
-    : !myTurn && isOnline ? `${names[1-((online.side||1)-1)]} navbati`
-    : 'Sizning navbatingiz';
+  const turnText = aiOn ? t('botThinking')
+    : over ? t('gameOver')
+    : !myTurn && isOnline ? t('turnOf', { name: names[1-((online.side||1)-1)] })
+    : t('yourTurn');
 
   return (
     <div className={styles.screen}>
@@ -60,12 +55,13 @@ export default function GameScreen({ G, ui, online, onMove, onUndo, onBack, sync
 
       {/* Reactions */}
       <div className={styles.rxStrip}>
-        {REACTIONS.map(({ key, color, label }) => (
+        {REACTIONS.map(({ key, color, icon }) => (
           <button key={key} className={styles.rxBtn}
             style={{ '--rc': color }}
-            onClick={() => { try { playReaction(key); } catch {} }}>
-            {label}
-          </button>
+            aria-label={key}
+            onClick={() => { try { playReaction(key); } catch {} }}
+            dangerouslySetInnerHTML={{ __html: icon }}
+          />
         ))}
       </div>
 
@@ -73,7 +69,7 @@ export default function GameScreen({ G, ui, online, onMove, onUndo, onBack, sync
       <div className={styles.footer}>
         <button className={styles.undoBtn} onClick={onUndo} disabled={isOnline || !G.current?.history?.length || aiOn}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 7h10a5 5 0 0 1 0 10H3"/><path d="M7 3l-4 4 4 4"/></svg>
-          Bekor
+          {t('undo')}
         </button>
       </div>
     </div>

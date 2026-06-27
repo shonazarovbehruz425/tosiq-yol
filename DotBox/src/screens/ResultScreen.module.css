@@ -2,6 +2,10 @@
   position: relative; z-index: 1;
   flex: 1 1 0; min-height: 0;
   display: flex; align-items: center; justify-content: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
   padding: 24px 20px;
   background: radial-gradient(ellipse 100% 60% at 50% 0%,#12102a 0%,#090c14 65%);
 }

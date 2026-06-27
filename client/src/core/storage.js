@@ -58,6 +58,11 @@ export class StorageManager {
       setLanguage(settings.lang);
       this.applyTheme(settings.theme);
       setSoundEnabled(settings.sound);
+      try {
+        document.dispatchEvent(
+          new CustomEvent('settings-changed', { detail: { ...settings } })
+        );
+      } catch (e) { /* ignore */ }
       return true;
     } catch (e) {
       console.error('Failed to save settings', e);

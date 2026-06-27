@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
+import { useT } from '../i18n/index.js';
 import styles from './MenuScreen.module.css';
 
 const SIZES = [
-  { v: 3, label: '3 × 3', sub: 'Tez o\'yin' },
-  { v: 4, label: '4 × 4', sub: 'Klassik' },
-  { v: 5, label: '5 × 5', sub: 'Murakkab' },
+  { v: 3, label: '3 × 3', subKey: 'subFast' },
+  { v: 4, label: '4 × 4', subKey: 'subClassic' },
+  { v: 5, label: '5 × 5', subKey: 'subComplex' },
 ];
 const DIFFS = [
-  { v: 'easy',   label: 'Oson',   sub: 'Yangi boshlovchi', icon: '😊' },
-  { v: 'medium', label: "O'rta",  sub: 'Tajribali',         icon: '🤖' },
-  { v: 'hard',   label: 'Qiyin',  sub: 'Pro darajasi',      icon: '⭐' },
+  { v: 'easy',   labelKey: 'diffEasy',   subKey: 'subBeginner',    icon: '😊' },
+  { v: 'medium', labelKey: 'diffMedium', subKey: 'subExperienced', icon: '🤖' },
+  { v: 'hard',   labelKey: 'diffHard',   subKey: 'subPro',         icon: '⭐' },
 ];
 
 function Panel({ children, className = '' }) {
@@ -17,6 +18,7 @@ function Panel({ children, className = '' }) {
 }
 
 export default function MenuScreen({ step, onStep, online, onStartLocal, onStartBot, onJoinOnline, onCancelOnline, onCreateRoom, onJoinRoom, onCancelRoom }) {
+  const t = useT();
   const [selSize, setSelSize] = useState(4);
   const [selDiff, setSelDiff] = useState('easy');
   const [botSize, setBotSize] = useState(4);
@@ -50,7 +52,7 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
   };
   const handleJoin = () => {
     const c = code.join('');
-    if (c.length !== 4) { setCodeErr('4 ta belgi kiriting'); return; }
+    if (c.length !== 4) { setCodeErr(t('enter4')); return; }
     setCode(['','','','']); setCodeErr('');
     onJoinRoom(c);
   };
@@ -68,28 +70,28 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
           </svg>
         </div>
         <h1 className={styles.title}>DOTS &amp; BOXES</h1>
-        <p className={styles.slogan}>Mantiqiy Neon Jang</p>
+        <p className={styles.slogan}>{t('slogan')}</p>
       </header>
 
       {step === 'main' && (
         <Panel>
           <Pill primary blue onClick={() => onStep('online-size')}>
             <PillIcon color="rgba(255,255,255,.22)"><GlobeIcon /></PillIcon>
-            Online O'ynash
+            {t('playOnline')}
           </Pill>
           <Pill onClick={() => onStep('friend')}>
             <PillIcon color="linear-gradient(135deg,#a78bfa,#7c3aed)"><FriendIcon /></PillIcon>
-            Do'st bilan O'ynash
+            {t('playFriend')}
             <Chevron />
           </Pill>
           <Pill onClick={() => onStep('diff')}>
             <PillIcon color="linear-gradient(135deg,#f97316,#dc2626)"><BotIcon /></PillIcon>
-            Bot bilan O'ynash
+            {t('playBot')}
             <Chevron />
           </Pill>
           <Pill onClick={() => onStep('size')}>
             <PillIcon color="linear-gradient(135deg,#22d3ee,#0891b2)"><LocalIcon /></PillIcon>
-            Lokal O'ynash
+            {t('playLocal')}
             <Chevron />
           </Pill>
         </Panel>
@@ -97,10 +99,10 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
 
       {step === 'online-size' && (
         <Panel>
-          <p className={styles.subTitle}>Maydon o'lchamini tanlang</p>
-          {SIZES.map(({ v, label, sub }) => (
+          <p className={styles.subTitle}>{t('chooseSize')}</p>
+          {SIZES.map(({ v, label, subKey }) => (
             <SizePill key={v} selected={selSize === v} onClick={() => { setSelSize(v); onJoinOnline(v); }}>
-              {label} <span>{sub}</span>
+              {label} <span>{t(subKey)}</span>
             </SizePill>
           ))}
           <BackBtn onClick={() => onStep('main')} />
@@ -115,16 +117,16 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
             </svg>
           </div>
           <div className={styles.mmTimer}>{fmtTime(mmSecs)}</div>
-          <p className={styles.mmTitle}>{online.connecting ? 'Ulanmoqda…' : 'Raqib axtarilmoqda…'}</p>
-          <p className={styles.mmSub}>{online.connecting ? 'Server bilan bog\'lanish o\'rnatilmoqda' : 'Bir necha soniya kutib turing'}</p>
-          <button className={styles.backLink} onClick={onCancelOnline}>← Bekor qilish</button>
+          <p className={styles.mmTitle}>{online.connecting ? t('connecting') : t('searchingOpponent')}</p>
+          <p className={styles.mmSub}>{online.connecting ? t('connectingDesc') : t('waitSeconds')}</p>
+          <button className={styles.backLink} onClick={onCancelOnline}>← {t('cancel')}</button>
         </Panel>
       )}
 
       {step === 'friend' && (
         <Panel>
-          <p className={styles.subTitle}>Do'st bilan O'ynash</p>
-          <p className={styles.sectionLabel}>Yangi xona yaratish</p>
+          <p className={styles.subTitle}>{t('playFriend')}</p>
+          <p className={styles.sectionLabel}>{t('newRoom')}</p>
           <div className={styles.sizeRow}>
             {SIZES.map(({ v, label }) => (
               <button key={v} className={`${styles.sizeChip} ${friendSize === v ? styles.sizeChipSel : ''}`}
@@ -132,10 +134,10 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
             ))}
           </div>
           <Pill primary onClick={() => onCreateRoom(friendSize)} disabled={online.connecting}>
-            {online.connecting ? 'Ulanmoqda…' : '🔒 Xona yaratish'}
+            {online.connecting ? t('connecting') : `🔒 ${t('createRoom')}`}
           </Pill>
-          <div className={styles.orDivider}>yoki</div>
-          <p className={styles.sectionLabel}>Xona kodini kiriting</p>
+          <div className={styles.orDivider}>{t('or')}</div>
+          <p className={styles.sectionLabel}>{t('enterCode')}</p>
           <div className={styles.codeRow}>
             {code.map((v, i) => (
               <input key={i} ref={el => inputs.current[i] = el}
@@ -148,32 +150,32 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
             ))}
           </div>
           {codeErr && <p className={styles.codeErr}>{codeErr}</p>}
-          <Pill onClick={handleJoin}>▶ Kirish</Pill>
+          <Pill onClick={handleJoin}>▶ {t('join')}</Pill>
           <BackBtn onClick={() => onStep('main')} />
         </Panel>
       )}
 
       {step === 'friend-wait' && (
         <Panel className={styles.waitPanel}>
-          <p className={styles.subTitle}>Xona yaratildi!</p>
-          <p className={styles.sectionLabel}>Xona kodi — do'stingizga yuboring</p>
+          <p className={styles.subTitle}>{t('roomCreated')}</p>
+          <p className={styles.sectionLabel}>{t('sendCode')}</p>
           <div className={styles.roomCodeRow}>
             {(online.roomCode || '----').split('').map((ch, i) => (
               <div key={i} className={styles.roomCodeDigit}>{ch}</div>
             ))}
           </div>
           <div className={styles.spinner} />
-          <p className={styles.waitHint}>Do'stingiz kirishini kutmoqda…</p>
-          <button className={styles.backLink} onClick={onCancelRoom}>← Bekor qilish</button>
+          <p className={styles.waitHint}>{t('waitingFriend')}</p>
+          <button className={styles.backLink} onClick={onCancelRoom}>← {t('cancel')}</button>
         </Panel>
       )}
 
       {step === 'diff' && (
         <Panel>
-          <p className={styles.subTitle}>Bot darajasini tanlang</p>
-          {DIFFS.map(({ v, label, sub, icon }) => (
+          <p className={styles.subTitle}>{t('chooseBotLevel')}</p>
+          {DIFFS.map(({ v, labelKey, subKey, icon }) => (
             <SizePill key={v} selected={selDiff === v} onClick={() => { setSelDiff(v); onStep('bot-size'); }}>
-              {icon} {label} <span>{sub}</span>
+              {icon} {t(labelKey)} <span>{t(subKey)}</span>
             </SizePill>
           ))}
           <BackBtn onClick={() => onStep('main')} />
@@ -182,7 +184,7 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
 
       {step === 'bot-size' && (
         <Panel>
-          <p className={styles.subTitle}>Maydon o'lchamini tanlang</p>
+          <p className={styles.subTitle}>{t('chooseSize')}</p>
           {SIZES.map(({ v, label }) => (
             <SizePill key={v} selected={botSize === v} onClick={() => { setBotSize(v); onStartBot(v, selDiff); }}>
               {label}
@@ -194,10 +196,10 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
 
       {step === 'size' && (
         <Panel>
-          <p className={styles.subTitle}>Maydon o'lchamini tanlang</p>
-          {SIZES.map(({ v, label, sub }) => (
+          <p className={styles.subTitle}>{t('chooseSize')}</p>
+          {SIZES.map(({ v, label, subKey }) => (
             <SizePill key={v} selected={selSize === v} onClick={() => onStartLocal(v)}>
-              {label} <span>{sub}</span>
+              {label} <span>{t(subKey)}</span>
             </SizePill>
           ))}
           <BackBtn onClick={() => onStep('main')} />
@@ -238,7 +240,11 @@ function SizePill({ children, selected, onClick }) {
   );
 }
 function BackBtn({ onClick }) {
-  return <button className={styles.backLink} onClick={onClick}>← Orqaga</button>;
+  return <BackBtnInner onClick={onClick} />;
+}
+function BackBtnInner({ onClick }) {
+  const t = useT();
+  return <button className={styles.backLink} onClick={onClick}>← {t('back')}</button>;
 }
 const GlobeIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg>;
 const FriendIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M16 19a4 4 0 0 0-8 0"/><circle cx="12" cy="9" r="3"/><path d="M5 19a3 3 0 0 1 4-2.8"/><path d="M19 19a3 3 0 0 0-4-2.8"/><circle cx="6.5" cy="10.5" r="2"/><circle cx="17.5" cy="10.5" r="2"/></svg>;

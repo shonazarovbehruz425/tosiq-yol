@@ -1,4 +1,6 @@
 import { haptic, getInitData } from "../core/telegram.js";
+import { getLanguage } from "../core/i18n.js";
+import { isSoundEnabled } from "../core/sound.js";
 
 /**
  * DotBoxScreen
@@ -43,28 +45,48 @@ export class DotBoxScreen {
       });
     }
 
-    // Inject Telegram initData into the DotBox iframe so it can
-    // authenticate its own WebSocket connection to the server.
+    // Inject Telegram initData + current WrongWay settings (language, sound)
+    // into the DotBox iframe so it authenticates its own WebSocket connection
+    // and stays in sync with the parent app's preferences.
     const iframe = document.getElementById("dotbox-iframe");
     if (iframe) {
-      const sendInit = () => {
+      const post = (type) => {
         try {
-          const initData = getInitData();
           iframe.contentWindow?.postMessage(
-            { type: "dotbox_init", initData },
+            {
+              type,
+              initData: getInitData(),
+              lang: getLanguage(),
+              sound: isSoundEnabled(),
+            },
             "*",
           );
         } catch (e) {
           /* cross-origin or iframe not ready */
         }
       };
+      const sendInit = () => post("dotbox_init");
+      const sendSettings = () => post("dotbox_settings");
+
       iframe.addEventListener("load", sendInit);
       // Try immediately in case the iframe already finished loading
       sendInit();
+
+      // Forward live settings changes (language / sound) to the iframe.
+      this._onLangChange = sendSettings;
+      this._onSettingsChange = sendSettings;
+      document.addEventListener("language-changed", this._onLangChange);
+      document.addEventListener("settings-changed", this._onSettingsChange);
     }
   }
 
   destroy() {
+    if (this._onLangChange) {
+      document.removeEventListener("language-changed", this._onLangChange);
+    }
+    if (this._onSettingsChange) {
+      document.removeEventListener("settings-changed", this._onSettingsChange);
+    }
     // Blank the iframe so any audio / timers inside DotBox stop immediately
     const iframe = document.getElementById("dotbox-iframe");
     if (iframe) iframe.src = "about:blank";

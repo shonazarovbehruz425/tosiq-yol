@@ -2,6 +2,10 @@
   position: relative; z-index: 1;
   flex: 1 1 0; min-height: 0;
   display: flex; flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
   background: radial-gradient(ellipse 100% 45% at 50% 0%, #110e28 0%, #090c14 58%);
 }
 
@@ -59,7 +63,7 @@
 @keyframes thinkDot { 0%,100%{opacity:.3;transform:scale(.7);}50%{opacity:1;transform:scale(1.2);} }
 
 .canvasWrap {
-  flex: 1 1 0; min-height: 0;
+  flex: 1 1 auto; min-height: 300px;
   position: relative; overflow: hidden;
 }
 
@@ -69,12 +73,18 @@
 }
 .rxBtn {
   width: 44px; height: 44px; border-radius: 50%;
-  background: rgba(255,255,255,.06); border: 1.5px solid rgba(255,255,255,.1);
-  font-size: 22px; cursor: pointer;
+  background: rgba(255,255,255,.06); border: 1.5px solid color-mix(in srgb, var(--rc, #fff) 35%, transparent);
+  padding: 7px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: transform .15s, background .15s;
+  box-shadow: 0 0 0 0 var(--rc, #fff);
+  transition: transform .15s, background .15s, box-shadow .2s;
 }
-.rxBtn:active { transform: scale(.88); background: rgba(255,255,255,.14); }
+.rxBtn svg { width: 100%; height: 100%; display: block; }
+.rxBtn:active {
+  transform: scale(.88);
+  background: color-mix(in srgb, var(--rc, #fff) 22%, transparent);
+  box-shadow: 0 0 12px 2px color-mix(in srgb, var(--rc, #fff) 55%, transparent);
+}
 
 .footer {
   display: flex; justify-content: center; padding: 8px 16px calc(env(safe-area-inset-bottom,12px)+8px);
