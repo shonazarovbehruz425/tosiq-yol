@@ -6,7 +6,7 @@
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  background: radial-gradient(ellipse 100% 45% at 50% 0%, #110e28 0%, #090c14 58%);
+  background: transparent;
 }
 
 .hdr {
@@ -35,13 +35,21 @@
   gap: 16px; padding: 6px 20px; flex-shrink: 0;
 }
 .scard {
-  background: var(--surface); border: 1.5px solid var(--surface-border);
+  background: rgba(255,255,255,.04); border: 1.5px solid var(--surface-border);
   border-radius: var(--radius-md); padding: 10px 18px;
   text-align: center; min-width: 90px;
-  transition: border-color .2s, transform .2s;
+  transition: border-color .2s, transform .2s, box-shadow .2s, background .2s;
 }
-.scardActive1 { border-color: rgba(124,58,237,.6); transform: scale(1.04); }
-.scardActive2 { border-color: rgba(225,29,72,.5); transform: scale(1.04); }
+.scardActive1 {
+  border-color: rgba(124,58,237,.7); transform: scale(1.05);
+  background: rgba(124,58,237,.12);
+  box-shadow: 0 6px 20px rgba(124,58,237,.28);
+}
+.scardActive2 {
+  border-color: rgba(251,113,133,.6); transform: scale(1.05);
+  background: rgba(225,29,72,.12);
+  box-shadow: 0 6px 20px rgba(225,29,72,.26);
+}
 .sname { font-size: 12px; color: var(--text-dim); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px; }
 .sval { font-size: 28px; font-weight: 900; }
 .sval1 { color: #c4b5fd; }
