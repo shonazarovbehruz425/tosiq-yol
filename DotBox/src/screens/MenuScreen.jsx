@@ -8,9 +8,9 @@ const SIZES = [
   { v: 5, label: '5 × 5', subKey: 'subComplex' },
 ];
 const DIFFS = [
-  { v: 'easy',   labelKey: 'diffEasy',   subKey: 'subBeginner',    icon: '😊' },
-  { v: 'medium', labelKey: 'diffMedium', subKey: 'subExperienced', icon: '🤖' },
-  { v: 'hard',   labelKey: 'diffHard',   subKey: 'subPro',         icon: '⭐' },
+  { v: 'easy',   labelKey: 'diffEasy',   subKey: 'diffEasyDesc',   color: '#10b981', gradFrom: '#10b981', gradTo: '#059669', bars: 1 },
+  { v: 'medium', labelKey: 'diffMedium', subKey: 'diffMediumDesc', color: '#f59e0b', gradFrom: '#f59e0b', gradTo: '#d97706', bars: 2 },
+  { v: 'hard',   labelKey: 'diffHard',   subKey: 'diffHardDesc',   color: '#ef4444', gradFrom: '#ef4444', gradTo: '#dc2626', bars: 3 },
 ];
 
 function Panel({ children, className = '' }) {
@@ -178,10 +178,12 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
       {step === 'diff' && (
         <Panel>
           <p className={styles.subTitle}>{t('chooseBotLevel')}</p>
-          {DIFFS.map(({ v, labelKey, subKey, icon }) => (
-            <SizePill key={v} selected={selDiff === v} onClick={() => { setSelDiff(v); onStep('bot-size'); }}>
-              {icon} {t(labelKey)} <span>{t(subKey)}</span>
-            </SizePill>
+          {DIFFS.map(({ v, labelKey, subKey, color, gradFrom, gradTo, bars }) => (
+            <DiffCard key={v} color={color} gradFrom={gradFrom} gradTo={gradTo} bars={bars}
+              selected={selDiff === v} onClick={() => { setSelDiff(v); onStep('bot-size'); }}>
+              <span className={styles.diffTitle} style={{color}}>{t(labelKey)}</span>
+              <span className={styles.diffDesc}>{t(subKey)}</span>
+            </DiffCard>
           ))}
           <BackBtn onClick={() => onStep('main')} />
         </Panel>
@@ -251,6 +253,27 @@ function BackBtnInner({ onClick }) {
   const t = useT();
   return <button className={styles.backLink} onClick={onClick}>← {t('back')}</button>;
 }
+
+function DiffCard({ children, color, gradFrom, gradTo, bars, selected, onClick }) {
+  return (
+    <button className={`${styles.diffCard} ${selected ? styles.diffCardSel : ''}`}
+      style={{'--dc': color, '--dc-from': gradFrom, '--dc-to': gradTo}} onClick={onClick}>
+      <div className={styles.diffIcon} style={{background: `linear-gradient(135deg, ${gradFrom}, ${gradTo})`}}>
+        {bars === 1 && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>}
+        {bars === 2 && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>}
+        {bars === 3 && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>}
+      </div>
+      <div className={styles.diffText}>{children}</div>
+      <div className={styles.diffBars}>
+        {[1,2,3].map(i => (
+          <span key={i} className={`${styles.diffBar} ${i <= bars ? styles.diffBarOn : ''}`}
+            style={{height: `${6 + i * 5}px`, background: i <= bars ? color : 'rgba(255,255,255,.1)'}} />
+        ))}
+      </div>
+    </button>
+  );
+}
+
 const GlobeIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg>;
 const FriendIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M16 19a4 4 0 0 0-8 0"/><circle cx="12" cy="9" r="3"/><path d="M5 19a3 3 0 0 1 4-2.8"/><path d="M19 19a3 3 0 0 0-4-2.8"/><circle cx="6.5" cy="10.5" r="2"/><circle cx="17.5" cy="10.5" r="2"/></svg>;
 const BotIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 8V4"/><circle cx="12" cy="3" r="1"/><circle cx="9.5" cy="13" r="1.2" fill="currentColor" stroke="none"/><circle cx="14.5" cy="13" r="1.2" fill="currentColor" stroke="none"/><path d="M2 13v3M22 13v3"/></svg>;
