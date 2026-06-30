@@ -13,7 +13,6 @@ export function createGame(size = 4, mode = 'local', diff = 'easy', opts = {}) {
     moveCount:0,
     timerTotal: opts.timerTotal || 0,   // total timer in seconds (0 = unlimited)
     blitzTime:  opts.blitzTime  || 0,   // per-turn blitz in seconds (0 = none)
-    wallsEach:  opts.wallsEach  ?? Math.max(1, Math.floor(size * 0.6)),
   };
 }
 

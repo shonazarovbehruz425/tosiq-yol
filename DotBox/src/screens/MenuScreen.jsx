@@ -24,7 +24,6 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
   const [botSize, setBotSize] = useState(4);
   const [selTimer, setSelTimer] = useState(0);
   const [selBlitz, setSelBlitz] = useState(0);
-  const [selWalls, setSelWalls] = useState(0);
   const [friendSize, setFriendSize] = useState(4);
   const [code, setCode] = useState(['','','','']);
   const [codeErr, setCodeErr] = useState('');
@@ -236,19 +235,9 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
             </div>
           </SettingsSection>
 
-          <SettingsSection title={t('wallsCount')}>
-            <div className={styles.stepper}>
-              <button className={styles.stepperBtn} onClick={() => setSelWalls(w => Math.max(0, w - 1))}>−</button>
-              <span className={styles.stepperVal}>{selWalls}</span>
-              <button className={styles.stepperBtn} onClick={() => setSelWalls(w => w + 1)}>+</button>
-            </div>
-            <p className={styles.stepperMax}>{t('maxWalls')} {Math.max(1, Math.floor(botSize * 0.6) * 2)}</p>
-          </SettingsSection>
-
           <button className={styles.startBtn} onClick={() => onStartBot(botSize, selDiff, {
             timerTotal: selTimer,
             blitzTime: selBlitz,
-            wallsEach: selWalls || undefined,
           })}>
             <svg viewBox="0 0 24 24" fill="currentColor" style={{width:18,height:18}}><path d="M8 5v14l11-7z"/></svg>
             {t('startGame')}
