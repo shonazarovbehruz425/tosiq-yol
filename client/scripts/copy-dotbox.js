@@ -5,7 +5,7 @@
  * Run automatically after `vite build` via the build script in package.json.
  */
 
-import { cpSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { cpSync, readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -19,6 +19,9 @@ if (!existsSync(srcDir)) {
   console.error('  → Run `npm run build` inside the DotBox folder first.');
   process.exit(1);
 }
+
+// Clean destination first to remove stale assets from previous builds
+rmSync(destDir, { recursive: true, force: true });
 
 // Copy everything from DotBox/dist → dist/dotbox
 mkdirSync(destDir, { recursive: true });

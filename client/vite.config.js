@@ -1,9 +1,40 @@
 import { defineConfig } from "vite";
 import legacy from "@vitejs/plugin-legacy";
+import { existsSync, readFileSync } from "fs";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const dotboxDist = resolve(__dirname, "..", "DotBox", "dist");
+
+// Dev-only plugin: serve DotBox dist files from /dotbox/ so the iframe works
+// without building the client first.
+function dotboxServePlugin() {
+  return {
+    name: "dotbox-serve",
+    configureServer(server) {
+      server.middlewares.use("/dotbox", (req, res, next) => {
+        // Strip /dotbox prefix
+        const url = req.url === "/" ? "/index.html" : req.url;
+        const filePath = resolve(dotboxDist, url.slice(1));
+        if (existsSync(filePath)) {
+          const content = readFileSync(filePath);
+          const ext = filePath.split(".").pop();
+          const mime = { html: "text/html", js: "application/javascript", css: "text/css", svg: "image/svg+xml", json: "application/json" }[ext] || "application/octet-stream";
+          res.setHeader("Content-Type", mime);
+          res.end(content);
+        } else {
+          next();
+        }
+      });
+    },
+  };
+}
 
 export default defineConfig({
   root: "./",
   plugins: [
+    dotboxServePlugin(),
     // Generate an ES5 + polyfilled bundle for old engines (Telegram Desktop
     // on Windows uses a legacy EdgeHTML/Chakra WebView that can't run modern JS).
     legacy({
