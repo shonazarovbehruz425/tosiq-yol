@@ -22,15 +22,7 @@ export class DotBoxScreen {
           <div class="dotbox-loading-text">Yuklanmoqda...</div>
         </div>
 
-        <!-- Floating back button — always above the iframe -->
-        <button class="dotbox-back-btn" id="dotbox-back-btn" aria-label="Orqaga">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-               stroke-linecap="round" stroke-linejoin="round">
-            <path d="M15 18l-6-6 6-6"/>
-          </svg>
-        </button>
-
-        <!-- DotBox game iframe -->
+        <!-- DotBox game iframe (placed first in DOM so button paints on top) -->
         <iframe
           id="dotbox-iframe"
           src="/dotbox/index.html"
@@ -38,6 +30,14 @@ export class DotBoxScreen {
           allow="vibrate"
           sandbox="allow-scripts allow-same-origin allow-forms"
         ></iframe>
+
+        <!-- Floating back button — sits on top of iframe -->
+        <button class="dotbox-back-btn" id="dotbox-back-btn" aria-label="Orqaga">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 18l-6-6 6-6"/>
+          </svg>
+        </button>
       </div>
     `;
   }
@@ -51,6 +51,15 @@ export class DotBoxScreen {
         this.exitAndNavigate();
       });
     }
+
+    // Message listener for exit trigger from within the iframe
+    this._onMessage = (e) => {
+      if (e.data && e.data.type === 'dotbox_exit') {
+        haptic.impact("medium");
+        this.exitAndNavigate();
+      }
+    };
+    window.addEventListener('message', this._onMessage);
 
     // Hide loading spinner once iframe finishes loading
     const iframe = document.getElementById("dotbox-iframe");
@@ -122,6 +131,9 @@ export class DotBoxScreen {
   }
 
   destroy() {
+    if (this._onMessage) {
+      window.removeEventListener('message', this._onMessage);
+    }
     if (this._onLangChange) {
       document.removeEventListener("language-changed", this._onLangChange);
     }

@@ -94,6 +94,11 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
             {t('playLocal')}
             <Chevron />
           </Pill>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '8px' }}>
+            <button className={styles.backLink} onClick={() => window.parent.postMessage({ type: 'dotbox_exit' }, '*')}>
+              ← {t('exitToWrongWay')}
+            </button>
+          </div>
         </Panel>
       )}
 

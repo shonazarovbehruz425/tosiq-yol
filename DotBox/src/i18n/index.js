@@ -62,6 +62,7 @@ const DICT = {
     surrenderYes: "Ha, taslim",
     surrenderNo: "Yo'q",
     descForfeit: "Siz taslim bo'ldingiz",
+    exitToWrongWay: "WrongWay'ga qaytish",
   },
   en: {
     slogan: "Logic Neon Battle",
@@ -117,6 +118,7 @@ const DICT = {
     surrenderYes: "Yes, give up",
     surrenderNo: "No",
     descForfeit: "You surrendered",
+    exitToWrongWay: "Return to WrongWay",
   },
   ru: {
     slogan: "Логическая неоновая битва",
@@ -172,6 +174,7 @@ const DICT = {
     surrenderYes: "Да, сдаюсь",
     surrenderNo: "Нет",
     descForfeit: "Вы сдались",
+    exitToWrongWay: "Вернуться в WrongWay",
   },
   es: {
     slogan: "Batalla neón de lógica",
@@ -227,6 +230,7 @@ const DICT = {
     surrenderYes: "Sí, me rindo",
     surrenderNo: "No",
     descForfeit: "Te has rendido",
+    exitToWrongWay: "Volver a WrongWay",
   },
   zh: {
     slogan: "逻辑霓虹对战",
@@ -282,6 +286,7 @@ const DICT = {
     surrenderYes: "是，认输",
     surrenderNo: "否",
     descForfeit: "你已认输",
+    exitToWrongWay: "返回 WrongWay",
   },
   hi: {
     slogan: "लॉजिक नियॉन जंग",
@@ -337,6 +342,7 @@ const DICT = {
     surrenderYes: "हाँ, हार मानता हूँ",
     surrenderNo: "नहीं",
     descForfeit: "आपने हार मान ली",
+    exitToWrongWay: "WrongWay पर वापस जाएँ",
   },
   ar: {
     slogan: "معركة نيون منطقية",
@@ -392,6 +398,7 @@ const DICT = {
     surrenderYes: "نعم، أستسلم",
     surrenderNo: "لا",
     descForfeit: "لقد استسلمت",
+    exitToWrongWay: "العودة إلى WrongWay",
   },
   fr: {
     slogan: "Bataille néon logique",
@@ -447,6 +454,7 @@ const DICT = {
     surrenderYes: "Oui, j'abandonne",
     surrenderNo: "Non",
     descForfeit: "Vous avez abandonné",
+    exitToWrongWay: "Retourner à WrongWay",
   },
   pt: {
     slogan: "Batalha neon de lógica",
@@ -502,6 +510,7 @@ const DICT = {
     surrenderYes: "Sim, desistir",
     surrenderNo: "Não",
     descForfeit: "Você desistiu",
+    exitToWrongWay: "Voltar para WrongWay",
   },
   de: {
     slogan: "Logik-Neon-Kampf",
@@ -557,6 +566,7 @@ const DICT = {
     surrenderYes: "Ja, aufgeben",
     surrenderNo: "Nein",
     descForfeit: "Du hast aufgegeben",
+    exitToWrongWay: "Zurück zu WrongWay",
   },
 };
 
