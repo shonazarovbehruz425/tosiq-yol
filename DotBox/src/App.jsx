@@ -33,8 +33,8 @@ export default function App() {
   }, []);
 
   // Launch a game
-  const launch = useCallback((size, mode, diff, names = null) => {
-    const g = createGame(size, mode, diff);
+  const launch = useCallback((size, mode, diff, names = null, opts = {}) => {
+    const g = createGame(size, mode, diff, opts);
     G.current = g;
     const playerNames = names || [meName(), mode === 'ai' ? t('nameBot') : t('nameOpponent')];
     setUi({ scores: [0,0], cur: 1, over: false, aiOn: false, mode, size, names: playerNames });
@@ -236,7 +236,7 @@ export default function App() {
           onStep={setMenuStep}
           online={online}
           onStartLocal={size => launch(size, 'local', 'easy', [meName(), t('nameFriend')])}
-          onStartBot={(size, diff) => launch(size, 'ai', diff, [meName(), `${t('nameBot')} (${t('diff'+diff.charAt(0).toUpperCase()+diff.slice(1))})`])}
+          onStartBot={(size, diff, opts) => launch(size, 'ai', diff, [meName(), `${t('nameBot')} (${t('diff'+diff.charAt(0).toUpperCase()+diff.slice(1))})`], opts)}
           onJoinOnline={size => {
             setOnline(p => ({ ...p, connecting: true }));
             setMenuStep('online-mm');
