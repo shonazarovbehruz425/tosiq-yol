@@ -19,11 +19,11 @@
 @keyframes qbgDrift { from{background-position:0 0,0 0;} to{background-position:42px 42px,42px 42px;} }
 .items { position: absolute; inset: 0; }
 .wall {
-  position: absolute; border-radius: 5px; opacity: .55;
-  animation: qbgFloat 18s ease-in-out infinite; will-change: transform;
+  position: absolute; border-radius: 5px; opacity: .65;
+  animation: qbgFloat 14s ease-in-out infinite; will-change: transform;
 }
-.h { width: 64px; height: 11px; }
-.v { width: 11px; height: 64px; }
+.h { width: 72px; height: 12px; }
+.v { width: 12px; height: 72px; }
 .red  { background: linear-gradient(135deg,#ef4444,#dc2626); box-shadow: 0 4px 14px rgba(239,68,68,.4); }
 .blue { background: linear-gradient(135deg,#3b82f6,#2563eb); box-shadow: 0 4px 14px rgba(59,130,246,.4); }
 .pawn {

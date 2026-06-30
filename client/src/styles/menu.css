@@ -1095,13 +1095,13 @@ input:checked + .slider:before {
     top: 14px;
     left: 14px;
     z-index: 201;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
-    border: none;
-    background: rgba(11, 15, 25, 0.75);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    border: 1.5px solid rgba(255, 255, 255, 0.15);
+    background: rgba(30, 35, 50, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1110,17 +1110,17 @@ input:checked + .slider:before {
     transition:
         transform 0.15s ease,
         background 0.15s ease;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .dotbox-back-btn:active {
     transform: scale(0.9);
-    background: rgba(124, 58, 237, 0.75);
+    background: rgba(124, 58, 237, 0.85);
 }
 
 .dotbox-back-btn svg {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
 }
 
 .menu-pill-chevron {
