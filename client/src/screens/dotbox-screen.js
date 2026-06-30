@@ -4,8 +4,8 @@ import { isSoundEnabled } from "../core/sound.js";
 
 /**
  * DotBoxScreen
- * Renders the DotBox game in a true full-viewport overlay using fixed positioning,
- * so the iframe always fills 100vw × 100vh regardless of parent layout.
+ * Renders the DotBox game in a smooth animated overlay inside the #app 9:16 frame.
+ * Uses a fade+scale entrance so it feels like a natural part of the WrongWay app.
  */
 export class DotBoxScreen {
   constructor(router, params) {
@@ -16,6 +16,12 @@ export class DotBoxScreen {
   render() {
     return `
       <div class="dotbox-fullscreen" id="dotbox-fullscreen">
+        <!-- Loading indicator while iframe loads -->
+        <div class="dotbox-loading" id="dotbox-loading">
+          <div class="dotbox-loading-spinner"></div>
+          <div class="dotbox-loading-text">Yuklanmoqda...</div>
+        </div>
+
         <!-- Floating back button — always above the iframe -->
         <button class="dotbox-back-btn" id="dotbox-back-btn" aria-label="Orqaga">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -24,7 +30,7 @@ export class DotBoxScreen {
           </svg>
         </button>
 
-        <!-- DotBox game — true full-screen iframe -->
+        <!-- DotBox game iframe -->
         <iframe
           id="dotbox-iframe"
           src="/dotbox/index.html"
@@ -37,19 +43,33 @@ export class DotBoxScreen {
   }
 
   afterRender() {
+    // Smooth back navigation with exit animation
     const backBtn = document.getElementById("dotbox-back-btn");
     if (backBtn) {
       backBtn.addEventListener("click", () => {
         haptic.impact("medium");
-        this.router.navigate("home");
+        this.exitAndNavigate();
       });
     }
 
-    // Inject Telegram initData + current WrongWay settings (language, sound)
-    // into the DotBox iframe so it authenticates its own WebSocket connection
-    // and stays in sync with the parent app's preferences.
+    // Hide loading spinner once iframe finishes loading
     const iframe = document.getElementById("dotbox-iframe");
+    const loading = document.getElementById("dotbox-loading");
+
     if (iframe) {
+      const onReady = () => {
+        if (loading) {
+          loading.classList.add("hidden");
+          // Remove from DOM after fade-out transition
+          setTimeout(() => loading.remove(), 350);
+        }
+      };
+
+      iframe.addEventListener("load", onReady);
+      // If iframe is already cached and loaded, hide immediately
+      if (iframe.complete) onReady();
+
+      // Inject Telegram initData + current WrongWay settings
       const post = (type) => {
         try {
           iframe.contentWindow?.postMessage(
@@ -69,14 +89,27 @@ export class DotBoxScreen {
       const sendSettings = () => post("dotbox_settings");
 
       iframe.addEventListener("load", sendInit);
-      // Try immediately in case the iframe already finished loading
       sendInit();
 
-      // Forward live settings changes (language / sound) to the iframe.
       this._onLangChange = sendSettings;
       this._onSettingsChange = sendSettings;
       document.addEventListener("language-changed", this._onLangChange);
       document.addEventListener("settings-changed", this._onSettingsChange);
+    }
+  }
+
+  // Animate out then navigate — feels like a natural in-app transition
+  exitAndNavigate() {
+    const el = document.getElementById("dotbox-fullscreen");
+    if (el) {
+      el.classList.add("dotbox-exit");
+      el.addEventListener("animationend", () => {
+        this.router.navigate("home");
+      }, { once: true });
+      // Safety fallback if animationend doesn't fire
+      setTimeout(() => this.router.navigate("home"), 300);
+    } else {
+      this.router.navigate("home");
     }
   }
 

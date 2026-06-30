@@ -1014,6 +1014,69 @@ input:checked + .slider:before {
     height: 100%;
     z-index: 200;
     background: #0b0f19;
+    animation: dotboxEnter 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes dotboxEnter {
+    from {
+        opacity: 0;
+        transform: scale(0.96) translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* DotBox exit animation (triggered before navigate away) */
+.dotbox-exit {
+    animation: dotboxExit 0.22s cubic-bezier(0.4, 0, 1, 1) forwards !important;
+}
+
+@keyframes dotboxExit {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+}
+
+/* Loading shimmer while iframe loads */
+.dotbox-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background: #0b0f19;
+    z-index: 1;
+    transition: opacity 0.3s ease;
+}
+
+.dotbox-loading.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.dotbox-loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.08);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+.dotbox-loading-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
 }
 
 /* The iframe fills the wrapper completely */

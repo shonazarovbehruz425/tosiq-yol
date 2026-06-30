@@ -4,14 +4,14 @@ import { mountBackButton, setBackButtonVisible } from './backbutton.js';
 
 // Screens that should NOT be kept in the back stack once you leave them.
 // (You should never be able to "go back into" a finished/transient screen.)
-const TRANSIENT = new Set(['game', 'result', 'replay-screen']);
+const TRANSIENT = new Set(['game', 'result', 'replay-screen', 'dotbox']);
 
 // Screens where the animated menu background should be hidden (gameplay).
-const NO_BACKGROUND = new Set(['game', 'team-game', 'replay-screen']);
+const NO_BACKGROUND = new Set(['game', 'team-game', 'replay-screen', 'dotbox']);
 
 // Screens with NO in-app back button (home root + gameplay, which have their
-// own exit controls).
-const NO_BACK_BUTTON = new Set(['home', 'game', 'team-game', 'result', 'replay-screen']);
+// own exit controls). DotBox has its own animated back button.
+const NO_BACK_BUTTON = new Set(['home', 'game', 'team-game', 'result', 'replay-screen', 'dotbox']);
 
 class Router {
   constructor() {
