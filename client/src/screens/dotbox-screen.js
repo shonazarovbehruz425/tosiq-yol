@@ -28,6 +28,7 @@ export class DotBoxScreen {
           src="/dotbox/index.html"
           title="Dots & Boxes"
           allow="vibrate"
+          scrolling="no"
           sandbox="allow-scripts allow-same-origin allow-forms"
         ></iframe>
 
