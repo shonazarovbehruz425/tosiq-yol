@@ -1,21 +1,16 @@
 .screen {
-  /* Exact same pattern as WrongWay's .screen — flex child that fills and scrolls */
-  flex: 1 1 auto;
+  /* Simple block — document body scroll handles all scrolling.
+     No position:absolute, no overflow:auto needed. */
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  position: relative;
-  width: 100%;
-  max-width: 100%;
-  min-height: 0;       /* critical: lets flex item shrink below content height */
-  height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
-  touch-action: pan-y;
-  z-index: 1;
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+  position: relative;
+  z-index: 1;
 }
+
 
 .header {
   text-align: center;

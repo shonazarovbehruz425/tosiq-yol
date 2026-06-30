@@ -31,21 +31,20 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 * { user-select: none; -webkit-user-select: none; }
 
-html, body, #root {
+html {
   height: 100%;
-  overflow: hidden;
+  background: var(--bg);
+}
+body {
+  min-height: 100%;
   background: var(--bg);
   color: var(--text);
 }
-/* Center the app inside a 9:16 portrait "phone" frame. On a viewport that is
-   already 9:16 or narrower (e.g. the WrongWay iframe / a real phone) the app
-   simply fills it; on wider/taller screens the sides are letter-boxed black. */
 #root {
+  min-height: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 0;
-  background: #000;
+  flex-direction: column;
+  background: var(--bg);
 }
 body { font-family: var(--font); }
 button { font-family: var(--font); }
