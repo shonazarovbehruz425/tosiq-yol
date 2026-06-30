@@ -1094,7 +1094,7 @@ input:checked + .slider:before {
 /* Floating back button — sits above the iframe */
 .dotbox-back-btn {
     position: absolute;
-    top: calc(var(--safe-top) - 6px);
+    top: max(14px, calc(var(--safe-top) + 8px));
     left: calc(10px + var(--safe-left));
     z-index: 201;
     width: 44px;
