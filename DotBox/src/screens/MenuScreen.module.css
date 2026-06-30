@@ -1,18 +1,19 @@
 .screen {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 1;
+  /* Exact same pattern as WrongWay's .screen — flex child that fills and scrolls */
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-height: 0;       /* critical: lets flex item shrink below content height */
+  height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   touch-action: pan-y;
-  will-change: scroll-position;
-  display: flex;
-  flex-direction: column;
+  z-index: 1;
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
 }
 

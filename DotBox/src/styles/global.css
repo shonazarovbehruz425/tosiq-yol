@@ -44,6 +44,7 @@ html, body, #root {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 0;
   background: #000;
 }
 body { font-family: var(--font); }
