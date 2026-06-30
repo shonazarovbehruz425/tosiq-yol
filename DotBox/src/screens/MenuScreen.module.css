@@ -1,11 +1,15 @@
 .screen {
-  /* Simple block — document body scroll handles all scrolling.
-     No position:absolute, no overflow:auto needed. */
+  /* Scrollable menu — required inside the WrongWay iframe where body scroll
+     is clipped to a fixed-height frame. */
+  flex: 1;
   width: 100%;
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
   position: relative;
   z-index: 1;
