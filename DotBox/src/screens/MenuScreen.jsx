@@ -180,7 +180,7 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
           <p className={styles.subTitle}>{t('chooseBotLevel')}</p>
           {DIFFS.map(({ v, labelKey, subKey, color, gradFrom, gradTo, bars }) => (
             <DiffCard key={v} color={color} gradFrom={gradFrom} gradTo={gradTo} bars={bars}
-              selected={selDiff === v} onClick={() => { setSelDiff(v); onStep('bot-size'); }}>
+              selected={selDiff === v} onClick={() => { setSelDiff(v); onStep('bot-settings'); }}>
               <span className={styles.diffTitle} style={{color}}>{t(labelKey)}</span>
               <span className={styles.diffDesc}>{t(subKey)}</span>
             </DiffCard>
@@ -189,14 +189,33 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
         </Panel>
       )}
 
-      {step === 'bot-size' && (
-        <Panel>
-          <p className={styles.subTitle}>{t('chooseSize')}</p>
-          {SIZES.map(({ v, label }) => (
-            <SizePill key={v} selected={botSize === v} onClick={() => { setBotSize(v); onStartBot(v, selDiff); }}>
-              {label}
-            </SizePill>
-          ))}
+      {step === 'bot-settings' && (
+        <Panel className={styles.settingsPanel}>
+          <SettingsSection title={t('gameMode')}>
+            <div className={styles.settingsCard}>
+              <span className={styles.settingsCardIco}>🎮</span>
+              <span className={styles.settingsCardLabel}>{t('botMode')}</span>
+              <span className={styles.settingsCardSub}>{DIFFS.find(d => d.v === selDiff)?.labelKey ? t(DIFFS.find(d => d.v === selDiff).labelKey) : ''}</span>
+            </div>
+          </SettingsSection>
+
+          <SettingsSection title={t('boardSize')}>
+            <div className={styles.chipRow}>
+              {SIZES.map(({ v, label, subKey }) => (
+                <button key={v} className={`${styles.chip} ${botSize === v ? styles.chipSel : ''}`}
+                  onClick={() => setBotSize(v)}>
+                  <span className={styles.chipLabel}>{label}</span>
+                  <span className={styles.chipSub}>{t(subKey)}</span>
+                </button>
+              ))}
+            </div>
+          </SettingsSection>
+
+          <button className={styles.startBtn} onClick={() => onStartBot(botSize, selDiff)}>
+            <svg viewBox="0 0 24 24" fill="currentColor" style={{width:18,height:18}}><path d="M8 5v14l11-7z"/></svg>
+            {t('startGame')}
+          </button>
+
           <BackBtn onClick={() => onStep('diff')} />
         </Panel>
       )}
@@ -271,6 +290,15 @@ function DiffCard({ children, color, gradFrom, gradTo, bars, selected, onClick }
         ))}
       </div>
     </button>
+  );
+}
+
+function SettingsSection({ title, children }) {
+  return (
+    <div className={styles.settingsSection}>
+      <p className={styles.settingsLabel}>{title}</p>
+      {children}
+    </div>
   );
 }
 

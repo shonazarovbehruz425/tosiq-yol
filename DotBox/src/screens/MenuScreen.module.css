@@ -286,3 +286,58 @@
   width: 4px; border-radius: 2px;
   transition: background .2s;
 }
+
+/* ── Settings screen ──────────────────────────── */
+.settingsPanel { gap: 14px; }
+.settingsSection { display: flex; flex-direction: column; gap: 8px; }
+.settingsLabel {
+  font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--text-dim);
+}
+.settingsCard {
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(255,255,255,.04);
+  border: 1.5px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+.settingsCardIco { font-size: 20px; }
+.settingsCardLabel { font-size: 16px; font-weight: 700; color: var(--text); }
+.settingsCardSub { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--text-dim); }
+
+.chipRow {
+  display: flex; gap: 8px; width: 100%;
+}
+.chip {
+  flex: 1; padding: 12px 6px; border-radius: var(--radius-md);
+  font-family: var(--font); text-align: center;
+  background: rgba(255,255,255,.045);
+  border: 1.5px solid var(--surface-border);
+  color: var(--text); cursor: pointer;
+  transition: .15s;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.chip:active { transform: scale(.95); }
+.chipSel {
+  border-color: var(--primary);
+  background: var(--primary-grad);
+  color: #fff;
+  box-shadow: 0 4px 16px var(--primary-glow);
+}
+.chipLabel { font-size: 14px; font-weight: 800; }
+.chipSub { font-size: 10px; font-weight: 600; opacity: .65; }
+.chipSel .chipSub { opacity: .85; }
+
+.startBtn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 16px;
+  border-radius: var(--radius-full);
+  background: var(--primary-grad);
+  border: none; color: #fff;
+  font-family: var(--font); font-size: 17px; font-weight: 800;
+  letter-spacing: .5px;
+  cursor: pointer;
+  box-shadow: 0 8px 24px var(--primary-glow);
+  transition: transform .15s var(--ease), box-shadow .15s;
+}
+.startBtn:active { transform: scale(.96); box-shadow: 0 4px 12px var(--primary-glow); }
