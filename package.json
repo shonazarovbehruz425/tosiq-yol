@@ -4,7 +4,7 @@
   "description": "To'siq Yo'l Telegram Mini App Workspace",
   "private": true,
   "scripts": {
-    "install-all": "npm install --prefix client && npm install --prefix server && npm install --prefix server/admin",
+    "install-all": "npm install --prefix DotBox && npm install --prefix client && npm install --prefix server && npm install --prefix server/admin",
     "build-all": "npm --prefix client run build && npm --prefix server/admin run build",
     "build": "npm run build-all",
     "render-build": "npm run install-all && npm run build-all",
