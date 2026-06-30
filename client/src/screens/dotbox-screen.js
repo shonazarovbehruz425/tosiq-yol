@@ -98,6 +98,14 @@ export class DotBoxScreen {
     }
   }
 
+  // Intercept router back button — animate out first, then navigate
+  onBack() {
+    if (this._exiting) return true;
+    this._exiting = true;
+    this.exitAndNavigate();
+    return true; // tell router we handled it
+  }
+
   // Animate out then navigate — feels like a natural in-app transition
   exitAndNavigate() {
     const el = document.getElementById("dotbox-fullscreen");
