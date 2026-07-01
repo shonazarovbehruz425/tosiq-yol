@@ -31,21 +31,30 @@ export class SettingsScreen {
     return `
       <div class="screen screen-enter">
         <h2 class="menu-title" style="margin-top: 20px;">${t('systemSettings')}</h2>
-        
-        <div class="card" style="margin-top: 24px;">
-          <!-- Daily quests entry -> opens the Daily screen -->
-          <div class="setting-row setting-row-link" id="daily-setting-row" style="cursor:pointer;">
-            <div class="setting-label">
-              <span class="setting-title">${dailyLabel}</span>
-              <span class="setting-subtitle">${dailySub}</span>
-            </div>
-            <span class="menu-pill-chevron" style="display:flex; align-items:center; opacity:0.6;">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 6l6 6-6 6"/>
-              </svg>
-            </span>
-          </div>
 
+        <!-- Daily quests entry (prominent CTA) -> opens the Daily screen -->
+        <div class="card daily-cta" id="daily-setting-row" style="margin-top: 24px; cursor:pointer; display:flex; align-items:center; gap:14px; padding:16px; background:linear-gradient(135deg,#7c3aed,#4f46e5); border:1px solid rgba(255,255,255,0.14); box-shadow:0 8px 24px rgba(124,58,237,0.35);">
+          <div style="width:46px; height:46px; border-radius:13px; background:rgba(255,255,255,0.18); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="8" width="18" height="4" rx="1"/>
+              <path d="M12 8v13"/>
+              <path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/>
+              <path d="M12 8S11 3 8 3a2.5 2.5 0 0 0 0 5z"/>
+              <path d="M12 8s1-5 4-5a2.5 2.5 0 0 1 0 5z"/>
+            </svg>
+          </div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:700; font-size:16px; color:#ffffff; line-height:1.2;">${dailyLabel}</div>
+            <div style="font-size:12.5px; color:rgba(255,255,255,0.82); margin-top:2px;">${dailySub}</div>
+          </div>
+          <span style="display:flex; align-items:center; color:rgba(255,255,255,0.9); flex-shrink:0;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 6l6 6-6 6"/>
+            </svg>
+          </span>
+        </div>
+
+        <div class="card" style="margin-top: 16px;">
           <!-- Username Setting -->
           <div class="setting-row setting-row-stack">
             <div class="setting-label">
