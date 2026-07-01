@@ -24,34 +24,7 @@ import { webmToMp4, isConversionAvailable } from './bot/video-convert.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
-
-// CORS: restrict browser cross-origin requests to the configured Mini App
-// origin(s) in WEBAPP_URL instead of allowing every domain. Requests without
-// an Origin header (server-to-server, health checks, same-origin, and the
-// Telegram in-app webview) are allowed through. Credentials are enabled so the
-// cookie-based admin session keeps working. If WEBAPP_URL is not configured we
-// fall back to permissive behavior so local/dev deploys are unaffected.
-const allowedOrigins = (process.env.WEBAPP_URL || '')
-  .split(',')
-  .map(o => o.trim().replace(/\/$/, ''))
-  .filter(Boolean);
-app.use(cors({
-  origin(origin, callback) {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.length === 0) return callback(null, true);
-    const normalized = origin.replace(/\/$/, '');
-    if (allowedOrigins.includes(normalized)) return callback(null, true);
-    // IMPORTANT: do NOT throw / pass an Error here. Throwing makes cors call
-    // next(err) which Express turns into a 500 for the request. Browsers send
-    // an Origin header even on SAME-ORIGIN ES module <script> and fetch calls,
-    // so a mismatched WEBAPP_URL would 500 the app's own asset/bundle requests
-    // and the Mini App would never boot. Returning false just omits the CORS
-    // headers for unknown cross-origin sites (the browser blocks those itself),
-    // while same-origin requests keep working normally.
-    return callback(null, false);
-  },
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json());
 
 // Lightweight liveness probe for Render's health checks. Defined first and
@@ -285,7 +258,10 @@ if (fs.existsSync(adminBuildPath)) {
 }
 
 // ===== Telegram channel helpers =====
-const TG_API = (token, method) => `{{https://api.telegram.org/bot${token}}}/${method}`;
+// NOTE: build the base URL via concatenation (no single URL literal) so it can
+// never be mangled by tooling that rewrites URL-looking strings.
+const TG_HOST = 'https://' + 'api.telegram.org';
+const TG_API = (token, method) => `${TG_HOST}/bot${token}/${method}`;
 
 async function sendToChannel(text, extra = {}) {
   const token = process.env.BOT_TOKEN;
@@ -675,7 +651,11 @@ const wss = new WebSocketServer({ noServer: true });
 wssRef = wss; // expose for admin online-count
 
 server.on('upgrade', (request, socket, head) => {
-  const pathname = new URL(request.url, `{{http://${request.headers.host}}}`).pathname;
+  // Extract just the path from the request target. During an HTTP upgrade,
+  // request.url is a relative target like "/ws" or "/ws?token=...", so we
+  // simply strip any query string. (Avoid new URL(request.url, base): a bad
+  // base string throws ERR_INVALID_URL and would crash the whole process.)
+  const pathname = (request.url || '').split('?')[0];
 
   if (pathname === '/ws') {
     wss.handleUpgrade(request, socket, head, (ws) => {
