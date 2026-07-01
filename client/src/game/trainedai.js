@@ -1,12 +1,11 @@
 // trainedai.js — WrongWay AI learning layer
-// ai.js ga TEGILMAYDI. Faqat uning ustiga qo'shimcha qatlam.
+// ai.js ga TEGILMAYDI. Faqat uning ustiga qo'shimcha evaluation qatlam.
 //
-// Qanday ishlaydi:
-//   1. Server bot-result qabul qilganda dangerWalls/dangerPaths hisoblab,
-//      server/trainedai.js faylini yozadi va Telegram kanalga yuboradi.
-//   2. Keyingi o'yinda TrainedAI bu ma'lumotni serverdan yuklaydi.
-//   3. Yuklangan ma'lumot QuoridorAI ning original avoidMoves mexanizmiga
-//      beriladi — shu tarzda asosiy AI o'zgarishsiz qoladi.
+// Qanday to'g'ri ishlaydi:
+//   avoidMoves.has() → priority=-100 → lekin minimax BARIBIR tekshiradi!
+//   Shuning uchun biz evaluateState() da og'ir jarima beramiz.
+//   Minimax endi o'sha harakatlar orqali o'tgandan so'ng past score ko'radi
+//   va ularni o'zi chetlab o'tadi — AI kuchidan hech narsa ketmaydi.
 
 import { QuoridorAI } from './ai.js';
 
@@ -14,8 +13,7 @@ import { QuoridorAI } from './ai.js';
 
 /**
  * Fetch training data from the server.
- * Returns { dangerWalls, dangerPaths } or null on failure.
- * Tries the precomputed JSON API — no dynamic import, always reliable.
+ * Returns { dangerWalls: Map, dangerPaths: Map } or null on failure.
  */
 export async function loadTrainedData(difficulty) {
   try {
@@ -37,54 +35,82 @@ export async function loadTrainedData(difficulty) {
 // ─── TrainedAI class ─────────────────────────────────────────────────────────
 
 /**
- * TrainedAI is a thin subclass of QuoridorAI.
- * It does NOT override generateCandidates — it uses the parent's proven
- * avoidMoves mechanism instead, which is already wired into the search.
- * It only adds a lightweight position penalty on top of the base evaluation.
+ * TrainedAI extends QuoridorAI.
  *
- * Without training data: IDENTICAL to QuoridorAI — zero overhead.
- * With training data: avoids learned bad walls + penalises losing positions.
+ * MUHIM: avoidMoves mexanizmi (priority=-100) to'liq ishlaydi,
+ * lekin minimax baribir o'sha harakatni tekshiradi. Shuning uchun
+ * biz evaluateState() ni override qilamiz — minimax o'sha harakatdan
+ * keyin past score ko'radi va o'zi tanlamaydi.
+ *
+ * AI KUCHI O'ZGARMAYDI:
+ *   - generateCandidates() → o'zgarishsiz (override yo'q)
+ *   - minimax() → o'zgarishsiz
+ *   - getMove() → o'zgarishsiz
+ *   - evaluateState() → faqat jarima qo'shiladi (asosiy eval to'liq ishlaydi)
  */
 export class TrainedAI extends QuoridorAI {
   /**
-   * Apply server-computed danger data to this AI instance.
-   * Call this once before getMove().
-   *
+   * Apply server-computed danger data.
    * @param {Array} dangerWalls  [{r, c, wallType, score}]
    * @param {Array} dangerPaths  [{r, c, score}]
    */
   applyTraining(dangerWalls, dangerPaths) {
-    // ── Wall avoidance ──────────────────────────────────────────────────────
-    // Feed high-danger walls into the parent's avoidMoves Set.
-    // QuoridorAI already knows how to handle avoided moves in its search —
-    // no need to duplicate that logic here.
+    // avoidMoves → generateCandidates → orderCandidates da priority=-100
+    // Bu yetarli emas, shuning uchun evaluateState da ham jarima beramiz
     this.avoidMoves = new Set();
-    const WALL_THRESHOLD = 25; // score above this → mark as avoided
+
+    // dangerWalls Map: "r,c,wallType" → score
+    // Score qanchalik katta bo'lsa, AI u devordan shunchalik ko'proq qochadi
+    this._trainedDangerWalls = new Map();
     for (const { r, c, wallType, score } of (dangerWalls || [])) {
-      if (score >= WALL_THRESHOLD) {
-        this.avoidMoves.add(`${r},${c},${wallType}`);
-      }
+      const key = `${r},${c},${wallType}`;
+      this._trainedDangerWalls.set(key, score);
+      // Threshold 20+: avoidMoves ga ham qo'shamiz (ordering uchun)
+      if (score >= 20) this.avoidMoves.add(key);
     }
 
-    // ── Position penalty map ─────────────────────────────────────────────────
-    this._dangerPaths = new Map();
+    // dangerPaths Map: "r,c" → score
+    this._trainedDangerPaths = new Map();
     for (const { r, c, score } of (dangerPaths || [])) {
-      if (score > 0) this._dangerPaths.set(`${r},${c}`, score);
+      if (score > 0) this._trainedDangerPaths.set(`${r},${c}`, score);
     }
   }
 
-  // ── Evaluation override ───────────────────────────────────────────────────
-  // Calls the FULL original evaluation, then adds a small learned penalty.
-  // This is safe because super.evaluateState() is self-contained.
+  /**
+   * Override evaluateState:
+   * 1. Asosiy evaluation to'liq ishlaydi (super.evaluateState)
+   * 2. Ustiga training jarimalari qo'shiladi
+   *
+   * Minimax bu scoreni ko'radi va avoided harakatlarni
+   * o'zi tanlamaydi — AI kuchidan hech narsa ketmaydi.
+   */
   evaluateState(engine) {
-    // Run the complete original evaluation (minimax + advanced heuristics)
+    // ── 1. To'liq asosiy evaluation (o'zgarishsiz) ──────────────────────────
     let score = super.evaluateState(engine);
 
-    // Add position penalty from training data (lightweight — max -60 pts)
-    if (this._dangerPaths && this._dangerPaths.size > 0) {
+    // ── 2. Traning jarimasi: bot o'ynagan devorlar ───────────────────────────
+    // Agar hozirgi board da bot tomonidan qo'yilgan devor danger lista da
+    // bo'lsa, score dan jarima ayiramiz. Minimax bu scoreni ko'radi.
+    if (this._trainedDangerWalls && this._trainedDangerWalls.size > 0) {
+      for (const w of engine.walls) {
+        if (w.player === this.playerIndex) {
+          const key = `${w.r},${w.c},${w.type}`;
+          const dangerScore = this._trainedDangerWalls.get(key) || 0;
+          if (dangerScore > 0) {
+            // Jarima: danger score ga mutanosib, lekin chekli
+            // Score 100 bo'lsa → -120 jarima (jiddiy)
+            // Score 30 bo'lsa → -36 jarima (o'rtacha)
+            score -= Math.min(dangerScore * 1.2, 150);
+          }
+        }
+      }
+    }
+
+    // ── 3. Training jarimasi: bot pawn pozitsiyasi ───────────────────────────
+    if (this._trainedDangerPaths && this._trainedDangerPaths.size > 0) {
       const pos = engine.pawnPos[this.playerIndex];
-      const penalty = this._dangerPaths.get(`${pos.r},${pos.c}`) || 0;
-      if (penalty > 0) score -= Math.min(penalty * 1.2, 60);
+      const pathDanger = this._trainedDangerPaths.get(`${pos.r},${pos.c}`) || 0;
+      if (pathDanger > 0) score -= Math.min(pathDanger * 0.8, 50);
     }
 
     return score;

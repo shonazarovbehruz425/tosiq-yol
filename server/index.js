@@ -318,45 +318,87 @@ function saveTrainedAIFile(content) {
 }
 
 /**
- * Upload trainedai.js as a document to the Telegram channel.
- * Uses multipart/form-data (required by Telegram sendDocument).
+ * Send or EDIT the pinned trainedai.js document in the Telegram channel.
+ *
+ * First call → sendDocument (creates message, saves message_id)
+ * Subsequent calls → editMessageMedia (edits the SAME message)
+ *
+ * message_id is stored in bot-patterns.json so it survives server restarts.
  */
-async function sendDocumentToChannel(filename, content, caption = '') {
+async function upsertTrainedAIDocument(content, caption) {
   const token = process.env.BOT_TOKEN;
   const channelId = process.env.DB_CHANNEL_ID;
-  if (!token || !channelId) return null;
+  if (!token || !channelId) return;
 
-  try {
-    // Build multipart body manually (no external deps)
-    const boundary = `----WrongWayBoundary${Date.now()}`;
-    const fileBytes = Buffer.from(content, 'utf8');
+  const boundary = `----WrongWayBoundary${Date.now()}`;
+  const fileBytes = Buffer.from(content, 'utf8');
 
-    const parts = [
-      `--${boundary}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n${channelId}`,
-      `--${boundary}\r\nContent-Disposition: form-data; name="parse_mode"\r\n\r\nHTML`,
-    ];
-    if (caption) {
-      parts.push(`--${boundary}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n${caption}`);
+  // Build multipart body for sendDocument / editMessageMedia
+  function buildMultipart(fields, fileContent) {
+    const parts = [];
+    for (const [name, value] of Object.entries(fields)) {
+      parts.push(`--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}`);
     }
-    // File part
-    const fileHeader = `--${boundary}\r\nContent-Disposition: form-data; name="document"; filename="${filename}"\r\nContent-Type: text/javascript\r\n\r\n`;
+    const fileHeader = `--${boundary}\r\nContent-Disposition: form-data; name="document"; filename="trainedai.js"\r\nContent-Type: text/javascript\r\n\r\n`;
     const closing = `\r\n--${boundary}--`;
+    return Buffer.concat([
+      Buffer.from(parts.join('\r\n') + '\r\n' + fileHeader, 'utf8'),
+      fileContent,
+      Buffer.from(closing, 'utf8')
+    ]);
+  }
 
-    const headerBuf   = Buffer.from(parts.join('\r\n') + '\r\n' + fileHeader, 'utf8');
-    const closingBuf  = Buffer.from(closing, 'utf8');
-    const body = Buffer.concat([headerBuf, fileBytes, closingBuf]);
+  const data = loadBotPatterns();
+  const existingMsgId = data.trainedAIMessageId || null;
 
+  if (existingMsgId) {
+    // ── Edit existing message ─────────────────────────────────────────────
+    // Telegram editMessageMedia requires the document as an InputMediaDocument JSON
+    // with the file sent as multipart. We rebuild the file each time.
+    try {
+      const mediaJson = JSON.stringify({ type: 'document', media: 'attach://document', caption });
+      const body = buildMultipart({
+        chat_id: channelId,
+        message_id: existingMsgId,
+        media: mediaJson
+      }, fileBytes);
+
+      const res = await fetch(TG_API(token, 'editMessageMedia'), {
+        method: 'POST',
+        headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+        body
+      });
+      const json = await res.json();
+      if (json.ok) {
+        console.log(`[trainedai] Edited message ${existingMsgId} in channel`);
+        return;
+      }
+      // If edit fails (e.g. message deleted), fall through to send a new one
+      console.warn('[trainedai] editMessageMedia failed:', json.description, '— sending new');
+    } catch (err) {
+      console.error('[trainedai] editMessageMedia error:', err.message);
+    }
+  }
+
+  // ── Send new document (first time or after edit failure) ─────────────────
+  try {
+    const body = buildMultipart({ chat_id: channelId, caption }, fileBytes);
     const res = await fetch(TG_API(token, 'sendDocument'), {
       method: 'POST',
       headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
       body
     });
     const json = await res.json();
-    if (!json.ok) console.error('[trainedai] Telegram sendDocument error:', json.description);
-    return json;
+    if (json.ok && json.result && json.result.message_id) {
+      // Save message_id so next time we edit instead of sending new
+      data.trainedAIMessageId = json.result.message_id;
+      saveBotPatterns(data);
+      console.log(`[trainedai] Sent new document, message_id=${json.result.message_id}`);
+    } else {
+      console.error('[trainedai] sendDocument failed:', json.description);
+    }
   } catch (err) {
-    console.error('[trainedai] sendDocument failed:', err.message);
-    return null;
+    console.error('[trainedai] sendDocument error:', err.message);
   }
 }
 
@@ -497,38 +539,12 @@ app.post('/api/bot-result', express.json({ limit: '1mb' }), async (req, res) => 
       const jsContent = generateTrainedAIContent(topDangerWalls, topDangerPaths, data.stats);
       saveTrainedAIFile(jsContent);
 
-      // Send detailed text notification to Telegram channel
-      const wallsUsed = keyMoves.length;
-      const botWalls = keyMoves.filter(m => m.player === 1).length;
-      const playerWalls = keyMoves.filter(m => m.player === 0).length;
-      const diffLabel = { hard: '🔴 Hard', master: '🟠 Master', grandmaster: '🏆 Grandmaster' }[difficulty] || difficulty;
-      const boardLabel = `${boardSize || 9}×${boardSize || 9}`;
-      const userName = tgUser ? `@${tgUser.username || tgUser.first_name}` : 'Noma\'lum';
+      // Send or edit the single pinned trainedai.js document in Telegram channel
+      // (No text message — only the .js file, edited in place each time)
       const totalPatterns = data.patterns.length;
-
-      const channelMsg = [
-        `🤖 <b>AI yengildi — taktika saqlandi!</b>`,
-        ``,
-        `👤 O'yinchi: <b>${userName}</b>`,
-        `🎯 Daraja: <b>${diffLabel}</b>`,
-        `📐 Doska: ${boardLabel}`,
-        ``,
-        `📊 O'yin statistikasi:`,
-        `   🎯 Jami yurishlar: ${moveHistory.length}`,
-        `   🧱 O'yinchi devorlari: ${playerWalls}`,
-        `   🧱 Bot devorlari: ${botWalls}`,
-        ``,
-        `🧠 Jami saqlangan taktikalar: ${totalPatterns}`,
-        `⚡ Bot yangilangan <code>trainedai.js</code> fayli quyida 👇`
-      ].join('\n');
-
-      // Send text message first, then the .js file as document
-      sendToChannel(channelMsg).catch(() => {});
-      sendDocumentToChannel(
-        'trainedai.js',
-        jsContent,
-        `🧠 Yangilangan AI o'quv ma'lumotlari\n📦 Patterns: ${totalPatterns} | Daraja: ${diffLabel}`
-      ).catch(() => {});
+      const diffLabel = { hard: 'Hard', master: 'Master', grandmaster: 'Grandmaster' }[difficulty] || difficulty;
+      const caption = `🧠 trainedai.js | Patterns: ${totalPatterns} | ${diffLabel} | ${new Date().toLocaleDateString('uz-UZ')}`;
+      upsertTrainedAIDocument(jsContent, caption).catch(() => {});
 
     } else if (result === 'lose') {
       data.stats.botWins++;
