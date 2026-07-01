@@ -24,9 +24,18 @@ class MatchmakingSystem {
     };
 
     console.log(`Player ${player.first_name} entered matchmaking queue.`);
-    
-    // Find matching candidate in queue
-    const partnerIdx = this.queue.findIndex(p => p.config.boardSize === entry.config.boardSize);
+
+    // Match only players who chose the SAME game configuration (mode, board
+    // size, time control, blitz increment and wall count) so nobody ends up in
+    // a game with settings they didn't pick.
+    const sameConfig = (a, b) =>
+      a.mode === b.mode &&
+      a.boardSize === b.boardSize &&
+      a.totalTime === b.totalTime &&
+      a.blitzTime === b.blitzTime &&
+      a.wallsCount === b.wallsCount;
+
+    const partnerIdx = this.queue.findIndex(p => sameConfig(p.config, entry.config));
 
     if (partnerIdx !== -1) {
       const partner = this.queue.splice(partnerIdx, 1)[0];

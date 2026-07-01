@@ -7,6 +7,7 @@ import { QuoridorEngine } from "../game/quoridor.js";
 import { presence } from "./presence.js";
 import { socketRegistry } from "./sockets.js";
 import { getClientIp, lookupCountry } from "./geoip.js";
+import { getSkinPrice } from "../game/skins-catalog.js";
 
 // Send active online count to everyone
 function broadcastOnlineCount(wss) {
@@ -214,17 +215,31 @@ export function handleWebSocketConnection(ws, wss, request) {
       }
 
       if (type === "buy_skin") {
-        const res = db.buySkin(
-          userProfile.id,
-          payload && payload.skinId,
-          (payload && payload.price) | 0,
-        );
+        const skinId = payload && payload.skinId;
+        // SECURITY: never trust a client-provided price. Look up the real price
+        // from the authoritative server-side catalog. Reject unknown skins.
+        const price = getSkinPrice(skinId);
+        if (price == null) {
+          ws.send(
+            JSON.stringify({
+              type: "shop_result",
+              payload: {
+                action: "buy",
+                skinId,
+                ok: false,
+                error: "invalid_skin",
+              },
+            }),
+          );
+          return;
+        }
+        const res = db.buySkin(userProfile.id, skinId, price);
         ws.send(
           JSON.stringify({
             type: "shop_result",
             payload: {
               action: "buy",
-              skinId: payload && payload.skinId,
+              skinId,
               ...res,
             },
           }),
@@ -787,7 +802,7 @@ export function handleWebSocketConnection(ws, wss, request) {
         return;
       }
 
-      // ── DOTBOX RELAY ─────────────────────────────────────────────────────────
+      // ── DOTBOX RELAY ───────────────────────────────────────────
       if (type === "dotbox_join_queue") {
         const size = payload?.size || 4;
         _dbQueue.set(userProfile.id, {
