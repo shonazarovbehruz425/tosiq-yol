@@ -1,5 +1,6 @@
 import { QuoridorEngine } from '../game/quoridor.js';
 import { db } from '../db/database.js';
+import { recordGamePlayed } from '../game/progression.js';
 
 export class Room {
   constructor(roomCode, config) {
@@ -146,6 +147,14 @@ export class Room {
         db.addCoins(losingPlayer.id, 10);
         this.sendTo(winningPlayer.id, 'coins_awarded', { amount: 30 });
         this.sendTo(losingPlayer.id, 'coins_awarded', { amount: 10 });
+      } catch (e) { /* ignore */ }
+      // Daily-quest progress (auto-awards coins on completion). Winner counts a
+      // win + an online game; loser still counts an online game played.
+      try {
+        const w = recordGamePlayed(winningPlayer.id, { win: true, online: true });
+        const l = recordGamePlayed(losingPlayer.id, { win: false, online: true });
+        (w.completed || []).forEach(q => this.sendTo(winningPlayer.id, 'quest_completed', { reward: q.reward }));
+        (l.completed || []).forEach(q => this.sendTo(losingPlayer.id, 'quest_completed', { reward: q.reward }));
       } catch (e) { /* ignore */ }
       db.saveGame({
         playerRed: this.players.find(p => this.playerSides[p.id] === 0).id,
