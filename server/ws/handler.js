@@ -147,6 +147,23 @@ export function handleWebSocketConnection(ws, wss, request) {
           existingRoom.handleReconnect(pProfile);
         }
 
+        // Same for an active 2v2 team room — reconnect within the grace window
+        // so a dropped socket doesn't forfeit the player's team (issue #10).
+        const existingTeamRoom = teamRoomManager.getRoomByPlayerId(
+          userProfile.id,
+        );
+        if (existingTeamRoom && !existingTeamRoom.isFinished) {
+          console.log(
+            `User reconnecting to active team room: ${existingTeamRoom.roomCode}`,
+          );
+          existingTeamRoom.handleReconnect({
+            id: userProfile.id,
+            first_name: userProfile.first_name,
+            username: userProfile.username,
+            ws,
+          });
+        }
+
         ws.send(
           JSON.stringify({
             type: "auth_success",
@@ -423,7 +440,8 @@ export function handleWebSocketConnection(ws, wss, request) {
       if (type === "leave_team_room") {
         const room = teamRoomManager.getRoom(payload && payload.roomCode);
         if (room) {
-          room.handleDisconnect(userProfile.id);
+          // Deliberate exit → forfeit immediately (no reconnect grace period).
+          room.handleLeave(userProfile.id);
           room.removePlayer(userProfile.id);
           if (room.players.length === 0)
             teamRoomManager.deleteRoom(room.roomCode);
@@ -990,7 +1008,8 @@ export function handleWebSocketConnection(ws, wss, request) {
       presence.remove(userProfile.id);
       socketRegistry.remove(userProfile.id, ws);
 
-      // Team mode: drop from queue and notify any active team room.
+      // Team mode: drop from queue and start the reconnect grace window on any
+      // active team room (do NOT remove the player — they may reconnect).
       teamRoomManager.dequeue(userProfile.id);
       const teamRoom = teamRoomManager.getRoomByPlayerId(userProfile.id);
       if (teamRoom && !teamRoom.isFinished)
