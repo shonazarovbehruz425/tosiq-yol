@@ -178,7 +178,7 @@ export default function App() {
     };
   }, [online.side, online.roomCode, launch, doMove, sync]);
 
-  // Telegram BackButton
+  // Telegram BackButton — show whenever we are not on the main menu.
   useEffect(() => {
     try {
       const tg = window.Telegram?.WebApp;
@@ -188,15 +188,41 @@ export default function App() {
     } catch {}
   }, [screen, menuStep]);
 
+  // Telegram BackButton click — must mirror the on-screen back arrows exactly,
+  // walking exactly ONE level up the navigation hierarchy (never skipping a
+  // level). Matchmaking / room-wait steps also clean up their queue/room.
   useEffect(() => {
     try {
       const tg = window.Telegram?.WebApp;
       if (!tg?.BackButton) return;
+      // Parent of each menu sub-step (one level up). Steps not listed here
+      // fall back to 'main'.
+      const PARENT = {
+        'online-size': 'main',
+        'friend': 'main',
+        'diff': 'main',
+        'bot-settings': 'diff',
+        'size': 'main',
+      };
       const fn = () => {
+        // In a live game or on the result screen, back returns to the menu.
         if (screen === 'game' || screen === 'result') { goMenu(); return; }
-        if (menuStep === 'online-mm') { ws.send('dotbox_cancel_queue',{}); ws.cancelPending(); setOnline(p=>({...p,connecting:false})); setMenuStep('main'); }
-        else if (menuStep === 'friend-wait') { if (online.roomCode) ws.send('dotbox_leave',{code:online.roomCode}); setOnline(p=>({...p,roomCode:null})); setMenuStep('main'); }
-        else setMenuStep('main');
+        // Matchmaking: leave the queue before going back.
+        if (menuStep === 'online-mm') {
+          ws.send('dotbox_cancel_queue', {}); ws.cancelPending();
+          setOnline(p => ({ ...p, connecting: false }));
+          setMenuStep('main');
+          return;
+        }
+        // Waiting for a friend: tear down the created room before going back.
+        if (menuStep === 'friend-wait') {
+          if (online.roomCode) ws.send('dotbox_leave', { code: online.roomCode });
+          setOnline(p => ({ ...p, roomCode: null }));
+          setMenuStep('main');
+          return;
+        }
+        // Otherwise step exactly one level up the hierarchy.
+        setMenuStep(PARENT[menuStep] || 'main');
       };
       tg.BackButton.onClick(fn);
       return () => tg.BackButton.offClick(fn);
