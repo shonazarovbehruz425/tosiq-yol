@@ -25,12 +25,27 @@ export class SettingsScreen {
 
     const currentLang = getLanguage();
     const currentLangData = LANGUAGES.find(l => l.code === currentLang) || LANGUAGES[0];
+    const dailyLabel = currentLang === 'ru' ? '\u0415\u0436\u0435\u0434\u043d\u0435\u0432\u043d\u043e' : (currentLang === 'en' ? 'Daily' : 'Kunlik');
+    const dailySub = currentLang === 'ru' ? '\u0415\u0436\u0435\u0434\u043d\u0435\u0432\u043d\u044b\u0435 \u0437\u0430\u0434\u0430\u043d\u0438\u044f \u0438 \u043d\u0430\u0433\u0440\u0430\u0434\u0430' : (currentLang === 'en' ? 'Daily quests & reward' : 'Kunlik topshiriqlar va mukofot');
 
     return `
       <div class="screen screen-enter">
         <h2 class="menu-title" style="margin-top: 20px;">${t('systemSettings')}</h2>
         
         <div class="card" style="margin-top: 24px;">
+          <!-- Daily quests entry -> opens the Daily screen -->
+          <div class="setting-row setting-row-link" id="daily-setting-row" style="cursor:pointer;">
+            <div class="setting-label">
+              <span class="setting-title">${dailyLabel}</span>
+              <span class="setting-subtitle">${dailySub}</span>
+            </div>
+            <span class="menu-pill-chevron" style="display:flex; align-items:center; opacity:0.6;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 6l6 6-6 6"/>
+              </svg>
+            </span>
+          </div>
+
           <!-- Username Setting -->
           <div class="setting-row setting-row-stack">
             <div class="setting-label">
@@ -128,6 +143,15 @@ export class SettingsScreen {
       this.settings = await StorageManager.loadSettings();
       this.router.reRenderActiveScreen();
       return;
+    }
+
+    // Daily quests entry -> open the daily screen
+    const dailyRow = document.getElementById('daily-setting-row');
+    if (dailyRow) {
+      dailyRow.addEventListener('click', () => {
+        haptic.impact('medium');
+        this.router.navigate('daily');
+      });
     }
 
     // Bind username input + save
