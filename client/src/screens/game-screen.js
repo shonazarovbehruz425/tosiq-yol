@@ -807,13 +807,23 @@ export class GameScreen {
     if (this._aiWorker === undefined) {
       try {
         this._aiWorker = new Worker(new URL('../game/ai.worker.js', import.meta.url), { type: 'module' });
-        // Fetch adaptive patterns for the AI
-        fetch('/api/bot-patterns')
+        // Fetch adaptive patterns filtered by difficulty for this game
+        const diff = this.params.difficulty;
+        const url = diff ? `/api/bot-patterns?difficulty=${diff}` : '/api/bot-patterns';
+        fetch(url)
           .then(r => r.json())
           .then(data => {
-            if (data.patterns && this._aiWorker) {
-              this._cachedPatterns = data.patterns;
-              this._aiWorker.postMessage({ patterns: data.patterns });
+            if (!this._aiWorker) return;
+            // Send both raw patterns AND pre-computed danger maps
+            const msg = {};
+            if (data.patterns)    msg.patterns    = data.patterns;
+            if (data.dangerWalls) msg.dangerWalls = data.dangerWalls;
+            if (data.dangerPaths) msg.dangerPaths = data.dangerPaths;
+            if (Object.keys(msg).length > 0) {
+              this._cachedPatterns = data.patterns || null;
+              this._cachedDangerWalls = data.dangerWalls || null;
+              this._cachedDangerPaths = data.dangerPaths || null;
+              this._aiWorker.postMessage(msg);
             }
           })
           .catch(() => {});
@@ -851,7 +861,14 @@ export class GameScreen {
       const fallbackTimer = setTimeout(() => { onErr(); }, 8000);
       this._aiWorker.addEventListener('message', onMsg);
       this._aiWorker.addEventListener('error', onErr);
-      this._aiWorker.postMessage({ state, difficulty: this.params.difficulty, botSide, patterns: this._cachedPatterns });
+      this._aiWorker.postMessage({
+        state,
+        difficulty: this.params.difficulty,
+        botSide,
+        patterns: this._cachedPatterns,
+        dangerWalls: this._cachedDangerWalls || null,
+        dangerPaths: this._cachedDangerPaths || null
+      });
     } else {
       // No worker support — run synchronously.
       applyMove(this.botAI.getMove(this.engine, this.params.difficulty));
@@ -1060,11 +1077,16 @@ export class GameScreen {
     if (isWin) Sound.win(); else Sound.lose();
     await StorageManager.recordGameResult(result);
 
-    // Send bot game result to server for adaptive AI
+    // Send bot game result to server for adaptive AI training
     if (this.vs === 'bot' && this.params.difficulty) {
+      // Include Telegram initData so server can identify the user
+      const tgInitData = window.Telegram?.WebApp?.initData || '';
+      const headers = { 'Content-Type': 'application/json' };
+      if (tgInitData) headers['Authorization'] = `Bearer ${tgInitData}`;
+
       fetch('/api/bot-result', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           difficulty: this.params.difficulty,
           result,

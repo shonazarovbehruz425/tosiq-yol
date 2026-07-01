@@ -5,12 +5,16 @@ import { QuoridorEngine } from './logic.js';
 import { QuoridorAI } from './ai.js';
 
 let cachedPatterns = null;
+let cachedDangerWalls = null;
+let cachedDangerPaths = null;
 
 self.onmessage = (e) => {
-  const { state, difficulty, botSide, patterns } = e.data || {};
+  const { state, difficulty, botSide, patterns, dangerWalls, dangerPaths } = e.data || {};
 
-  // Cache patterns for reuse
-  if (patterns) cachedPatterns = patterns;
+  // Cache adaptive data for reuse
+  if (patterns !== undefined) cachedPatterns = patterns;
+  if (dangerWalls !== undefined) cachedDangerWalls = dangerWalls;
+  if (dangerPaths !== undefined) cachedDangerPaths = dangerPaths;
 
   try {
     const engine = new QuoridorEngine(state.boardSize, state.wallsCount, state.mode, {
@@ -27,6 +31,11 @@ self.onmessage = (e) => {
     if (state.ghostCharges) engine.ghostCharges = state.ghostCharges;
 
     const ai = new QuoridorAI(botSide);
+    // Apply danger maps first (server pre-computed, fastest)
+    if (cachedDangerWalls || cachedDangerPaths) {
+      ai.setDangerMaps(cachedDangerWalls, cachedDangerPaths);
+    }
+    // Then apply raw patterns (builds on top of danger maps)
     if (cachedPatterns) ai.setAdaptivePatterns(cachedPatterns);
     const move = ai.getMove(engine, difficulty);
     self.postMessage({ ok: true, move });

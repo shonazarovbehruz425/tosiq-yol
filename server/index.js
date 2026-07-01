@@ -257,6 +257,26 @@ if (fs.existsSync(adminBuildPath)) {
   });
 }
 
+// ===== Telegram channel helper =====
+const TG_API = (token, method) => `https://api.telegram.org/bot${token}/${method}`;
+
+async function sendToChannel(text, extra = {}) {
+  const token = process.env.BOT_TOKEN;
+  const channelId = process.env.DB_CHANNEL_ID;
+  if (!token || !channelId) return null;
+  try {
+    const res = await fetch(TG_API(token, 'sendMessage'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: channelId, text, parse_mode: 'HTML', ...extra })
+    });
+    return await res.json();
+  } catch (err) {
+    console.error('[sendToChannel] Failed:', err.message);
+    return null;
+  }
+}
+
 // ===== Bot game results & adaptive AI =====
 const BOT_PATTERNS_PATH = path.join(__dirname, 'bot-patterns.json');
 
@@ -271,8 +291,9 @@ function loadBotPatterns() {
 
 function saveBotPatterns(data) {
   try {
-    if (data.patterns.length > 200) {
-      data.patterns = data.patterns.slice(-200);
+    // Keep last 500 patterns (more data = smarter AI)
+    if (data.patterns.length > 500) {
+      data.patterns = data.patterns.slice(-500);
     }
     fs.writeFileSync(BOT_PATTERNS_PATH, JSON.stringify(data, null, 2), 'utf8');
   } catch (err) {
@@ -280,12 +301,60 @@ function saveBotPatterns(data) {
   }
 }
 
-app.post('/api/bot-result', express.json({ limit: '1mb' }), (req, res) => {
+// Build a danger map from all stored patterns:
+// - dangerWalls: { "r,c,type" -> score } walls the bot should NEVER play
+// - dangerPaths: { "r,c" -> score } pawn positions where bot has historically lost
+function buildDangerMap(patterns) {
+  const dangerWalls = {};
+  const dangerPaths = {};
+
+  for (const p of patterns) {
+    // Recency weight: newer patterns matter more
+    const ageMs = Date.now() - (p.timestamp || 0);
+    const ageDays = ageMs / (1000 * 60 * 60 * 24);
+    const recencyWeight = Math.max(0.2, 1 - ageDays / 30); // decay over 30 days
+
+    // Difficulty weight: harder difficulty defeats matter more
+    const diffWeight = { hard: 1, master: 1.5, grandmaster: 2 }[p.difficulty] || 1;
+    const w = recencyWeight * diffWeight;
+
+    // Bot's wall placements that appeared in losing games
+    for (const km of p.keyMoves || []) {
+      if (km.player === 1) { // bot is always player 1 (blue/top)
+        const key = `${km.r},${km.c},${km.wallType}`;
+        dangerWalls[key] = (dangerWalls[key] || 0) + w * 15;
+      }
+    }
+
+    // Board positions where bot was losing
+    for (const pos of p.positions || []) {
+      if (pos.type === 'move') {
+        const key = `${pos.r},${pos.c}`;
+        dangerPaths[key] = (dangerPaths[key] || 0) + w * 8;
+      }
+    }
+  }
+
+  return { dangerWalls, dangerPaths };
+}
+
+app.post('/api/bot-result', express.json({ limit: '1mb' }), async (req, res) => {
   try {
     const { difficulty, result, moveHistory, boardSize, mode } = req.body || {};
     if (!difficulty || !result || !Array.isArray(moveHistory)) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
+
+    // Extract Telegram user from Authorization header (optional)
+    let tgUser = null;
+    try {
+      const authHeader = req.headers.authorization || '';
+      const initData = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+      if (initData) {
+        const verified = verifyTelegramWebAppData(initData, process.env.BOT_TOKEN);
+        if (verified.isValid && verified.user) tgUser = verified.user;
+      }
+    } catch {}
 
     const data = loadBotPatterns();
     data.stats.totalGames++;
@@ -294,20 +363,20 @@ app.post('/api/bot-result', express.json({ limit: '1mb' }), (req, res) => {
     if (result === 'win' && isHardPlus) {
       data.stats.playerWins++;
 
+      // All wall moves from the game (both players)
       const keyMoves = moveHistory
         .filter(m => m.type === 'wall')
         .map(m => ({ r: m.r, c: m.c, wallType: m.wallType, player: m.player }));
 
+      // Snapshot positions at key intervals
       const positions = [];
-      for (let i = 3; i < moveHistory.length; i += 4) {
-        positions.push({
-          step: i,
-          type: moveHistory[i].type,
-          r: moveHistory[i].r,
-          c: moveHistory[i].c,
-          wallType: moveHistory[i].wallType
-        });
+      for (let i = 2; i < moveHistory.length; i += 3) {
+        const m = moveHistory[i];
+        if (m) positions.push({ step: i, type: m.type, r: m.r, c: m.c, wallType: m.wallType });
       }
+
+      // Opening sequence (first 10 moves) — critical for pattern recognition
+      const opening = moveHistory.slice(0, 10).map((m, i) => ({ step: i, ...m }));
 
       data.patterns.push({
         id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
@@ -316,12 +385,43 @@ app.post('/api/bot-result', express.json({ limit: '1mb' }), (req, res) => {
         result,
         keyMoves,
         positions,
+        opening,
         totalMoves: moveHistory.length,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        userId: tgUser?.id || null,
+        userName: tgUser?.first_name || tgUser?.username || 'Anonymous'
       });
 
       saveBotPatterns(data);
-      console.log(`[bot-patterns] Stored winning pattern (${difficulty}, ${keyMoves.length} walls, ${moveHistory.length} moves)`);
+      console.log(`[bot-patterns] Pattern saved (${difficulty}, ${keyMoves.length} walls, ${moveHistory.length} moves, user: ${tgUser?.first_name || 'unknown'})`);
+
+      // Send detailed report to Telegram channel
+      const wallsUsed = keyMoves.length;
+      const botWalls = keyMoves.filter(m => m.player === 1).length;
+      const playerWalls = keyMoves.filter(m => m.player === 0).length;
+      const diffLabel = { hard: '🔴 Hard', master: '🟠 Master', grandmaster: '🏆 Grandmaster' }[difficulty] || difficulty;
+      const boardLabel = `${boardSize || 9}×${boardSize || 9}`;
+      const userName = tgUser ? `@${tgUser.username || tgUser.first_name}` : 'Noma\'lum';
+      const totalPatterns = data.patterns.length;
+
+      const channelMsg = [
+        `🤖 <b>AI yengildi — taktika saqlandi!</b>`,
+        ``,
+        `👤 O'yinchi: <b>${userName}</b>`,
+        `🎯 Daraja: <b>${diffLabel}</b>`,
+        `📐 Doska: ${boardLabel}`,
+        ``,
+        `📊 O'yin statistikasi:`,
+        `   🎯 Jami yurishlar: ${moveHistory.length}`,
+        `   🧱 O'yinchi devorlari: ${playerWalls}`,
+        `   🧱 Bot devorlari: ${botWalls}`,
+        ``,
+        `🧠 Jami saqlangan taktikalar: ${totalPatterns}`,
+        `⚡ Bot endi bu taktikaga qarshi o'rganmoqda...`
+      ].join('\n');
+
+      sendToChannel(channelMsg).catch(() => {});
+
     } else if (result === 'lose') {
       data.stats.botWins++;
       saveBotPatterns(data);
@@ -336,8 +436,46 @@ app.post('/api/bot-result', express.json({ limit: '1mb' }), (req, res) => {
 
 app.get('/api/bot-patterns', (req, res) => {
   try {
+    const difficulty = req.query.difficulty || null;
     const data = loadBotPatterns();
-    res.json({ patterns: data.patterns.slice(-50), stats: data.stats });
+
+    // Filter by difficulty if requested
+    let patterns = data.patterns;
+    if (difficulty) {
+      // For hard: include hard patterns; master: hard+master; grandmaster: all
+      const diffOrder = ['hard', 'master', 'grandmaster'];
+      const diffIdx = diffOrder.indexOf(difficulty);
+      const allowed = diffIdx >= 0 ? diffOrder.slice(0, diffIdx + 1) : [difficulty];
+      patterns = patterns.filter(p => allowed.includes(p.difficulty));
+    }
+
+    // Build weighted danger map from all patterns
+    const { dangerWalls, dangerPaths } = buildDangerMap(patterns);
+
+    // Top danger walls (bot should never play these)
+    const topDangerWalls = Object.entries(dangerWalls)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 40)
+      .map(([key, score]) => {
+        const [r, c, wallType] = key.split(',');
+        return { r: +r, c: +c, wallType, score: Math.round(score) };
+      });
+
+    // Top danger pawn positions (bot should avoid being here)
+    const topDangerPaths = Object.entries(dangerPaths)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 30)
+      .map(([key, score]) => {
+        const [r, c] = key.split(',');
+        return { r: +r, c: +c, score: Math.round(score) };
+      });
+
+    res.json({
+      patterns: patterns.slice(-80),   // last 80 raw patterns
+      dangerWalls: topDangerWalls,      // weighted danger wall map
+      dangerPaths: topDangerPaths,      // weighted danger position map
+      stats: data.stats
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
