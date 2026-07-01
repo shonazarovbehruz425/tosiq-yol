@@ -1,14 +1,20 @@
 // Lightweight Telegram bot using the HTTP Bot API via long polling.
-// No extra dependencies — uses Node's built-in fetch.
+// No extra dependencies \u2014 uses Node's built-in fetch.
 //
 // Flow:
 //   /start            -> ask the user to pick a language (UZ / EN / RU)
 //   language chosen   -> save language, send a localized welcome with a Play button
 //   /play /stats etc. -> handled in the user's saved language
+//   /behruz           -> (admins only) open the message-editor panel
 import { db } from '../db/database.js';
 import { getProfileSummary, getDailyState, dailyCheckin } from '../game/progression.js';
+import { openAdminPanel, handleAdminCallback, tryCaptureEdit, msgOverride, isAdmin } from './admin-panel.js';
 
-const API = (token, method) => `{{https://api.telegram.org/bot${token}}}/${method}`;
+// Build the Telegram API base via concatenation (NEVER a single URL literal)
+// so tooling that rewrites URL-looking strings can't corrupt it.
+const TG_HOST = 'https://' + 'api.telegram.org';
+const TME_HOST = 'https://' + 't.me';
+const API = (token, method) => `${TG_HOST}/bot${token}/${method}`;
 
 let offset = 0;
 let running = false;
@@ -146,7 +152,7 @@ function playKeyboard(lang, webAppUrl) {
   if (BOT_USERNAME) {
     return {
       inline_keyboard: [[
-        { text: label, url: `{{https://t.me/${BOT_USERNAME}}}/${APP_SHORT_NAME}` }
+        { text: label, url: `${TME_HOST}/${BOT_USERNAME}/${APP_SHORT_NAME}` }
       ]]
     };
   }
@@ -160,7 +166,7 @@ function playKeyboardEditable(lang) {
   if (!BOT_USERNAME) return undefined;
   return {
     inline_keyboard: [[
-      { text: tr(lang).play, url: `{{https://t.me/${BOT_USERNAME}}}/${APP_SHORT_NAME}` }
+      { text: tr(lang).play, url: `${TME_HOST}/${BOT_USERNAME}/${APP_SHORT_NAME}` }
     ]]
   };
 }
@@ -181,6 +187,25 @@ function getUserLang(userId) {
   return (u && u.lang) || 'en';
 }
 
+// Send a message that may have an admin override (with preserved entities).
+// Falls back to the default text, and to a no-entities retry if Telegram
+// rejects custom-emoji entities.
+async function sendMsg(token, chatId, key, lang, defText, opts = {}) {
+  const { keyboard, parse_mode } = opts;
+  const ov = msgOverride(key, lang);
+  if (ov) {
+    const payload = { chat_id: chatId, text: ov.text, reply_markup: keyboard, disable_web_page_preview: true };
+    if (ov.entities && ov.entities.length) payload.entities = ov.entities;
+    const res = await call(token, 'sendMessage', payload);
+    if (res && res.ok) return res;
+    if (payload.entities) {
+      return call(token, 'sendMessage', { chat_id: chatId, text: ov.text, reply_markup: keyboard, disable_web_page_preview: true });
+    }
+    return res;
+  }
+  return call(token, 'sendMessage', { chat_id: chatId, text: defText, parse_mode, reply_markup: keyboard });
+}
+
 async function handleMessage(token, msg, webAppUrl) {
   const chatId = msg.chat?.id;
   const from = msg.from;
@@ -193,13 +218,34 @@ async function handleMessage(token, msg, webAppUrl) {
     first_name: from.first_name || 'Player'
   });
 
-  // /start -> always ask for language first
+  // Admin: capture a mid-edit reply, or open the panel on /behruz.
+  // The panel is INVISIBLE to everyone else \u2014 non-admins fall through to the
+  // normal flow (so /behruz just triggers the default nudge for them).
+  if (isAdmin(from.id)) {
+    if (await tryCaptureEdit(call, token, msg)) return;
+    if (text.startsWith('/behruz')) {
+      await openAdminPanel(call, token, chatId);
+      return;
+    }
+  }
+
+  // /start -> always ask for language first (admin can customise this text)
   if (text.startsWith('/start') || text.startsWith('/language') || text.startsWith('/lang')) {
-    await call(token, 'sendMessage', {
-      chat_id: chatId,
-      text: '\ud83c\udf10 Tilni tanlang / Choose language / \u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u044f\u0437\u044b\u043a:',
-      reply_markup: langKeyboard()
-    });
+    const ov = msgOverride('startPrompt', 'all');
+    if (ov) {
+      const payload = { chat_id: chatId, text: ov.text, reply_markup: langKeyboard(), disable_web_page_preview: true };
+      if (ov.entities && ov.entities.length) payload.entities = ov.entities;
+      const r = await call(token, 'sendMessage', payload);
+      if ((!r || !r.ok) && payload.entities) {
+        await call(token, 'sendMessage', { chat_id: chatId, text: ov.text, reply_markup: langKeyboard() });
+      }
+    } else {
+      await call(token, 'sendMessage', {
+        chat_id: chatId,
+        text: '\ud83c\udf10 Tilni tanlang / Choose language / \u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u044f\u0437\u044b\u043a:',
+        reply_markup: langKeyboard()
+      });
+    }
     return;
   }
 
@@ -207,7 +253,7 @@ async function handleMessage(token, msg, webAppUrl) {
   const s = tr(lang);
 
   if (text.startsWith('/play')) {
-    await call(token, 'sendMessage', { chat_id: chatId, text: s.letsPlay, reply_markup: playKeyboard(lang, webAppUrl) });
+    await sendMsg(token, chatId, 'letsPlay', lang, s.letsPlay, { keyboard: playKeyboard(lang, webAppUrl) });
     return;
   }
 
@@ -238,12 +284,49 @@ async function handleMessage(token, msg, webAppUrl) {
   }
 
   if (text.startsWith('/help')) {
-    await call(token, 'sendMessage', { chat_id: chatId, text: s.help, parse_mode: 'Markdown', reply_markup: playKeyboard(lang, webAppUrl) });
+    await sendMsg(token, chatId, 'help', lang, s.help, { keyboard: playKeyboard(lang, webAppUrl), parse_mode: 'Markdown' });
     return;
   }
 
   // Default nudge
-  await call(token, 'sendMessage', { chat_id: chatId, text: s.nudge, reply_markup: playKeyboard(lang, webAppUrl) });
+  await sendMsg(token, chatId, 'nudge', lang, s.nudge, { keyboard: playKeyboard(lang, webAppUrl) });
+}
+
+// Deliver the localized (or admin-overridden) welcome after language pick.
+// Tries to edit the language-picker message in place; sends a fresh one if the
+// edit fails. Custom-emoji entities are preserved, with a no-entities retry.
+async function pushWelcome(token, chatId, msgId, valid, name, webAppUrl) {
+  const ov = msgOverride('welcome', valid);
+  const kbEdit = playKeyboardEditable(valid);
+  let edited;
+  if (ov) {
+    const payload = { chat_id: chatId, message_id: msgId, text: ov.text, reply_markup: kbEdit };
+    if (ov.entities && ov.entities.length) payload.entities = ov.entities;
+    edited = await call(token, 'editMessageText', payload);
+    if ((!edited || !edited.ok) && payload.entities) {
+      edited = await call(token, 'editMessageText', { chat_id: chatId, message_id: msgId, text: ov.text, reply_markup: kbEdit });
+    }
+  } else {
+    edited = await call(token, 'editMessageText', {
+      chat_id: chatId, message_id: msgId, text: tr(valid).welcome(name), parse_mode: 'Markdown', reply_markup: kbEdit
+    });
+  }
+
+  if (edited && edited.ok) return;
+
+  // Edit failed (e.g. message deleted) \u2014 send a fresh welcome.
+  if (ov) {
+    const p2 = { chat_id: chatId, text: ov.text, reply_markup: playKeyboard(valid, webAppUrl), disable_web_page_preview: true };
+    if (ov.entities && ov.entities.length) p2.entities = ov.entities;
+    const r2 = await call(token, 'sendMessage', p2);
+    if ((!r2 || !r2.ok) && p2.entities) {
+      await call(token, 'sendMessage', { chat_id: chatId, text: ov.text, reply_markup: playKeyboard(valid, webAppUrl), disable_web_page_preview: true });
+    }
+  } else {
+    await call(token, 'sendMessage', {
+      chat_id: chatId, text: tr(valid).welcome(name), parse_mode: 'Markdown', reply_markup: playKeyboard(valid, webAppUrl)
+    });
+  }
 }
 
 async function handleCallback(token, cb, webAppUrl) {
@@ -251,6 +334,12 @@ async function handleCallback(token, cb, webAppUrl) {
   const chatId = cb.message?.chat?.id;
   const from = cb.from;
   if (!chatId || !from) return;
+
+  // Admin panel callbacks (edit/reset/navigate). Guarded to admins inside.
+  if (data.startsWith('adm_')) {
+    await handleAdminCallback(call, token, cb);
+    return;
+  }
 
   if (data.startsWith('lang_')) {
     const lang = data.slice(5); // uz | en | ru
@@ -269,26 +358,10 @@ async function handleCallback(token, cb, webAppUrl) {
     // Acknowledge the button tap (removes the loading spinner)
     await call(token, 'answerCallbackQuery', { callback_query_id: cb.id, text: s.langSet });
 
-    // Edit the language-picker message IN PLACE into the localized welcome.
-    // Use a t.me deep-link Play button (web_app buttons can't be used in edits).
+    // Edit the language-picker message IN PLACE into the localized welcome
+    // (admin override respected). Falls back to a fresh message if needed.
     const name = from.first_name || 'there';
-    const edited = await call(token, 'editMessageText', {
-      chat_id: chatId,
-      message_id: cb.message.message_id,
-      text: s.welcome(name),
-      parse_mode: 'Markdown',
-      reply_markup: playKeyboardEditable(valid)
-    });
-
-    // Only if the edit truly failed (e.g. message deleted), send a fresh one.
-    if (!edited || !edited.ok) {
-      await call(token, 'sendMessage', {
-        chat_id: chatId,
-        text: s.welcome(name),
-        parse_mode: 'Markdown',
-        reply_markup: playKeyboard(valid, webAppUrl)
-      });
-    }
+    await pushWelcome(token, chatId, cb.message.message_id, valid, name, webAppUrl);
     return;
   }
 
