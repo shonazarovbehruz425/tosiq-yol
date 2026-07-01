@@ -2,7 +2,7 @@ import { t } from '../core/i18n.js';
 import { socket } from '../core/websocket.js';
 import { haptic } from '../core/telegram.js';
 import { Toast } from '../components/toast.js';
-import { shopSkins, crestSvg, getSkin, SHOP_CATEGORIES } from '../game/skins.js';
+import { shopSkins, crestSvg, getSkin, SHOP_CATEGORIES, catIconSvg } from '../game/skins.js';
 import { coinSvg, CURRENCY } from '../game/currency.js';
 
 // Inline styles for the category tab pills (avoids touching the global CSS).
@@ -62,7 +62,7 @@ export class ShopScreen {
 
   renderCats() {
     return SHOP_CATEGORIES.map(c =>
-      `<button class="shop-cat" data-cat="${c.id}" style="${CAT_BASE}${c.id === this.category ? CAT_ACTIVE : ''}">${c.icon} ${c.label}</button>`
+      `<button class="shop-cat" data-cat="${c.id}" style="${CAT_BASE}${c.id === this.category ? CAT_ACTIVE : ''}">${catIconSvg(c.id, 15)} ${c.label}</button>`
     ).join('');
   }
 
