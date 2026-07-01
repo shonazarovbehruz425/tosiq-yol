@@ -56,8 +56,17 @@ export class QuoridorAI {
 
   // Get next best move depending on difficulty
   getMove(engine, difficulty = 'normal') {
-    // Check opening book for first 2 moves
-    if (engine.moveHistory.length < 2) {
+    // Opening book — ONLY for the genuine first move, while the pawn is still
+    // on its start row. IMPORTANT: the Web Worker rebuilds the engine WITHOUT
+    // moveHistory, so `engine.moveHistory.length` is always 0 there. Relying on
+    // it alone made the book fire on EVERY move; since the book only lists
+    // row-1 cells, the bot then just shuffled sideways along row 1 forever and
+    // never advanced to its goal. Gating on the start row fixes that for good.
+    const startRow = engine.mode === 'race'
+      ? engine.boardSize - 1
+      : (this.playerIndex === 0 ? engine.boardSize - 1 : 0);
+    const onStartRow = engine.pawnPos[this.playerIndex].r === startRow;
+    if (onStartRow && engine.moveHistory.length < 2) {
       const book = engine.boardSize === 9 ? OPENING_BOOK_9 : OPENING_BOOK_7;
       const moves = book[String(this.playerIndex)];
       if (moves) {
