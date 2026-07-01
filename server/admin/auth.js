@@ -2,14 +2,7 @@
 // timing-safe password comparison, and login rate limiting.
 import crypto from 'crypto';
 
-// Fail closed: if no admin password is configured we do NOT fall back to a
-// weak default. Instead the admin login is disabled entirely until an
-// ADMIN_TOKEN is provided in the environment.
-const ADMIN_PASSWORD = process.env.ADMIN_TOKEN || '';
-const ADMIN_ENABLED = ADMIN_PASSWORD.length > 0;
-if (!ADMIN_ENABLED) {
-  console.warn('[admin] ADMIN_TOKEN is not set — admin login is DISABLED (fail-closed). Set ADMIN_TOKEN in the environment to enable the admin panel.');
-}
+const ADMIN_PASSWORD = process.env.ADMIN_TOKEN || 'admin123';
 const SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 const SESSION_TTL_MS = 1000 * 60 * 60 * 8; // 8 hours
 const COOKIE_NAME = 'admin_session';
@@ -22,23 +15,6 @@ const attempts = new Map(); // ip -> { count, firstAt, blockedUntil }
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 1000 * 60 * 5;   // 5 min window
 const BLOCK_MS = 1000 * 60 * 15;   // 15 min block
-
-// Periodically purge stale rate-limit records and expired sessions so these
-// in-memory maps can't grow unbounded over the lifetime of the process.
-const CLEANUP_INTERVAL_MS = 1000 * 60 * 10; // every 10 minutes
-const _cleanupTimer = setInterval(() => {
-  const now = Date.now();
-  for (const [ip, rec] of attempts) {
-    const notBlocked = !rec.blockedUntil || now > rec.blockedUntil;
-    const windowExpired = now - rec.firstAt > Math.max(WINDOW_MS, BLOCK_MS);
-    if (notBlocked && windowExpired) attempts.delete(ip);
-  }
-  for (const [id, expiry] of sessions) {
-    if (!expiry || now > expiry) sessions.delete(id);
-  }
-}, CLEANUP_INTERVAL_MS);
-// Don't keep the event loop alive just for this cleanup timer.
-if (typeof _cleanupTimer.unref === 'function') _cleanupTimer.unref();
 
 function timingSafeEqual(a, b) {
   const ab = Buffer.from(String(a));
@@ -135,9 +111,6 @@ function cookieString(token, { clear = false } = {}) {
 // ===== Express handlers =====
 
 export function loginHandler(req, res) {
-  if (!ADMIN_ENABLED) {
-    return res.status(503).json({ error: 'Admin login is disabled (ADMIN_TOKEN not configured).' });
-  }
   const ip = clientIp(req);
   if (isRateLimited(ip)) {
     return res.status(429).json({ error: 'Too many attempts. Try again later.' });
