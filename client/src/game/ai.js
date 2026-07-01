@@ -95,10 +95,10 @@ export class QuoridorAI {
       return this.getBestMoveTimed(engine, { maxDepth: 5, timeMs: 700, advanced: true });
     } else if (difficulty === 'master') {
       // Master: deeper ceiling + a bit more thinking time than Hard.
-      return this.getBestMoveTimed(engine, { maxDepth: 7, timeMs: 1300, advanced: true });
+      return this.getBestMoveTimed(engine, { maxDepth: 8, timeMs: 1600, advanced: true });
     } else if (difficulty === 'grandmaster') {
-      // Grandmaster: deepest search — strongest, still responsive (~2s max).
-      return this.getBestMoveTimed(engine, { maxDepth: 9, timeMs: 2200, advanced: true });
+      // Grandmaster: deepest search — strongest, still responsive (~3s max).
+      return this.getBestMoveTimed(engine, { maxDepth: 11, timeMs: 3000, advanced: true });
     }
     // Fallback
     return this.getBestMoveMinimax(engine, 2);

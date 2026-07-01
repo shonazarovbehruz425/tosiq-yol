@@ -48,7 +48,7 @@ self.onmessage = (e) => {
       // Use TrainedAI — identical to QuoridorAI when no training data exists
       const ai = new TrainedAI(botSide);
       if (_trainingData) {
-        ai.applyTraining(_trainingData.dangerWalls, _trainingData.dangerPaths);
+        ai.applyTraining(_trainingData.dangerWalls, _trainingData.dangerPaths, _trainingData.patterns);
       }
 
       const move = ai.getMove(engine, difficulty);
