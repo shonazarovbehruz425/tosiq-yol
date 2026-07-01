@@ -20,6 +20,7 @@ import { startBot, sendToUser, broadcastToAll, sendVideoToUser } from './bot/bot
 import { presence } from './ws/presence.js';
 import { verifyTelegramWebAppData } from './middleware/auth.js';
 import { webmToMp4, isConversionAvailable } from './bot/video-convert.js';
+import { getProfileSummary, getDailyState, dailyCheckin, recordGamePlayed, getLeague } from './game/progression.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -47,7 +48,58 @@ app.get('/api/health', (req, res) => {
 app.get('/api/leaderboard', (req, res) => {
   try {
     const board = db.getLeaderboard(20);
-    res.json(board.top);
+    // Enrich each row with its league (derived from the Elo rating) so the
+    // Mini App can show league crests next to players.
+    const top = (board.top || []).map(u => ({ ...u, league: getLeague(u.rating) }));
+    res.json(top);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ===== Player progression: profile, leagues, daily streak & quests =====
+// These endpoints identify the user securely via the Telegram initData passed
+// as "Authorization: Bearer <initData>" (same scheme as /api/replay/upload).
+function resolvePlayer(req) {
+  const authHeader = req.headers.authorization || '';
+  const initData = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (!initData) return null;
+  const verified = verifyTelegramWebAppData(initData, process.env.BOT_TOKEN);
+  if (!verified.isValid || !verified.user || !verified.user.id) return null;
+  return verified.user;
+}
+
+app.get('/api/profile', (req, res) => {
+  try {
+    const user = resolvePlayer(req);
+    if (!user) return res.status(403).json({ error: 'Forbidden' });
+    const profile = getProfileSummary(user.id);
+    if (!profile) return res.status(404).json({ error: 'Not registered' });
+    res.json(profile);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/daily', (req, res) => {
+  try {
+    const user = resolvePlayer(req);
+    if (!user) return res.status(403).json({ error: 'Forbidden' });
+    const state = getDailyState(user.id);
+    if (!state) return res.status(404).json({ error: 'Not registered' });
+    res.json(state);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/daily/checkin', (req, res) => {
+  try {
+    const user = resolvePlayer(req);
+    if (!user) return res.status(403).json({ error: 'Forbidden' });
+    const result = dailyCheckin(user.id);
+    if (!result.ok) return res.status(404).json({ error: result.error || 'Not registered' });
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -522,6 +574,20 @@ app.post('/api/bot-result', express.json({ limit: '1mb' }), async (req, res) => 
     data.stats.totalGames++;
 
     const isHardPlus = ['hard', 'master', 'grandmaster'].includes(difficulty);
+
+    // Daily-quest progress for AI games. Only counts when we can identify the
+    // player from the Telegram initData. recordGamePlayed auto-awards coins on
+    // quest completion and safely no-ops for unregistered users.
+    if (tgUser && tgUser.id && (result === 'win' || result === 'lose')) {
+      try {
+        recordGamePlayed(tgUser.id, {
+          win: result === 'win',
+          online: false,
+          vsAiHardPlus: result === 'win' && isHardPlus
+        });
+      } catch {}
+    }
+
     if (result === 'win' && isHardPlus) {
       data.stats.playerWins++;
 
