@@ -56,17 +56,22 @@ export class QuoridorAI {
 
   // Get next best move depending on difficulty
   getMove(engine, difficulty = 'normal') {
-    // Opening book — ONLY for the genuine first move, while the pawn is still
-    // on its start row. IMPORTANT: the Web Worker rebuilds the engine WITHOUT
-    // moveHistory, so `engine.moveHistory.length` is always 0 there. Relying on
-    // it alone made the book fire on EVERY move; since the book only lists
-    // row-1 cells, the bot then just shuffled sideways along row 1 forever and
-    // never advanced to its goal. Gating on the start row fixes that for good.
+    // Opening book — ONLY for the genuine opening, before ANY wall is placed.
+    //
+    // IMPORTANT: the Web Worker rebuilds the engine WITHOUT moveHistory, so
+    // `engine.moveHistory.length` is ALWAYS 0 inside the worker. The old gate
+    // (`moveHistory.length < 2`) was therefore always true, so the book fired
+    // every time the bot sat on its start row. Combined with a wall detour that
+    // forces the pawn back onto its start row (to slide sideways around a wall),
+    // the book kept hijacking the move back to row 1 — trapping the pawn in a
+    // 2-cell shuffle at the top and never letting it traverse the start row.
+    // Gating on `walls.length === 0` limits the book to the true opening and
+    // eliminates that oscillation for good.
     const startRow = engine.mode === 'race'
       ? engine.boardSize - 1
       : (this.playerIndex === 0 ? engine.boardSize - 1 : 0);
     const onStartRow = engine.pawnPos[this.playerIndex].r === startRow;
-    if (onStartRow && engine.moveHistory.length < 2) {
+    if (onStartRow && engine.walls.length === 0) {
       const book = engine.boardSize === 9 ? OPENING_BOOK_9 : OPENING_BOOK_7;
       const moves = book[String(this.playerIndex)];
       if (moves) {
