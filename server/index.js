@@ -78,7 +78,7 @@ app.post('/api/replay/upload',
       }
 
       const caption = (req.query.caption ? String(req.query.caption) : '').slice(0, 200)
-        || '🎬 Wrong Way — o\'yin replayi';
+        || '\u{1F3AC} Wrong Way \u2014 o\'yin replayi';
 
       // Convert WebM (VP8/VP9, looks blurry/cartoonish in Telegram) into a
       // crisp H.264 MP4 when ffmpeg is available; otherwise fall back to webm.
@@ -292,10 +292,10 @@ function generateTrainedAIContent(dangerWalls, dangerPaths, stats) {
   const wallsJson = JSON.stringify(dangerWalls, null, 2);
   const pathsJson = JSON.stringify(dangerPaths, null, 2);
   return [
-    `// trainedai.js — WrongWay AI o'z-o'zidan o'rganish natijalari`,
+    `// trainedai.js \u2014 WrongWay AI o'z-o'zidan o'rganish natijalari`,
     `// Yaratilgan: ${now}`,
     `// Jami saqlangan taktikalar: ${stats.playerWins || 0}`,
-    `// Bu fayl server tomonidan avtomatik yangilanadi — qo'lda o'zgartirmang.`,
+    `// Bu fayl server tomonidan avtomatik yangilanadi \u2014 qo'lda o'zgartirmang.`,
     ``,
     `export const TRAINED_DANGER_WALLS = ${wallsJson};`,
     ``,
@@ -323,10 +323,10 @@ function saveTrainedAIFile(content) {
 /**
  * Send or EDIT the pinned trainedai.js document in the Telegram channel.
  *
- * First call → sendDocument (creates message, saves message_id)
- * Subsequent calls → editMessageMedia (edits the SAME message)
+ * First call \u2192 sendDocument (creates message, saves message_id)
+ * Subsequent calls \u2192 editMessageMedia (edits the SAME message)
  *
- * message_id is stored in bot-patterns.json so it survives server restarts.
+ * message_id is stored in db.data.botPatterns so it survives server restarts.
  */
 async function upsertTrainedAIDocument(content, caption) {
   const token = process.env.BOT_TOKEN;
@@ -355,7 +355,7 @@ async function upsertTrainedAIDocument(content, caption) {
   const existingMsgId = data.trainedAIMessageId || null;
 
   if (existingMsgId) {
-    // ── Edit existing message ─────────────────────────────────────────────
+    // \u2500\u2500 Edit existing message \u2500\u2500
     // Telegram editMessageMedia requires the document as an InputMediaDocument JSON
     // with the file sent as multipart. We rebuild the file each time.
     try {
@@ -377,13 +377,13 @@ async function upsertTrainedAIDocument(content, caption) {
         return;
       }
       // If edit fails (e.g. message deleted), fall through to send a new one
-      console.warn('[trainedai] editMessageMedia failed:', json.description, '— sending new');
+      console.warn('[trainedai] editMessageMedia failed:', json.description, '\u2014 sending new');
     } catch (err) {
       console.error('[trainedai] editMessageMedia error:', err.message);
     }
   }
 
-  // ── Send new document (first time or after edit failure) ─────────────────
+  // \u2500\u2500 Send new document (first time or after edit failure) \u2500\u2500
   try {
     const body = buildMultipart({ chat_id: channelId, caption }, fileBytes);
     const res = await fetch(TG_API(token, 'sendDocument'), {
@@ -406,26 +406,60 @@ async function upsertTrainedAIDocument(content, caption) {
 }
 
 // ===== Bot game results & adaptive AI =====
-const BOT_PATTERNS_PATH = path.join(__dirname, 'bot-patterns.json');
+// IMPORTANT: training patterns live INSIDE the database object (db.data.botPatterns)
+// so they are backed up to and restored from the Telegram channel together with
+// the rest of the DB. Render wipes the local disk on every redeploy, so a
+// standalone bot-patterns.json file would lose ALL learning on each push \u2014
+// which is exactly why the AI kept 'forgetting' what it had learned.
 
 function loadBotPatterns() {
-  try {
-    if (fs.existsSync(BOT_PATTERNS_PATH)) {
-      return JSON.parse(fs.readFileSync(BOT_PATTERNS_PATH, 'utf8'));
-    }
-  } catch {}
-  return { patterns: [], stats: { totalGames: 0, playerWins: 0, botWins: 0 } };
+  if (!db.data.botPatterns || typeof db.data.botPatterns !== 'object') {
+    db.data.botPatterns = { patterns: [], stats: { totalGames: 0, playerWins: 0, botWins: 0 }, trainedAIMessageId: null };
+  }
+  const bp = db.data.botPatterns;
+  if (!Array.isArray(bp.patterns)) bp.patterns = [];
+  if (!bp.stats || typeof bp.stats !== 'object') bp.stats = { totalGames: 0, playerWins: 0, botWins: 0 };
+  return bp;
 }
 
 function saveBotPatterns(data) {
+  if (!data || typeof data !== 'object') return;
+  // Keep the last 500 patterns (more data = smarter AI, but bounded).
+  if (Array.isArray(data.patterns) && data.patterns.length > 500) {
+    data.patterns = data.patterns.slice(-500);
+  }
+  db.data.botPatterns = data;
+  db.save(); // debounced upload to the Telegram channel (see telegram-store.js)
+}
+
+// Rebuild the local trainedai.js from the patterns restored from the channel,
+// so /trainedai.js serves the learned danger data immediately after a redeploy
+// (otherwise the AI would start 'blank' until the next time it loses).
+function regenerateTrainedAIFile() {
   try {
-    // Keep last 500 patterns (more data = smarter AI)
-    if (data.patterns.length > 500) {
-      data.patterns = data.patterns.slice(-500);
+    const data = loadBotPatterns();
+    if (!data.patterns || data.patterns.length === 0) {
+      console.log('[trainedai] No restored patterns \u2014 serving blank until first loss.');
+      return;
     }
-    fs.writeFileSync(BOT_PATTERNS_PATH, JSON.stringify(data, null, 2), 'utf8');
+    const { dangerWalls, dangerPaths } = buildDangerMap(data.patterns);
+    const topDangerWalls = Object.entries(dangerWalls)
+      .sort(([, a], [, b]) => b - a).slice(0, 40)
+      .map(([key, score]) => {
+        const [r, c, wallType] = key.split(',');
+        return { r: +r, c: +c, wallType, score: Math.round(score) };
+      });
+    const topDangerPaths = Object.entries(dangerPaths)
+      .sort(([, a], [, b]) => b - a).slice(0, 30)
+      .map(([key, score]) => {
+        const [r, c] = key.split(',');
+        return { r: +r, c: +c, score: Math.round(score) };
+      });
+    const jsContent = generateTrainedAIContent(topDangerWalls, topDangerPaths, data.stats);
+    saveTrainedAIFile(jsContent);
+    console.log(`[trainedai] Regenerated from ${data.patterns.length} restored patterns.`);
   } catch (err) {
-    console.error('[bot-patterns] Failed to save:', err.message);
+    console.error('[trainedai] Regenerate on boot failed:', err.message);
   }
 }
 
@@ -503,7 +537,7 @@ app.post('/api/bot-result', express.json({ limit: '1mb' }), async (req, res) => 
         if (m) positions.push({ step: i, type: m.type, r: m.r, c: m.c, wallType: m.wallType });
       }
 
-      // Opening sequence (first 10 moves) — critical for pattern recognition
+      // Opening sequence (first 10 moves) \u2014 critical for pattern recognition
       const opening = moveHistory.slice(0, 10).map((m, i) => ({ step: i, ...m }));
 
       data.patterns.push({
@@ -543,10 +577,10 @@ app.post('/api/bot-result', express.json({ limit: '1mb' }), async (req, res) => 
       saveTrainedAIFile(jsContent);
 
       // Send or edit the single pinned trainedai.js document in Telegram channel
-      // (No text message — only the .js file, edited in place each time)
+      // (No text message \u2014 only the .js file, edited in place each time)
       const totalPatterns = data.patterns.length;
       const diffLabel = { hard: 'Hard', master: 'Master', grandmaster: 'Grandmaster' }[difficulty] || difficulty;
-      const caption = `🧠 trainedai.js | Patterns: ${totalPatterns} | ${diffLabel} | ${new Date().toLocaleDateString('uz-UZ')}`;
+      const caption = `\u{1F9E0} trainedai.js | Patterns: ${totalPatterns} | ${diffLabel} | ${new Date().toLocaleDateString('uz-UZ')}`;
       upsertTrainedAIDocument(jsContent, caption).catch(() => {});
 
     } else if (result === 'lose') {
@@ -608,7 +642,7 @@ app.get('/api/bot-patterns', (req, res) => {
   }
 });
 
-// ── Serve generated trainedai.js at /trainedai.js ──
+// \u2500\u2500 Serve generated trainedai.js at /trainedai.js \u2500\u2500
 // The AI worker fetches this URL to get the latest learned danger data.
 // Updated automatically every time the AI is defeated.
 app.get('/trainedai.js', (req, res) => {
@@ -617,9 +651,9 @@ app.get('/trainedai.js', (req, res) => {
       res.type('application/javascript');
       res.sendFile(TRAINED_AI_FILE_PATH);
     } else {
-      // No training data yet — return empty module so imports don't break
+      // No training data yet \u2014 return empty module so imports don't break
       res.type('application/javascript').send([
-        '// trainedai.js — hali ma\'lumot yo\'q',
+        '// trainedai.js \u2014 hali ma\'lumot yo\'q',
         '// O\'yinchi AI ni yutganda bu fayl avtomatik to\'ldiriladi.',
         'export const TRAINED_DANGER_WALLS = [];',
         'export const TRAINED_DANGER_PATHS = [];',
@@ -674,7 +708,9 @@ wss.on('connection', (ws, request) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, async () => {
   console.log(`Server listening on port ${PORT}`);
-  // Restore DB from the Telegram channel (if configured), then start the bot.
+  // Restore DB (incl. bot training patterns) from the Telegram channel, then
+  // rebuild trainedai.js from the restored patterns, then start the bot.
   await initTelegramStore();
+  regenerateTrainedAIFile();
   startBot();
 });

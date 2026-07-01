@@ -14,7 +14,13 @@
 // This makes the database survive Render redeploys/restarts for free.
 import { db } from './database.js';
 
-const API = (token, method) => `https://api.telegram.org/bot${token}/${method}`;
+// Build the Telegram API base via concatenation (NEVER a single URL literal)
+// so tooling that rewrites URL-looking strings can't corrupt it. A previous
+// version had these URLs wrapped in literal   braces, which silently broke
+// ALL channel persistence (backups never uploaded, restores never ran).
+const TG_HOST = 'https://' + 'api.telegram.org';
+const API = (token, method) => `${TG_HOST}/bot${token}/${method}`;
+const FILE_API = (token, filePath) => `${TG_HOST}/file/bot${token}/${filePath}`;
 
 let token = null;
 let channelId = null;
@@ -42,7 +48,7 @@ async function downloadFile(fileId) {
   const f = await tg('getFile', { file_id: fileId });
   if (!f || !f.ok) return null;
   const filePath = f.result.file_path;
-  const url = `https://api.telegram.org/file/bot${token}/${filePath}`;
+  const url = FILE_API(token, filePath);
   const res = await fetch(url);
   if (!res.ok) return null;
   return res.text();
@@ -58,6 +64,12 @@ export async function restoreFromChannel() {
       if (text) {
         const parsed = JSON.parse(text);
         db.replaceData(parsed);
+        // Re-attach the bot self-training patterns. replaceData only keeps
+        // users/games, but the AI's learning is stored alongside them and MUST
+        // survive redeploys too — this is what stops the AI 'forgetting'.
+        if (parsed && parsed.botPatterns) {
+          db.data.botPatterns = parsed.botPatterns;
+        }
         lastPinnedMsgId = pinned.message_id;
         return true;
       }
@@ -75,7 +87,7 @@ async function uploadToChannel(serialized) {
     // multipart/form-data upload of the JSON as a document
     const form = new FormData();
     form.append('chat_id', String(channelId));
-    form.append('caption', `🗄 DB backup · ${new Date().toISOString()}`);
+    form.append('caption', `\u{1F5C4} DB backup \u00B7 ${new Date().toISOString()}`);
     form.append('disable_notification', 'true');
     const blob = new Blob([serialized], { type: 'application/json' });
     form.append('document', blob, 'db.json');
