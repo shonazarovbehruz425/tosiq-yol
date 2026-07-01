@@ -215,7 +215,12 @@ class RoomManager {
   }
 
   createRoom(config) {
-    const roomCode = Math.floor(1000 + Math.random() * 9000).toString(); // 4-digit code
+    // Generate a unique 4-digit code; retry on the (rare) collision so we never
+    // overwrite an existing active room.
+    let roomCode;
+    do {
+      roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+    } while (this.rooms[roomCode]);
     const room = new Room(roomCode, config);
     this.rooms[roomCode] = room;
     return room;

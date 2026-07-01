@@ -15,6 +15,9 @@ export class TeamRoom {
     this.engine = null;
     this.isStarted = false;
     this.isFinished = false;
+    // Guard so results (coins, stats, saveGame, broadcast) are only ever
+    // awarded once, no matter how the game ends (win or disconnect-forfeit).
+    this._settled = false;
     this.disconnectTimers = {};
   }
 
@@ -79,14 +82,58 @@ export class TeamRoom {
 
   checkWinner() {
     if (this.engine.winner !== -1 && !this.isFinished) {
-      this.isFinished = true;
-      this.broadcast('team_finished', { winningTeam: this.engine.winner });
-      // Award WAYZ: winners more than losers.
-      this.players.forEach(p => {
-        const won = this.playerSlots[p.id] % 2 === this.engine.winner;
-        try { db.addCoins(p.id, won ? 25 : 8); } catch (e) { /* ignore */ }
-      });
+      this._settle();
     }
+  }
+
+  // Finalize the match exactly once: notify players, award coins, and — unlike
+  // before — persist 2v2 win/loss into stats + a game record so team results
+  // show up on the leaderboard and history (issue #8).
+  _settle(reason) {
+    if (this._settled) return;
+    this._settled = true;
+    this.isFinished = true;
+
+    const winningTeam = this.engine.winner;
+    const payload = { winningTeam };
+    if (reason) payload.reason = reason;
+    this.broadcast('team_finished', payload);
+
+    // Award WAYZ: winners more than losers, and bucket players by team.
+    const winners = [];
+    const losers = [];
+    this.players.forEach(p => {
+      const won = this.playerSlots[p.id] % 2 === winningTeam;
+      try { db.addCoins(p.id, won ? 25 : 8); } catch (e) { /* ignore */ }
+      (won ? winners : losers).push(p);
+    });
+
+    // Persist stats/leaderboard. updateStats works on 1v1 pairs, so pair each
+    // winner with a loser (2 pairs for a full 2v2).
+    try {
+      const n = Math.min(winners.length, losers.length);
+      for (let i = 0; i < n; i++) {
+        db.updateStats(winners[i].id, losers[i].id, false);
+      }
+    } catch (e) { /* ignore */ }
+
+    // Record the game so it appears in history alongside 1v1 games.
+    try {
+      const bySlot = (slot) => this.players.find(p => this.playerSlots[p.id] === slot);
+      const red = bySlot(0);
+      const blue = bySlot(1);
+      db.saveGame({
+        playerRed: red ? red.id : null,
+        playerBlue: blue ? blue.id : null,
+        winner: winningTeam,
+        mode: 'team',
+        boardSize: this.config.boardSize,
+        totalTime: 0,
+        blitzTime: 0,
+        wallsCount: this.config.wallsPerTeam,
+        moves: (this.engine && this.engine.moveHistory) || []
+      });
+    } catch (e) { /* ignore */ }
   }
 
   handleDisconnect(playerId) {
@@ -97,12 +144,7 @@ export class TeamRoom {
     // would never resolve). End it: the leaver's team forfeits.
     if (slot != null && this.engine && this.engine.winner === -1) {
       this.engine.winner = 1 - (slot % 2); // the other team wins
-      this.isFinished = true;
-      this.broadcast('team_finished', { winningTeam: this.engine.winner, reason: 'left' });
-      this.players.forEach(p => {
-        const won = this.playerSlots[p.id] % 2 === this.engine.winner;
-        try { db.addCoins(p.id, won ? 25 : 8); } catch (e) { /* ignore */ }
-      });
+      this._settle('left');
     }
   }
 
@@ -125,7 +167,11 @@ class TeamRoomManager {
   }
 
   createRoom(config) {
-    const code = 'T' + Math.floor(1000 + Math.random() * 9000);
+    // Unique team code ('T' + 4 digits); retry on collision.
+    let code;
+    do {
+      code = 'T' + Math.floor(1000 + Math.random() * 9000);
+    } while (this.rooms[code]);
     const room = new TeamRoom(code, config);
     this.rooms[code] = room;
     return room;
