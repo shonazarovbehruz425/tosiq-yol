@@ -82,14 +82,14 @@ export class QuoridorAI {
       return this.getBestMoveMinimax(engine, 2, false);
     } else if (difficulty === 'hard') {
       // Hard: iterative-deepening with the SMART evaluation and principal-
-      // variation ordering, so it genuinely reads several moves ahead.
-      return this.getBestMoveTimed(engine, { maxDepth: 5, timeMs: 2000, advanced: true });
+      // variation ordering. Short time budget keeps replies snappy.
+      return this.getBestMoveTimed(engine, { maxDepth: 5, timeMs: 700, advanced: true });
     } else if (difficulty === 'master') {
-      // Master: deeper ceiling + more thinking time than Hard — sees wall combos.
-      return this.getBestMoveTimed(engine, { maxDepth: 7, timeMs: 3500, advanced: true });
+      // Master: deeper ceiling + a bit more thinking time than Hard.
+      return this.getBestMoveTimed(engine, { maxDepth: 7, timeMs: 1300, advanced: true });
     } else if (difficulty === 'grandmaster') {
-      // Grandmaster: deepest search — plans many moves ahead, near-optimal.
-      return this.getBestMoveTimed(engine, { maxDepth: 9, timeMs: 5000, advanced: true });
+      // Grandmaster: deepest search — strongest, still responsive (~2s max).
+      return this.getBestMoveTimed(engine, { maxDepth: 9, timeMs: 2200, advanced: true });
     }
     // Fallback
     return this.getBestMoveMinimax(engine, 2);
