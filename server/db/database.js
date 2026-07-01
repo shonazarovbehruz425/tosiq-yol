@@ -466,23 +466,47 @@ class JSONDatabase {
     return false;
   }
 
-  // Stats updates
+  // Expected score for player A against player B under the standard Elo model.
+  // Returns a value in (0, 1): the probability-weighted score A is expected to
+  // earn (1 = win, 0.5 = draw, 0 = loss).
+  _eloExpected(ratingA, ratingB) {
+    return 1 / (1 + Math.pow(10, (ratingB - ratingA) / 400));
+  }
+
+  // Stats updates — now uses a proper Elo rating instead of a flat +25/-20.
+  // Each player's rating moves by K * (actualScore - expectedScore), where the
+  // expected score comes from the rating gap. This means beating a much
+  // stronger opponent gains more points (and losing to a weaker one costs
+  // more), and draws nudge ratings toward each other. K-factor is 32; ratings
+  // are floored at 100.
   updateStats(winnerId, loserId, isDraw = false) {
     const winner = this.data.users[winnerId];
     const loser = this.data.users[loserId];
 
-    if (isDraw) {
-      if (winner) winner.draws++;
-      if (loser) loser.draws++;
-    } else {
-      if (winner) {
-        winner.wins++;
-        winner.rating += 25;
-      }
-      if (loser) {
-        loser.losses++;
-        loser.rating = Math.max(100, loser.rating - 20); // Floor rating at 100
-      }
+    const K = 32;
+    const FLOOR = 100;
+
+    // Current ratings (default to 1000 for any legacy/undefined value).
+    const rWinner = (winner && typeof winner.rating === 'number') ? winner.rating : 1000;
+    const rLoser = (loser && typeof loser.rating === 'number') ? loser.rating : 1000;
+
+    // Actual scores: win = 1 / loss = 0, or 0.5 each on a draw.
+    const scoreWinner = isDraw ? 0.5 : 1;
+    const scoreLoser = isDraw ? 0.5 : 0;
+
+    // Expected scores from the Elo formula.
+    const expWinner = this._eloExpected(rWinner, rLoser);
+    const expLoser = this._eloExpected(rLoser, rWinner);
+
+    if (winner) {
+      winner.rating = Math.max(FLOOR, Math.round(rWinner + K * (scoreWinner - expWinner)));
+      if (isDraw) winner.draws++;
+      else winner.wins++;
+    }
+    if (loser) {
+      loser.rating = Math.max(FLOOR, Math.round(rLoser + K * (scoreLoser - expLoser)));
+      if (isDraw) loser.draws++;
+      else loser.losses++;
     }
     this.save();
   }

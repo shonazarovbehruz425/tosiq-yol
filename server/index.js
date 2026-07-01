@@ -24,7 +24,27 @@ import { webmToMp4, isConversionAvailable } from './bot/video-convert.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
-app.use(cors());
+
+// CORS: restrict browser cross-origin requests to the configured Mini App
+// origin(s) in WEBAPP_URL instead of allowing every domain. Requests without
+// an Origin header (server-to-server, health checks, same-origin, and the
+// Telegram in-app webview) are allowed through. Credentials are enabled so the
+// cookie-based admin session keeps working. If WEBAPP_URL is not configured we
+// fall back to permissive behavior so local/dev deploys are unaffected.
+const allowedOrigins = (process.env.WEBAPP_URL || '')
+  .split(',')
+  .map(o => o.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.length === 0) return callback(null, true);
+    const normalized = origin.replace(/\/$/, '');
+    if (allowedOrigins.includes(normalized)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true
+}));
 app.use(express.json());
 
 // Lightweight liveness probe for Render's health checks. Defined first and
