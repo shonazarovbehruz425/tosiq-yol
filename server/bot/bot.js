@@ -6,8 +6,9 @@
 //   language chosen   -> save language, send a localized welcome with a Play button
 //   /play /stats etc. -> handled in the user's saved language
 import { db } from '../db/database.js';
+import { getProfileSummary, getDailyState, dailyCheckin } from '../game/progression.js';
 
-const API = (token, method) => `https://api.telegram.org/bot${token}/${method}`;
+const API = (token, method) => `{{https://api.telegram.org/bot${token}}}/${method}`;
 
 let offset = 0;
 let running = false;
@@ -16,44 +17,97 @@ let activeToken = null; // stored when the bot starts, used by admin sendToUser
 // ===== Localized strings =====
 const T = {
   uz: {
-    chooseLang: '🌐 Tilni tanlang:',
+    chooseLang: '\ud83c\udf10 Tilni tanlang:',
     welcome: (name) =>
-      `👋 Salom, ${name}!\n\n*Wrong Way* — Quoridor uslubidagi strategik o'yinга xush kelibsiz.\nRaqibingizni to'siqlar bilan to'sing va shoshqangizni qarama-qarshi tomonга yetkazing.\n\nO'ynash uchun *Play* tugmasini bosing! 🎮`,
-    play: '🎮 O\'ynash',
-    letsPlay: "Qani boshladik! 🎮",
-    stats: (u) => `📊 *Sizning statistikangiz*\n\n🏆 G'alaba: ${u.wins}\n💔 Mag'lubiyat: ${u.losses}\n🤝 Durang: ${u.draws}\n⭐ Reyting: ${u.rating}`,
-    noStats: 'Hali statistika yo\'q. Avval o\'ynang!',
-    help: '*Wrong Way* komandalar:\n/start — o\'yinni ochish\n/play — tez o\'ynash\n/stats — statistika\n/language — tilni o\'zgartirish',
-    nudge: 'O\'ynash uchun Play tugmasini bosing 🎮',
-    langSet: 'Til o\'rnatildi: O\'zbek 🇺🇿'
+      `\ud83d\udc4b Salom, ${name}!\n\n*Wrong Way* \u2014 Quoridor uslubidagi strategik o'yin\u0433\u0430 xush kelibsiz.\nRaqibingizni to'siqlar bilan to'sing va shoshqangizni qarama-qarshi tomon\u0433\u0430 yetkazing.\n\nO'ynash uchun *Play* tugmasini bosing! \ud83c\udfae`,
+    play: '\ud83c\udfae O\'ynash',
+    letsPlay: "Qani boshladik! \ud83c\udfae",
+    stats: (u) => `\ud83d\udcca *Sizning statistikangiz*\n\n\ud83c\udfc6 G'alaba: ${u.wins}\n\ud83d\udc94 Mag'lubiyat: ${u.losses}\n\ud83e\udd1d Durang: ${u.draws}\n\u2b50 Reyting: ${u.rating}`,
+    noStats: 'Hali statistika yo\'q. Avval /start bosing va o\'ynang!',
+    help: '*Wrong Way* komandalar:\n/start \u2014 o\'yinni ochish\n/play \u2014 tez o\'ynash\n/stats \u2014 profil va reyting\n/daily \u2014 kunlik topshiriqlar\n/language \u2014 tilni o\'zgartirish',
+    nudge: 'O\'ynash uchun Play tugmasini bosing \ud83c\udfae',
+    langSet: 'Til o\'rnatildi: O\'zbek \ud83c\uddfa\ud83c\uddff',
+    statsFull: (p) =>
+      `\ud83d\udcca *Profil*\n\n${p.league.emoji} *${p.league.name}* liga\n\u2b50 Reyting: *${p.rating}*` +
+      (p.league.next ? `  (+${p.league.pointsToNext} \u2192 ${p.league.next.emoji} ${p.league.next.name})` : '  (eng yuqori daraja! \ud83d\udc51)') +
+      `\n\ud83c\udf0d O\'rin: *#${p.rank}* / ${p.total}\n\n\ud83c\udfc6 G\'alaba: ${p.wins}   \ud83d\udc94 Mag\'lubiyat: ${p.losses}   \ud83e\udd1d Durang: ${p.draws}\n\ud83e\ude99 Tanga: ${p.coins}\n\ud83d\udd25 Kunlik seriya: ${p.streak} kun (rekord: ${p.bestStreak})`,
+    dailyTitle: '\ud83c\udfaf *Kunlik topshiriqlar*',
+    dailyStreak: (s) => `\ud83d\udd25 Seriya: *${s.streak}* kun  (rekord: ${s.bestStreak})`,
+    checkinHint: (r) => `\ud83c\udf81 Bugungi sovg\'ani olish uchun quyidagi tugmani bosing (+${r} \ud83e\ude99)`,
+    checkinBtn: (r) => `\ud83c\udf81 Bugungi sovg\'a (+${r} \ud83e\ude99)`,
+    checkinDone: (r, s) => `\ud83c\udf81 +${r} tanga olindi! \ud83d\udd25 Seriya: ${s} kun`,
+    alreadyChecked: '\u2705 Bugungi sovg\'a allaqachon olingan. Ertaga qayting!',
+    allDone: '\ud83c\udf89 Bugungi barcha topshiriqlar bajarildi! Zo\'r ish!'
   },
   en: {
-    chooseLang: '🌐 Choose your language:',
+    chooseLang: '\ud83c\udf10 Choose your language:',
     welcome: (name) =>
-      `👋 Hi ${name}!\n\nWelcome to *Wrong Way* — a Quoridor-style strategy game.\nBlock your rival with barricades and race your pawn to the other side.\n\nTap *Play* to start! 🎮`,
-    play: '🎮 Play',
-    letsPlay: "Let's play! 🎮",
-    stats: (u) => `📊 *Your stats*\n\n🏆 Wins: ${u.wins}\n💔 Losses: ${u.losses}\n🤝 Draws: ${u.draws}\n⭐ Rating: ${u.rating}`,
-    noStats: 'No stats yet. Play a game first!',
-    help: '*Wrong Way* commands:\n/start — open the game\n/play — quick play\n/stats — your stats\n/language — change language',
-    nudge: 'Tap Play to start the game 🎮',
-    langSet: 'Language set: English 🇬🇧'
+      `\ud83d\udc4b Hi ${name}!\n\nWelcome to *Wrong Way* \u2014 a Quoridor-style strategy game.\nBlock your rival with barricades and race your pawn to the other side.\n\nTap *Play* to start! \ud83c\udfae`,
+    play: '\ud83c\udfae Play',
+    letsPlay: "Let's play! \ud83c\udfae",
+    stats: (u) => `\ud83d\udcca *Your stats*\n\n\ud83c\udfc6 Wins: ${u.wins}\n\ud83d\udc94 Losses: ${u.losses}\n\ud83e\udd1d Draws: ${u.draws}\n\u2b50 Rating: ${u.rating}`,
+    noStats: 'No stats yet. Press /start and play a game first!',
+    help: '*Wrong Way* commands:\n/start \u2014 open the game\n/play \u2014 quick play\n/stats \u2014 profile & rating\n/daily \u2014 daily quests\n/language \u2014 change language',
+    nudge: 'Tap Play to start the game \ud83c\udfae',
+    langSet: 'Language set: English \ud83c\uddec\ud83c\udde7',
+    statsFull: (p) =>
+      `\ud83d\udcca *Profile*\n\n${p.league.emoji} *${p.league.name}* league\n\u2b50 Rating: *${p.rating}*` +
+      (p.league.next ? `  (+${p.league.pointsToNext} \u2192 ${p.league.next.emoji} ${p.league.next.name})` : '  (top tier! \ud83d\udc51)') +
+      `\n\ud83c\udf0d Rank: *#${p.rank}* / ${p.total}\n\n\ud83c\udfc6 Wins: ${p.wins}   \ud83d\udc94 Losses: ${p.losses}   \ud83e\udd1d Draws: ${p.draws}\n\ud83e\ude99 Coins: ${p.coins}\n\ud83d\udd25 Daily streak: ${p.streak} days (best: ${p.bestStreak})`,
+    dailyTitle: '\ud83c\udfaf *Daily quests*',
+    dailyStreak: (s) => `\ud83d\udd25 Streak: *${s.streak}* days  (best: ${s.bestStreak})`,
+    checkinHint: (r) => `\ud83c\udf81 Tap below to claim today's reward (+${r} \ud83e\ude99)`,
+    checkinBtn: (r) => `\ud83c\udf81 Claim daily reward (+${r} \ud83e\ude99)`,
+    checkinDone: (r, s) => `\ud83c\udf81 +${r} coins! \ud83d\udd25 Streak: ${s} days`,
+    alreadyChecked: '\u2705 Today's reward already claimed. Come back tomorrow!',
+    allDone: '\ud83c\udf89 All today's quests are done! Great job!'
   },
   ru: {
-    chooseLang: '🌐 Выберите язык:',
+    chooseLang: '\ud83c\udf10 \u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u044f\u0437\u044b\u043a:',
     welcome: (name) =>
-      `👋 Привет, ${name}!\n\nДобро пожаловать в *Wrong Way* — стратегическую игру в стиле Quoridor.\nБлокируйте соперника барьерами и доведите свою фишку до другой стороны.\n\nНажмите *Play*, чтобы начать! 🎮`,
-    play: '🎮 Играть',
-    letsPlay: "Поехали! 🎮",
-    stats: (u) => `📊 *Ваша статистика*\n\n🏆 Победы: ${u.wins}\n💔 Поражения: ${u.losses}\n🤝 Ничьи: ${u.draws}\n⭐ Рейтинг: ${u.rating}`,
-    noStats: 'Пока нет статистики. Сыграйте сначала!',
-    help: '*Wrong Way* команды:\n/start — открыть игру\n/play — быстрая игра\n/stats — статистика\n/language — сменить язык',
-    nudge: 'Нажмите Play, чтобы начать игру 🎮',
-    langSet: 'Язык установлен: Русский 🇷🇺'
+      `\ud83d\udc4b \u041f\u0440\u0438\u0432\u0435\u0442, ${name}!\n\n\u0414\u043e\u0431\u0440\u043e \u043f\u043e\u0436\u0430\u043b\u043e\u0432\u0430\u0442\u044c \u0432 *Wrong Way* \u2014 \u0441\u0442\u0440\u0430\u0442\u0435\u0433\u0438\u0447\u0435\u0441\u043a\u0443\u044e \u0438\u0433\u0440\u0443 \u0432 \u0441\u0442\u0438\u043b\u0435 Quoridor.\n\u0411\u043b\u043e\u043a\u0438\u0440\u0443\u0439\u0442\u0435 \u0441\u043e\u043f\u0435\u0440\u043d\u0438\u043a\u0430 \u0431\u0430\u0440\u044c\u0435\u0440\u0430\u043c\u0438 \u0438 \u0434\u043e\u0432\u0435\u0434\u0438\u0442\u0435 \u0444\u0438\u0448\u043a\u0443 \u0434\u043e \u0434\u0440\u0443\u0433\u043e\u0439 \u0441\u0442\u043e\u0440\u043e\u043d\u044b.\n\n\u041d\u0430\u0436\u043c\u0438\u0442\u0435 *Play*, \u0447\u0442\u043e\u0431\u044b \u043d\u0430\u0447\u0430\u0442\u044c! \ud83c\udfae`,
+    play: '\ud83c\udfae \u0418\u0433\u0440\u0430\u0442\u044c',
+    letsPlay: "\u041f\u043e\u0435\u0445\u0430\u043b\u0438! \ud83c\udfae",
+    stats: (u) => `\ud83d\udcca *\u0412\u0430\u0448\u0430 \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430*\n\n\ud83c\udfc6 \u041f\u043e\u0431\u0435\u0434\u044b: ${u.wins}\n\ud83d\udc94 \u041f\u043e\u0440\u0430\u0436\u0435\u043d\u0438\u044f: ${u.losses}\n\ud83e\udd1d \u041d\u0438\u0447\u044c\u0438: ${u.draws}\n\u2b50 \u0420\u0435\u0439\u0442\u0438\u043d\u0433: ${u.rating}`,
+    noStats: '\u041f\u043e\u043a\u0430 \u043d\u0435\u0442 \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0438. \u041d\u0430\u0436\u043c\u0438\u0442\u0435 /start \u0438 \u0441\u044b\u0433\u0440\u0430\u0439\u0442\u0435!',
+    help: '*Wrong Way* \u043a\u043e\u043c\u0430\u043d\u0434\u044b:\n/start \u2014 \u043e\u0442\u043a\u0440\u044b\u0442\u044c \u0438\u0433\u0440\u0443\n/play \u2014 \u0431\u044b\u0441\u0442\u0440\u0430\u044f \u0438\u0433\u0440\u0430\n/stats \u2014 \u043f\u0440\u043e\u0444\u0438\u043b\u044c \u0438 \u0440\u0435\u0439\u0442\u0438\u043d\u0433\n/daily \u2014 \u0435\u0436\u0435\u0434\u043d\u0435\u0432\u043d\u044b\u0435 \u0437\u0430\u0434\u0430\u043d\u0438\u044f\n/language \u2014 \u0441\u043c\u0435\u043d\u0438\u0442\u044c \u044f\u0437\u044b\u043a',
+    nudge: '\u041d\u0430\u0436\u043c\u0438\u0442\u0435 Play, \u0447\u0442\u043e\u0431\u044b \u043d\u0430\u0447\u0430\u0442\u044c \ud83c\udfae',
+    langSet: '\u042f\u0437\u044b\u043a \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d: \u0420\u0443\u0441\u0441\u043a\u0438\u0439 \ud83c\uddf7\ud83c\uddfa',
+    statsFull: (p) =>
+      `\ud83d\udcca *\u041f\u0440\u043e\u0444\u0438\u043b\u044c*\n\n${p.league.emoji} \u041b\u0438\u0433\u0430 *${p.league.name}*\n\u2b50 \u0420\u0435\u0439\u0442\u0438\u043d\u0433: *${p.rating}*` +
+      (p.league.next ? `  (+${p.league.pointsToNext} \u2192 ${p.league.next.emoji} ${p.league.next.name})` : '  (\u0432\u044b\u0441\u0448\u0430\u044f \u043b\u0438\u0433\u0430! \ud83d\udc51)') +
+      `\n\ud83c\udf0d \u041c\u0435\u0441\u0442\u043e: *#${p.rank}* / ${p.total}\n\n\ud83c\udfc6 \u041f\u043e\u0431\u0435\u0434\u044b: ${p.wins}   \ud83d\udc94 \u041f\u043e\u0440\u0430\u0436\u0435\u043d\u0438\u044f: ${p.losses}   \ud83e\udd1d \u041d\u0438\u0447\u044c\u0438: ${p.draws}\n\ud83e\ude99 \u041c\u043e\u043d\u0435\u0442\u044b: ${p.coins}\n\ud83d\udd25 \u0421\u0435\u0440\u0438\u044f: ${p.streak} \u0434\u043d. (\u0440\u0435\u043a\u043e\u0440\u0434: ${p.bestStreak})`,
+    dailyTitle: '\ud83c\udfaf *\u0415\u0436\u0435\u0434\u043d\u0435\u0432\u043d\u044b\u0435 \u0437\u0430\u0434\u0430\u043d\u0438\u044f*',
+    dailyStreak: (s) => `\ud83d\udd25 \u0421\u0435\u0440\u0438\u044f: *${s.streak}* \u0434\u043d.  (\u0440\u0435\u043a\u043e\u0440\u0434: ${s.bestStreak})`,
+    checkinHint: (r) => `\ud83c\udf81 \u041d\u0430\u0436\u043c\u0438\u0442\u0435 \u043d\u0438\u0436\u0435, \u0447\u0442\u043e\u0431\u044b \u043f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u043d\u0430\u0433\u0440\u0430\u0434\u0443 (+${r} \ud83e\ude99)`,
+    checkinBtn: (r) => `\ud83c\udf81 \u0417\u0430\u0431\u0440\u0430\u0442\u044c \u043d\u0430\u0433\u0440\u0430\u0434\u0443 (+${r} \ud83e\ude99)`,
+    checkinDone: (r, s) => `\ud83c\udf81 +${r} \u043c\u043e\u043d\u0435\u0442! \ud83d\udd25 \u0421\u0435\u0440\u0438\u044f: ${s} \u0434\u043d.`,
+    alreadyChecked: '\u2705 \u0421\u0435\u0433\u043e\u0434\u043d\u044f\u0448\u043d\u044f\u044f \u043d\u0430\u0433\u0440\u0430\u0434\u0430 \u0443\u0436\u0435 \u043f\u043e\u043b\u0443\u0447\u0435\u043d\u0430. \u0417\u0430\u0445\u043e\u0434\u0438\u0442\u0435 \u0437\u0430\u0432\u0442\u0440\u0430!',
+    allDone: '\ud83c\udf89 \u0412\u0441\u0435 \u0437\u0430\u0434\u0430\u043d\u0438\u044f \u043d\u0430 \u0441\u0435\u0433\u043e\u0434\u043d\u044f \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u044b! \u041e\u0442\u043b\u0438\u0447\u043d\u043e!'
   }
 };
 
 const tr = (lang) => T[lang] || T.en;
+
+// Render the localized daily-quests message body from a progression state.
+function renderDaily(lang, state) {
+  const s = tr(lang);
+  const lines = [s.dailyTitle, '', s.dailyStreak(state), ''];
+  let allDone = true;
+  for (const q of state.quests) {
+    const txt = (q.text && (q.text[lang] || q.text.en)) || q.id;
+    if (!q.done) allDone = false;
+    lines.push(`${q.done ? '\u2705' : '\u25ab\ufe0f'} ${txt} \u2014 ${q.progress}/${q.goal}  (+${q.reward} \ud83e\ude99)`);
+  }
+  if (allDone) { lines.push(''); lines.push(s.allDone); }
+  if (!state.checkedInToday) { lines.push(''); lines.push(s.checkinHint(state.nextReward)); }
+  return lines.join('\n');
+}
+
+function dailyKeyboard(lang, state) {
+  if (state.checkedInToday) return undefined;
+  return { inline_keyboard: [[{ text: tr(lang).checkinBtn(state.nextReward), callback_data: 'daily_checkin' }]] };
+}
 
 async function call(token, method, payload) {
   try {
@@ -92,7 +146,7 @@ function playKeyboard(lang, webAppUrl) {
   if (BOT_USERNAME) {
     return {
       inline_keyboard: [[
-        { text: label, url: `https://t.me/${BOT_USERNAME}/${APP_SHORT_NAME}` }
+        { text: label, url: `{{https://t.me/${BOT_USERNAME}}}/${APP_SHORT_NAME}` }
       ]]
     };
   }
@@ -106,7 +160,7 @@ function playKeyboardEditable(lang) {
   if (!BOT_USERNAME) return undefined;
   return {
     inline_keyboard: [[
-      { text: tr(lang).play, url: `https://t.me/${BOT_USERNAME}/${APP_SHORT_NAME}` }
+      { text: tr(lang).play, url: `{{https://t.me/${BOT_USERNAME}}}/${APP_SHORT_NAME}` }
     ]]
   };
 }
@@ -115,9 +169,9 @@ function playKeyboardEditable(lang) {
 function langKeyboard() {
   return {
     inline_keyboard: [[
-      { text: "🇺🇿 O'zbek", callback_data: 'lang_uz' },
-      { text: '🇬🇧 English', callback_data: 'lang_en' },
-      { text: '🇷🇺 Русский', callback_data: 'lang_ru' }
+      { text: "\ud83c\uddfa\ud83c\uddff O'zbek", callback_data: 'lang_uz' },
+      { text: '\ud83c\uddec\ud83c\udde7 English', callback_data: 'lang_en' },
+      { text: '\ud83c\uddf7\ud83c\uddfa \u0420\u0443\u0441\u0441\u043a\u0438\u0439', callback_data: 'lang_ru' }
     ]]
   };
 }
@@ -143,7 +197,7 @@ async function handleMessage(token, msg, webAppUrl) {
   if (text.startsWith('/start') || text.startsWith('/language') || text.startsWith('/lang')) {
     await call(token, 'sendMessage', {
       chat_id: chatId,
-      text: '🌐 Tilni tanlang / Choose language / Выберите язык:',
+      text: '\ud83c\udf10 Tilni tanlang / Choose language / \u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u044f\u0437\u044b\u043a:',
       reply_markup: langKeyboard()
     });
     return;
@@ -158,11 +212,27 @@ async function handleMessage(token, msg, webAppUrl) {
   }
 
   if (text.startsWith('/stats')) {
-    const u = db.getUser(from.id);
+    const p = getProfileSummary(from.id);
     await call(token, 'sendMessage', {
       chat_id: chatId,
-      text: u ? s.stats(u) : s.noStats,
-      parse_mode: 'Markdown'
+      text: p ? s.statsFull(p) : s.noStats,
+      parse_mode: 'Markdown',
+      reply_markup: playKeyboard(lang, webAppUrl)
+    });
+    return;
+  }
+
+  if (text.startsWith('/daily')) {
+    const state = getDailyState(from.id);
+    if (!state) {
+      await call(token, 'sendMessage', { chat_id: chatId, text: s.noStats });
+      return;
+    }
+    await call(token, 'sendMessage', {
+      chat_id: chatId,
+      text: renderDaily(lang, state),
+      parse_mode: 'Markdown',
+      reply_markup: dailyKeyboard(lang, state)
     });
     return;
   }
@@ -222,7 +292,30 @@ async function handleCallback(token, cb, webAppUrl) {
     return;
   }
 
-  // Unknown callback — just acknowledge
+  // Daily streak check-in (once per day; idempotent).
+  if (data === 'daily_checkin') {
+    const lang = getUserLang(from.id);
+    const s = tr(lang);
+    const res = dailyCheckin(from.id);
+    if (!res.ok) {
+      await call(token, 'answerCallbackQuery', { callback_query_id: cb.id, text: s.noStats });
+      return;
+    }
+    const toast = res.alreadyChecked ? s.alreadyChecked : s.checkinDone(res.reward, res.streak);
+    await call(token, 'answerCallbackQuery', { callback_query_id: cb.id, text: toast, show_alert: false });
+    // Refresh the daily message in place (button disappears once claimed).
+    const state = getDailyState(from.id);
+    await call(token, 'editMessageText', {
+      chat_id: chatId,
+      message_id: cb.message.message_id,
+      text: renderDaily(lang, state),
+      parse_mode: 'Markdown',
+      reply_markup: dailyKeyboard(lang, state)
+    });
+    return;
+  }
+
+  // Unknown callback \u2014 just acknowledge
   await call(token, 'answerCallbackQuery', { callback_query_id: cb.id });
 }
 
@@ -235,7 +328,7 @@ async function poll(token, webAppUrl) {
   // 409 Conflict = another instance is polling the same bot token.
   // Back off and retry instead of hammering the API / flooding logs.
   if (res && !res.ok && res.error_code === 409) {
-    console.warn('[bot] 409 Conflict — another instance is polling this token. Retrying in 10s.');
+    console.warn('[bot] 409 Conflict \u2014 another instance is polling this token. Retrying in 10s.');
     if (running) setTimeout(() => poll(token, webAppUrl), 10000);
     return;
   }
@@ -265,7 +358,8 @@ async function setupMenuButton(token, webAppUrl) {
     commands: [
       { command: 'start', description: 'Start / choose language' },
       { command: 'play', description: 'Quick play' },
-      { command: 'stats', description: 'Your stats' },
+      { command: 'stats', description: 'Profile & rating' },
+      { command: 'daily', description: 'Daily quests & streak' },
       { command: 'language', description: 'Change language' }
     ]
   });
@@ -276,13 +370,13 @@ export async function startBot() {
   const webAppUrl = process.env.WEBAPP_URL || '';
 
   if (!token || token.startsWith('YOUR_TELEGRAM_BOT_TOKEN')) {
-    console.log('[bot] BOT_TOKEN not set — Telegram bot disabled (Mini App still works).');
+    console.log('[bot] BOT_TOKEN not set \u2014 Telegram bot disabled (Mini App still works).');
     return;
   }
 
   const me = await call(token, 'getMe');
   if (!me || !me.ok) {
-    console.error('[bot] Invalid BOT_TOKEN — bot not started.');
+    console.error('[bot] Invalid BOT_TOKEN \u2014 bot not started.');
     return;
   }
   BOT_USERNAME = me.result.username || '';
