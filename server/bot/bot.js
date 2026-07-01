@@ -59,8 +59,8 @@ const T = {
     checkinHint: (r) => `\ud83c\udf81 Tap below to claim today's reward (+${r} \ud83e\ude99)`,
     checkinBtn: (r) => `\ud83c\udf81 Claim daily reward (+${r} \ud83e\ude99)`,
     checkinDone: (r, s) => `\ud83c\udf81 +${r} coins! \ud83d\udd25 Streak: ${s} days`,
-    alreadyChecked: '\u2705 Today's reward already claimed. Come back tomorrow!',
-    allDone: '\ud83c\udf89 All today's quests are done! Great job!'
+    alreadyChecked: '\u2705 Today\'s reward already claimed. Come back tomorrow!',
+    allDone: '\ud83c\udf89 All today\'s quests are done! Great job!'
   },
   ru: {
     chooseLang: '\ud83c\udf10 \u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u044f\u0437\u044b\u043a:',
