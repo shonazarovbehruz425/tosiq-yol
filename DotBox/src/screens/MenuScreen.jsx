@@ -96,7 +96,7 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
             {t('playLocal')}
             <Chevron />
           </Pill>
-          <div style= marginTop: '8px', textAlign: 'center' >
+          <div style={ {marginTop:'8px',textAlign:'center'} }>
             <button className={styles.backLink} onClick={() => window.parent.postMessage({ type: 'dotbox_exit' }, '*')}>
               ← {t('exitToWrongWay')}
             </button>
@@ -119,7 +119,7 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
             </div>
           </SettingsSection>
           <button className={styles.startBtn} onClick={() => onJoinOnline(selSize)}>
-            <svg viewBox="0 0 24 24" fill="currentColor" style= width: '20px', height: '20px' ><path d="M8 5v14l11-7z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor" style={ {width:'20px',height:'20px'} }><path d="M8 5v14l11-7z"/></svg>
             {t('startGame')}
           </button>
           <BackBtn onClick={() => onStep('main')} />
@@ -199,7 +199,7 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
           {DIFFS.map(({ v, labelKey, subKey, color, gradFrom, gradTo, bars }) => (
             <DiffCard key={v} color={color} gradFrom={gradFrom} gradTo={gradTo} bars={bars}
               selected={selDiff === v} onClick={() => { setSelDiff(v); onStep('bot-settings'); }}>
-              <span className={styles.diffTitle} style= color >{t(labelKey)}</span>
+              <span className={styles.diffTitle} style={ {color:color} }>{t(labelKey)}</span>
               <span className={styles.diffDesc}>{t(subKey)}</span>
             </DiffCard>
           ))}
@@ -255,7 +255,7 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
             timerTotal: selTimer,
             blitzTime: selBlitz,
           })}>
-            <svg viewBox="0 0 24 24" fill="currentColor" style= width: '20px', height: '20px' ><path d="M8 5v14l11-7z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor" style={ {width:'20px',height:'20px'} }><path d="M8 5v14l11-7z"/></svg>
             {t('startGame')}
           </button>
 
@@ -283,14 +283,14 @@ function Pill({ children, onClick, primary, blue, disabled }) {
     <button
       className={`${styles.pill} ${primary ? styles.pillPrimary : ''} ${blue ? styles.pillBlue : ''}`}
       onClick={disabled ? undefined : onClick}
-      style={disabled ? {opacity:.6,pointerEvents:'none'} : undefined}
+      style={disabled ? { opacity: .6, pointerEvents: 'none' } : undefined}
     >
       {children}
     </button>
   );
 }
 function PillIcon({ children, color }) {
-  return <span className={styles.pillIcon} style= background: color >{children}</span>;
+  return <span className={styles.pillIcon} style={ {background:color} }>{children}</span>;
 }
 function Chevron() {
   return (
@@ -319,8 +319,8 @@ function BackBtnInner({ onClick }) {
 function DiffCard({ children, color, gradFrom, gradTo, bars, selected, onClick }) {
   return (
     <button className={`${styles.diffCard} ${selected ? styles.diffCardSel : ''}`}
-      style= ['--diff-accent']: color  onClick={onClick}>
-      <div className={styles.diffIcon} style={{background: `linear-gradient(135deg, ${gradFrom}, ${gradTo})`}}>
+      style={ {'--diff-accent':color} } onClick={onClick}>
+      <div className={styles.diffIcon} style={ {background:`linear-gradient(135deg, ${gradFrom}, ${gradTo})`} }>
         {bars === 1 && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>}
         {bars === 2 && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>}
         {bars === 3 && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>}
@@ -329,7 +329,7 @@ function DiffCard({ children, color, gradFrom, gradTo, bars, selected, onClick }
       <div className={styles.diffBars}>
         {[1,2,3].map(i => (
           <span key={i} className={`${styles.diffBar} ${i <= bars ? styles.diffBarOn : ''}`}
-            style={{height: `${6 + i * 5}px`, background: i <= bars ? color : 'rgba(255,255,255,.1)'}} />
+            style={ {height:`${6 + i * 5}px`, background: i <= bars ? color : 'rgba(255,255,255,.1)'} } />
         ))}
       </div>
     </button>
