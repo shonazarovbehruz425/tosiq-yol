@@ -8,6 +8,7 @@ import { presence } from "./presence.js";
 import { socketRegistry } from "./sockets.js";
 import { getClientIp, lookupCountry } from "./geoip.js";
 import { getSkinPrice } from "../game/skins-catalog.js";
+import { createDotboxGame, applyDotboxMove } from "../game/dotbox.js";
 
 // Send active online count to everyone
 function broadcastOnlineCount(wss) {
@@ -39,9 +40,9 @@ function getOpenLobbies() {
     }));
 }
 
-// ── DOTBOX: lightweight move-relay rooms (no server-side game validation) ──────
+// ── DOTBOX: online rooms with authoritative server-side move validation ───────
 const _dbQueue = new Map(); // userId → { id, name, ws, size }
-const _dbRooms = new Map(); // code   → { code, size, p1, p2 }
+const _dbRooms = new Map(); // code   → { code, size, p1, p2, game }
 function _dbRandCode() {
   const C = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let s = "";
@@ -802,7 +803,7 @@ export function handleWebSocketConnection(ws, wss, request) {
         return;
       }
 
-      // ── DOTBOX RELAY ───────────────────────────────────────────
+      // ── DOTBOX (online, server-validated) ──────────────────────
       if (type === "dotbox_join_queue") {
         const size = payload?.size || 4;
         _dbQueue.set(userProfile.id, {
@@ -823,7 +824,14 @@ export function handleWebSocketConnection(ws, wss, request) {
           _dbQueue.delete(userProfile.id);
           _dbQueue.delete(opp.id);
           const code = _dbRandCode();
-          _dbRooms.set(code, { code, size, p1: me, p2: opp });
+          // Start an authoritative game so the server can validate moves.
+          _dbRooms.set(code, {
+            code,
+            size,
+            p1: me,
+            p2: opp,
+            game: createDotboxGame(size),
+          });
           const notify = (player, side, opponent) => {
             if (player.ws.readyState === 1)
               player.ws.send(
@@ -860,6 +868,7 @@ export function handleWebSocketConnection(ws, wss, request) {
             ws,
           },
           p2: null,
+          game: null,
         });
         ws.send(
           JSON.stringify({
@@ -895,6 +904,8 @@ export function handleWebSocketConnection(ws, wss, request) {
           name: userProfile.first_name || "O'yinchi",
           ws,
         };
+        // Both sides are in — start the authoritative server-side game.
+        dbRoom.game = createDotboxGame(dbRoom.size);
         const notify = (player, side, opponent) => {
           if (player.ws.readyState === 1)
             player.ws.send(
@@ -915,8 +926,40 @@ export function handleWebSocketConnection(ws, wss, request) {
       }
       if (type === "dotbox_move") {
         const dbRoom = _dbRooms.get(payload?.code);
-        if (!dbRoom) return;
-        const opp2 = dbRoom.p1.id === userProfile.id ? dbRoom.p2 : dbRoom.p1;
+        // Room must exist and have both players seated.
+        if (!dbRoom || !dbRoom.p1 || !dbRoom.p2) return;
+        // Identify which side the sender controls (p1 = 1, p2 = 2). Reject any
+        // socket that is not actually a member of this room.
+        const isP1 = dbRoom.p1.id === userProfile.id;
+        const isP2 = dbRoom.p2.id === userProfile.id;
+        if (!isP1 && !isP2) return;
+        const side = isP1 ? 1 : 2;
+
+        // Safety: ensure the authoritative game exists for pre-existing rooms.
+        if (!dbRoom.game) dbRoom.game = createDotboxGame(dbRoom.size);
+
+        // SECURITY: validate against authoritative state instead of blindly
+        // relaying. Blocks out-of-turn, duplicate, and out-of-bounds moves.
+        const res = applyDotboxMove(
+          dbRoom.game,
+          side,
+          payload?.t,
+          payload?.r,
+          payload?.c,
+        );
+        if (!res.ok) {
+          if (ws.readyState === 1)
+            ws.send(
+              JSON.stringify({
+                type: "dotbox_error",
+                payload: { message: "invalid_move", reason: res.reason },
+              }),
+            );
+          return;
+        }
+
+        // Forward only the validated move to the opponent.
+        const opp2 = isP1 ? dbRoom.p2 : dbRoom.p1;
         if (opp2 && opp2.ws.readyState === 1)
           opp2.ws.send(JSON.stringify({ type: "dotbox_move", payload }));
         return;
