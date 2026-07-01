@@ -17,10 +17,24 @@ let _dataLoaded = false;
 
 /**
  * Load the latest trained data from the server.
- * Called once when the AI worker starts.
- * The server regenerates /trainedai.js on every defeat — always fresh.
+ * Primary: dynamic import() of /trainedai.js  (server-generated JS file)
+ * Fallback: fetch /api/bot-patterns JSON endpoint
+ *
+ * The server writes a fresh trainedai.js every time the AI is defeated.
  */
 export async function loadTrainedData(difficulty) {
+  // ── Primary: load the JS file the server generates ──
+  try {
+    // Add timestamp to bust cache — always get the freshest data
+    const mod = await import(/* @vite-ignore */ `/trainedai.js?t=${Date.now()}`);
+    if (mod.TRAINED_DANGER_WALLS) TRAINED_DANGER_WALLS = mod.TRAINED_DANGER_WALLS;
+    if (mod.TRAINED_DANGER_PATHS) TRAINED_DANGER_PATHS = mod.TRAINED_DANGER_PATHS;
+    if (mod.TRAINED_META)         TRAINED_META         = mod.TRAINED_META;
+    _dataLoaded = true;
+    return true;
+  } catch { /* dynamic import may fail in some environments — use JSON fallback */ }
+
+  // ── Fallback: JSON API ──
   try {
     const url = difficulty
       ? `/api/bot-patterns?difficulty=${difficulty}`

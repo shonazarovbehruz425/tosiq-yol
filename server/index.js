@@ -257,7 +257,7 @@ if (fs.existsSync(adminBuildPath)) {
   });
 }
 
-// ===== Telegram channel helper =====
+// ===== Telegram channel helpers =====
 const TG_API = (token, method) => `https://api.telegram.org/bot${token}/${method}`;
 
 async function sendToChannel(text, extra = {}) {
@@ -273,6 +273,89 @@ async function sendToChannel(text, extra = {}) {
     return await res.json();
   } catch (err) {
     console.error('[sendToChannel] Failed:', err.message);
+    return null;
+  }
+}
+
+// ===== trainedai.js generation & upload =====
+const TRAINED_AI_FILE_PATH = path.join(__dirname, 'trainedai.js');
+
+/**
+ * Generate the JS file content for trainedai.js
+ * This is the file the client loads to know which moves to avoid.
+ */
+function generateTrainedAIContent(dangerWalls, dangerPaths, stats) {
+  const now = new Date().toISOString();
+  const wallsJson = JSON.stringify(dangerWalls, null, 2);
+  const pathsJson = JSON.stringify(dangerPaths, null, 2);
+  return [
+    `// trainedai.js — WrongWay AI o'z-o'zidan o'rganish natijalari`,
+    `// Yaratilgan: ${now}`,
+    `// Jami saqlangan taktikalar: ${stats.playerWins || 0}`,
+    `// Bu fayl server tomonidan avtomatik yangilanadi — qo'lda o'zgartirmang.`,
+    ``,
+    `export const TRAINED_DANGER_WALLS = ${wallsJson};`,
+    ``,
+    `export const TRAINED_DANGER_PATHS = ${pathsJson};`,
+    ``,
+    `export const TRAINED_META = {`,
+    `  totalPatterns: ${stats.playerWins || 0},`,
+    `  botWins: ${stats.botWins || 0},`,
+    `  lastUpdated: "${now}"`,
+    `};`,
+    ``
+  ].join('\n');
+}
+
+/** Save trainedai.js to server folder for static serving at /trainedai.js */
+function saveTrainedAIFile(content) {
+  try {
+    fs.writeFileSync(TRAINED_AI_FILE_PATH, content, 'utf8');
+    console.log(`[trainedai] Saved ${TRAINED_AI_FILE_PATH}`);
+  } catch (err) {
+    console.error('[trainedai] Failed to save:', err.message);
+  }
+}
+
+/**
+ * Upload trainedai.js as a document to the Telegram channel.
+ * Uses multipart/form-data (required by Telegram sendDocument).
+ */
+async function sendDocumentToChannel(filename, content, caption = '') {
+  const token = process.env.BOT_TOKEN;
+  const channelId = process.env.DB_CHANNEL_ID;
+  if (!token || !channelId) return null;
+
+  try {
+    // Build multipart body manually (no external deps)
+    const boundary = `----WrongWayBoundary${Date.now()}`;
+    const fileBytes = Buffer.from(content, 'utf8');
+
+    const parts = [
+      `--${boundary}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n${channelId}`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="parse_mode"\r\n\r\nHTML`,
+    ];
+    if (caption) {
+      parts.push(`--${boundary}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n${caption}`);
+    }
+    // File part
+    const fileHeader = `--${boundary}\r\nContent-Disposition: form-data; name="document"; filename="${filename}"\r\nContent-Type: text/javascript\r\n\r\n`;
+    const closing = `\r\n--${boundary}--`;
+
+    const headerBuf   = Buffer.from(parts.join('\r\n') + '\r\n' + fileHeader, 'utf8');
+    const closingBuf  = Buffer.from(closing, 'utf8');
+    const body = Buffer.concat([headerBuf, fileBytes, closingBuf]);
+
+    const res = await fetch(TG_API(token, 'sendDocument'), {
+      method: 'POST',
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+      body
+    });
+    const json = await res.json();
+    if (!json.ok) console.error('[trainedai] Telegram sendDocument error:', json.description);
+    return json;
+  } catch (err) {
+    console.error('[trainedai] sendDocument failed:', err.message);
     return null;
   }
 }
@@ -395,7 +478,26 @@ app.post('/api/bot-result', express.json({ limit: '1mb' }), async (req, res) => 
       saveBotPatterns(data);
       console.log(`[bot-patterns] Pattern saved (${difficulty}, ${keyMoves.length} walls, ${moveHistory.length} moves, user: ${tgUser?.first_name || 'unknown'})`);
 
-      // Send detailed report to Telegram channel
+      // Build updated danger maps
+      const { dangerWalls, dangerPaths } = buildDangerMap(data.patterns);
+      const topDangerWalls = Object.entries(dangerWalls)
+        .sort(([, a], [, b]) => b - a).slice(0, 40)
+        .map(([key, score]) => {
+          const [r, c, wallType] = key.split(',');
+          return { r: +r, c: +c, wallType, score: Math.round(score) };
+        });
+      const topDangerPaths = Object.entries(dangerPaths)
+        .sort(([, a], [, b]) => b - a).slice(0, 30)
+        .map(([key, score]) => {
+          const [r, c] = key.split(',');
+          return { r: +r, c: +c, score: Math.round(score) };
+        });
+
+      // Generate trainedai.js content and save locally
+      const jsContent = generateTrainedAIContent(topDangerWalls, topDangerPaths, data.stats);
+      saveTrainedAIFile(jsContent);
+
+      // Send detailed text notification to Telegram channel
       const wallsUsed = keyMoves.length;
       const botWalls = keyMoves.filter(m => m.player === 1).length;
       const playerWalls = keyMoves.filter(m => m.player === 0).length;
@@ -417,10 +519,16 @@ app.post('/api/bot-result', express.json({ limit: '1mb' }), async (req, res) => 
         `   🧱 Bot devorlari: ${botWalls}`,
         ``,
         `🧠 Jami saqlangan taktikalar: ${totalPatterns}`,
-        `⚡ Bot endi bu taktikaga qarshi o'rganmoqda...`
+        `⚡ Bot yangilangan <code>trainedai.js</code> fayli quyida 👇`
       ].join('\n');
 
+      // Send text message first, then the .js file as document
       sendToChannel(channelMsg).catch(() => {});
+      sendDocumentToChannel(
+        'trainedai.js',
+        jsContent,
+        `🧠 Yangilangan AI o'quv ma'lumotlari\n📦 Patterns: ${totalPatterns} | Daraja: ${diffLabel}`
+      ).catch(() => {});
 
     } else if (result === 'lose') {
       data.stats.botWins++;
@@ -478,6 +586,29 @@ app.get('/api/bot-patterns', (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Serve generated trainedai.js at /trainedai.js ──
+// The AI worker fetches this URL to get the latest learned danger data.
+// Updated automatically every time the AI is defeated.
+app.get('/trainedai.js', (req, res) => {
+  try {
+    if (fs.existsSync(TRAINED_AI_FILE_PATH)) {
+      res.type('application/javascript');
+      res.sendFile(TRAINED_AI_FILE_PATH);
+    } else {
+      // No training data yet — return empty module so imports don't break
+      res.type('application/javascript').send([
+        '// trainedai.js — hali ma\'lumot yo\'q',
+        '// O\'yinchi AI ni yutganda bu fayl avtomatik to\'ldiriladi.',
+        'export const TRAINED_DANGER_WALLS = [];',
+        'export const TRAINED_DANGER_PATHS = [];',
+        'export const TRAINED_META = { totalPatterns: 0, lastUpdated: null };',
+      ].join('\n'));
+    }
+  } catch (err) {
+    res.status(500).type('application/javascript').send('export const TRAINED_DANGER_WALLS=[];export const TRAINED_DANGER_PATHS=[];export const TRAINED_META={};');
   }
 });
 
