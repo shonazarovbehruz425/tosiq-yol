@@ -22,6 +22,7 @@ import GameScreen from './screens/game-screen.js';
 import ResultScreen from './screens/result.js';
 import ReplayScreen from './screens/replay-screen.js';
 import DotBoxScreen from './screens/dotbox-screen.js';
+import DailyScreen from './screens/daily.js';
 
 async function bootstrap() {
   console.log("Bootstrapping To'siq Yo'l game app...");
@@ -47,6 +48,7 @@ async function bootstrap() {
   router.register('result', ResultScreen);
   router.register('replay-screen', ReplayScreen);
   router.register('dotbox', DotBoxScreen);
+  router.register('daily', DailyScreen);
 
   // 3. Hook router to DOM target
   router.init('#app');

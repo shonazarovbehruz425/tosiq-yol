@@ -539,12 +539,14 @@ class JSONDatabase {
       .sort((a, b) => (b.wins || 0) - (a.wins || 0) || (a.losses || 0) - (b.losses || 0));
 
     const nameOf = (u) => u.display_name || u.first_name || (u.username ? '@' + u.username : 'Anonymous');
+    const ratingOf = (u) => (typeof u.rating === 'number') ? u.rating : 1000;
 
     const top = sorted.slice(0, limit).map((u, i) => ({
       rank: i + 1,
       id: u.id,
       name: nameOf(u),
       country_code: u.country_code || '',
+      rating: ratingOf(u),
       wins: u.wins || 0,
       losses: u.losses || 0
     }));
@@ -560,6 +562,7 @@ class JSONDatabase {
           id: u.id,
           name: nameOf(u),
           country_code: u.country_code || '',
+          rating: ratingOf(u),
           wins: u.wins || 0,
           losses: u.losses || 0
         };

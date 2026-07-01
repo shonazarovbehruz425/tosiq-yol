@@ -2,6 +2,7 @@ import { t } from '../core/i18n.js';
 import { socket } from '../core/websocket.js';
 import { haptic } from '../core/telegram.js';
 import { Toast } from '../components/toast.js';
+import { leagueBadge } from '../core/leagues.js';
 
 // Convert an ISO-2 country code (e.g. "UZ") into its flag emoji.
 function flagFromCode(code) {
@@ -95,6 +96,7 @@ export class LeaderboardScreen {
               </div>
               <div class="podium-name">${this.esc(p.name)}</div>
               <div class="podium-rating">${p.wins} ${t('wins')}</div>
+              <div style="margin-top:3px;">${leagueBadge(p.rating)}</div>
               <div class="podium-stand">
                 ${medalSvg('podium-medal')}
               </div>
@@ -125,6 +127,7 @@ export class LeaderboardScreen {
         <span class="lb-name">
           ${this.esc(p.name)}
           ${flag ? `<span class="lb-flag">${flag}</span>` : ''}
+          ${leagueBadge(p.rating)}
         </span>
         <span class="lb-rating">${p.wins} ${t('wins')}</span>
         ${addBtn}
@@ -148,7 +151,7 @@ export class LeaderboardScreen {
         <div class="lb-row lb-row-me">
           <span class="lb-rank">${me.rank}</span>
           <span class="lb-avatar">${this.initial(me.name)}</span>
-          <span class="lb-name">${this.esc(me.name)} ${flag ? `<span class="lb-flag">${flag}</span>` : ''}</span>
+          <span class="lb-name">${this.esc(me.name)} ${flag ? `<span class="lb-flag">${flag}</span>` : ''} ${leagueBadge(me.rating)}</span>
           <span class="lb-rating">${me.wins} ${t('wins')}</span>
         </div>
       </div>

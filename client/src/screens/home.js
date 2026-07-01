@@ -1,4 +1,4 @@
-import { t } from '../core/i18n.js';
+import { t, getLanguage } from '../core/i18n.js';
 import { socket } from '../core/websocket.js';
 import { haptic } from '../core/telegram.js';
 
@@ -12,6 +12,8 @@ export class HomeScreen {
   }
 
   render() {
+    const lang = getLanguage();
+    const dailyLabel = lang === 'ru' ? '\u0415\u0436\u0435\u0434\u043d\u0435\u0432\u043d\u043e' : (lang === 'en' ? 'Daily' : 'Kunlik');
     return `
       <div class="screen screen-enter">
         <div class="menu-header">
@@ -67,6 +69,22 @@ export class HomeScreen {
               </svg>
             </span>
             <span class="menu-pill-label">${t('playFriend')}</span>
+          </button>
+
+          <button class="menu-pill" id="daily-btn">
+            <span class="menu-pill-icon icon-daily">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"/>
+                <path d="M16 2v4M8 2v4M3 10h18"/>
+                <path d="m9 16 2 2 4-4"/>
+              </svg>
+            </span>
+            <span class="menu-pill-label">${dailyLabel}</span>
+            <span class="menu-pill-chevron">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 6l6 6-6 6"/>
+              </svg>
+            </span>
           </button>
 
           <button class="menu-pill" id="leaderboard-btn">
@@ -130,10 +148,10 @@ export class HomeScreen {
 
         <div class="menu-footer">
           <a href="https://t.me/WrongWayGame" class="menu-link" target="_blank">
-            📢 ${t('channel')}
+            \uD83D\uDCE2 ${t('channel')}
           </a>
           <a href="https://t.me/WrongWaySupportBot" class="menu-link" target="_blank">
-            💬 ${t('support')}
+            \uD83D\uDCAC ${t('support')}
           </a>
         </div>
       </div>
@@ -168,6 +186,14 @@ export class HomeScreen {
       haptic.impact('medium');
       this.router.navigate('bot');
     });
+
+    const dailyBtn = document.getElementById('daily-btn');
+    if (dailyBtn) {
+      dailyBtn.addEventListener('click', () => {
+        haptic.impact('medium');
+        this.router.navigate('daily');
+      });
+    }
 
     const leaderboardBtn = document.getElementById('leaderboard-btn');
     if (leaderboardBtn) {
