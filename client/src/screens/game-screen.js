@@ -5,6 +5,7 @@ import { StorageManager } from '../core/storage.js';
 import { Sound, setSoundEnabled } from '../core/sound.js';
 import { QuoridorEngine } from '../game/logic.js';
 import { QuoridorAI } from '../game/ai.js';
+import { TrainedAI } from '../game/trainedai.js';
 import { BoardRenderer } from '../game/board.js';
 import { GameTimer } from '../game/timer.js';
 import { FloatingEmoji } from '../game/animations.js';
@@ -51,7 +52,8 @@ export class GameScreen {
     this._cachedPatterns = null;
     if (this.vs === 'bot') {
       const botSide = 1 - this.mySide;
-      this.botAI = new QuoridorAI(botSide);
+      // Use TrainedAI (extends QuoridorAI) for adaptive learning
+      this.botAI = new TrainedAI(botSide);
     }
     
     // Event bindings
@@ -807,26 +809,6 @@ export class GameScreen {
     if (this._aiWorker === undefined) {
       try {
         this._aiWorker = new Worker(new URL('../game/ai.worker.js', import.meta.url), { type: 'module' });
-        // Fetch adaptive patterns filtered by difficulty for this game
-        const diff = this.params.difficulty;
-        const url = diff ? `/api/bot-patterns?difficulty=${diff}` : '/api/bot-patterns';
-        fetch(url)
-          .then(r => r.json())
-          .then(data => {
-            if (!this._aiWorker) return;
-            // Send both raw patterns AND pre-computed danger maps
-            const msg = {};
-            if (data.patterns)    msg.patterns    = data.patterns;
-            if (data.dangerWalls) msg.dangerWalls = data.dangerWalls;
-            if (data.dangerPaths) msg.dangerPaths = data.dangerPaths;
-            if (Object.keys(msg).length > 0) {
-              this._cachedPatterns = data.patterns || null;
-              this._cachedDangerWalls = data.dangerWalls || null;
-              this._cachedDangerPaths = data.dangerPaths || null;
-              this._aiWorker.postMessage(msg);
-            }
-          })
-          .catch(() => {});
       } catch (e) {
         this._aiWorker = null;
       }
@@ -865,9 +847,6 @@ export class GameScreen {
         state,
         difficulty: this.params.difficulty,
         botSide,
-        patterns: this._cachedPatterns,
-        dangerWalls: this._cachedDangerWalls || null,
-        dangerPaths: this._cachedDangerPaths || null
       });
     } else {
       // No worker support — run synchronously.

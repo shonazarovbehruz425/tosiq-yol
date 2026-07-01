@@ -32,74 +32,17 @@ export class QuoridorAI {
     this.playerIndex = playerIndex; // 0 = Red, 1 = Blue
     this.oppIndex = 1 - playerIndex;
     this.adaptivePatterns = [];
-    // Danger maps (set via setAdaptivePatterns / setDangerMaps)
-    this.dangerWalls = new Map();  // "r,c,wallType" -> score
-    this.dangerPaths = new Map();  // "r,c" -> score
-    this._serverDangerWalls = [];
-    this._serverDangerPaths = [];
+    this.avoidMoves = new Set();
   }
 
   setAdaptivePatterns(patterns) {
     this.adaptivePatterns = patterns || [];
-    // dangerWalls: Map<"r,c,wallType" -> danger score>  — bot's own walls that led to losses
-    this.dangerWalls = new Map();
-    // dangerPaths: Map<"r,c" -> danger score>  — pawn positions where bot historically lost
-    this.dangerPaths = new Map();
-
+    this.avoidMoves = new Set();
     for (const p of this.adaptivePatterns) {
-      const diffWeight = { hard: 1, master: 1.5, grandmaster: 2 }[p.difficulty] || 1;
-      // Recency: patterns from the last 7 days get full weight
-      const ageMs = Date.now() - (p.timestamp || 0);
-      const ageDays = ageMs / (1000 * 60 * 60 * 24);
-      const recency = Math.max(0.2, 1 - ageDays / 30);
-      const w = diffWeight * recency;
-
-      for (const km of p.keyMoves || []) {
-        // Only penalise the BOT's own wall moves (player 1 = top/blue)
-        if (km.player === 1) {
-          const key = `${km.r},${km.c},${km.wallType}`;
-          this.dangerWalls.set(key, (this.dangerWalls.get(key) || 0) + w * 15);
+      if (p.keyMoves && p.keyMoves.length > 0) {
+        for (const km of p.keyMoves) {
+          this.avoidMoves.add(`${km.r},${km.c},${km.wallType}`);
         }
-      }
-      for (const pos of p.positions || []) {
-        if (pos.type === 'move') {
-          const key = `${pos.r},${pos.c}`;
-          this.dangerPaths.set(key, (this.dangerPaths.get(key) || 0) + w * 8);
-        }
-      }
-    }
-
-    // Also ingest pre-computed danger maps sent directly from server
-    if (this._serverDangerWalls) {
-      for (const { r, c, wallType, score } of this._serverDangerWalls) {
-        const key = `${r},${c},${wallType}`;
-        this.dangerWalls.set(key, (this.dangerWalls.get(key) || 0) + score);
-      }
-    }
-    if (this._serverDangerPaths) {
-      for (const { r, c, score } of this._serverDangerPaths) {
-        const key = `${r},${c}`;
-        this.dangerPaths.set(key, (this.dangerPaths.get(key) || 0) + score);
-      }
-    }
-  }
-
-  // Accept pre-computed danger maps directly from the server response
-  setDangerMaps(dangerWalls, dangerPaths) {
-    this._serverDangerWalls = dangerWalls || [];
-    this._serverDangerPaths = dangerPaths || [];
-    // Re-apply if patterns already loaded
-    if (this.adaptivePatterns.length > 0) {
-      this.setAdaptivePatterns(this.adaptivePatterns);
-    } else {
-      // Apply server maps directly
-      this.dangerWalls = new Map();
-      this.dangerPaths = new Map();
-      for (const { r, c, wallType, score } of this._serverDangerWalls) {
-        this.dangerWalls.set(`${r},${c},${wallType}`, score);
-      }
-      for (const { r, c, score } of this._serverDangerPaths) {
-        this.dangerPaths.set(`${r},${c}`, score);
       }
     }
   }
@@ -210,10 +153,11 @@ export class QuoridorAI {
         if (m.type === 'move') {
           priority = 1000 - Math.abs(m.r - goal) * 10;
         } else if (m.onOppPath) {
-          priority = 500 - (m.dangerScore || 0) * 2;
+          priority = 500;
         } else {
-          priority = 0 - (m.dangerScore || 0);
+          priority = 0;
         }
+        if (m.avoided) priority = -100;
         return { m, priority };
       })
       .sort((a, b) => b.priority - a.priority)
@@ -524,18 +468,13 @@ export class QuoridorAI {
           // In tight (deep) search, only keep the FORCING walls — those that sit
           // on the opponent's shortest path. Everything else explodes the tree.
           if (this.tightSearch && !onOppPath) return;
-                if (engine.isValidWall(r, c, 'H')) {
-            const dangerScore = this.dangerWalls.get(`${r},${c},H`) || 0;
-            // Completely exclude walls that are heavily associated with losses
-            if (dangerScore < 60) {
-              candidates.push({ type: 'wall', r, c, wallType: 'H', onOppPath, dangerScore });
-            }
+          if (engine.isValidWall(r, c, 'H')) {
+            const avoided = this.avoidMoves.has(`${r},${c},H`);
+            candidates.push({ type: 'wall', r, c, wallType: 'H', onOppPath, avoided });
           }
           if (engine.isValidWall(r, c, 'V')) {
-            const dangerScore = this.dangerWalls.get(`${r},${c},V`) || 0;
-            if (dangerScore < 60) {
-              candidates.push({ type: 'wall', r, c, wallType: 'V', onOppPath, dangerScore });
-            }
+            const avoided = this.avoidMoves.has(`${r},${c},V`);
+            candidates.push({ type: 'wall', r, c, wallType: 'V', onOppPath, avoided });
           }
         }
       });
@@ -563,24 +502,8 @@ export class QuoridorAI {
 
     let score = pathScore + wallScore + progressScore;
 
-    // ---- Adaptive danger penalties (learned from past losses) ----
-    if (this.dangerPaths.size > 0 || this.dangerWalls.size > 0) {
-      // Penalise being in a board position we've historically lost from
-      const myPos = engine.pawnPos[this.playerIndex];
-      const posPenalty = this.dangerPaths.get(`${myPos.r},${myPos.c}`) || 0;
-      score -= Math.min(posPenalty * 1.5, 120); // cap at -120 to avoid over-reaction
-
-      // Penalise having placed walls that appeared in losing games
-      for (const w of engine.walls) {
-        if (w.player === this.playerIndex) {
-          const wallPenalty = this.dangerWalls.get(`${w.r},${w.c},${w.type}`) || 0;
-          score -= Math.min(wallPenalty, 80);
-        }
-      }
-    }
-    // --------------------------------------------------------------
-
-    // Advanced heuristic (Master/Grandmaster)
+    // Advanced heuristic (Master/Grandmaster): reward tempo, value walls
+    // dynamically, prefer central control, and play sharper around the goals.
     if (this.advancedEval) {
       const diff = oppPathLen - myPathLen;
 
