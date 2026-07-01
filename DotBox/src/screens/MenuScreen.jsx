@@ -96,7 +96,7 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
             {t('playLocal')}
             <Chevron />
           </Pill>
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '8px' }}>
+          <div style= marginTop: '8px', textAlign: 'center' >
             <button className={styles.backLink} onClick={() => window.parent.postMessage({ type: 'dotbox_exit' }, '*')}>
               ← {t('exitToWrongWay')}
             </button>
@@ -105,13 +105,23 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
       )}
 
       {step === 'online-size' && (
-        <Panel>
-          <p className={styles.subTitle}>{t('chooseSize')}</p>
-          {SIZES.map(({ v, label, subKey }) => (
-            <SizePill key={v} selected={selSize === v} onClick={() => { setSelSize(v); onJoinOnline(v); }}>
-              {label} <span>{t(subKey)}</span>
-            </SizePill>
-          ))}
+        <Panel className={styles.settingsPanel}>
+          <p className={styles.subTitle}>{t('playOnline')}</p>
+          <SettingsSection title={t('boardSize')}>
+            <div className={styles.chipRow}>
+              {SIZES.map(({ v, label, subKey }) => (
+                <button key={v} className={`${styles.chip} ${selSize === v ? styles.chipSel : ''}`}
+                  onClick={() => setSelSize(v)}>
+                  <span className={styles.chipLabel}>{label}</span>
+                  <span className={styles.chipSub}>{t(subKey)}</span>
+                </button>
+              ))}
+            </div>
+          </SettingsSection>
+          <button className={styles.startBtn} onClick={() => onJoinOnline(selSize)}>
+            <svg viewBox="0 0 24 24" fill="currentColor" style= width: '20px', height: '20px' ><path d="M8 5v14l11-7z"/></svg>
+            {t('startGame')}
+          </button>
           <BackBtn onClick={() => onStep('main')} />
         </Panel>
       )}
@@ -131,18 +141,24 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
       )}
 
       {step === 'friend' && (
-        <Panel>
+        <Panel className={styles.settingsPanel}>
           <p className={styles.subTitle}>{t('playFriend')}</p>
-          <p className={styles.sectionLabel}>{t('newRoom')}</p>
-          <div className={styles.sizeRow}>
-            {SIZES.map(({ v, label }) => (
-              <button key={v} className={`${styles.sizeChip} ${friendSize === v ? styles.sizeChipSel : ''}`}
-                onClick={() => setFriendSize(v)}>{label}</button>
-            ))}
-          </div>
-          <Pill primary onClick={() => onCreateRoom(friendSize)} disabled={online.connecting}>
+          <SettingsSection title={t('newRoom')}>
+            <div className={styles.chipRow}>
+              {SIZES.map(({ v, label, subKey }) => (
+                <button key={v} className={`${styles.chip} ${friendSize === v ? styles.chipSel : ''}`}
+                  onClick={() => setFriendSize(v)}>
+                  <span className={styles.chipLabel}>{label}</span>
+                  <span className={styles.chipSub}>{t(subKey)}</span>
+                </button>
+              ))}
+            </div>
+          </SettingsSection>
+          <button className={styles.startBtn} onClick={() => onCreateRoom(friendSize)}
+            disabled={online.connecting}
+            style={online.connecting ? { opacity: .6, pointerEvents: 'none' } : undefined}>
             {online.connecting ? t('connecting') : `🔒 ${t('createRoom')}`}
-          </Pill>
+          </button>
           <div className={styles.orDivider}>{t('or')}</div>
           <p className={styles.sectionLabel}>{t('enterCode')}</p>
           <div className={styles.codeRow}>
@@ -156,7 +172,7 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
               />
             ))}
           </div>
-          {codeErr && <p className={styles.codeErr}>{codeErr}</p>}
+          {(codeErr || online.error) && <p className={styles.codeErr}>{codeErr || online.error}</p>}
           <Pill onClick={handleJoin}>▶ {t('join')}</Pill>
           <BackBtn onClick={() => onStep('main')} />
         </Panel>
@@ -183,7 +199,7 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
           {DIFFS.map(({ v, labelKey, subKey, color, gradFrom, gradTo, bars }) => (
             <DiffCard key={v} color={color} gradFrom={gradFrom} gradTo={gradTo} bars={bars}
               selected={selDiff === v} onClick={() => { setSelDiff(v); onStep('bot-settings'); }}>
-              <span className={styles.diffTitle} style={{color}}>{t(labelKey)}</span>
+              <span className={styles.diffTitle} style= color >{t(labelKey)}</span>
               <span className={styles.diffDesc}>{t(subKey)}</span>
             </DiffCard>
           ))}
@@ -239,7 +255,7 @@ export default function MenuScreen({ step, onStep, online, onStartLocal, onStart
             timerTotal: selTimer,
             blitzTime: selBlitz,
           })}>
-            <svg viewBox="0 0 24 24" fill="currentColor" style={{width:18,height:18}}><path d="M8 5v14l11-7z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor" style= width: '20px', height: '20px' ><path d="M8 5v14l11-7z"/></svg>
             {t('startGame')}
           </button>
 
@@ -274,7 +290,7 @@ function Pill({ children, onClick, primary, blue, disabled }) {
   );
 }
 function PillIcon({ children, color }) {
-  return <span className={styles.pillIcon} style={{background: color}}>{children}</span>;
+  return <span className={styles.pillIcon} style= background: color >{children}</span>;
 }
 function Chevron() {
   return (
@@ -303,7 +319,7 @@ function BackBtnInner({ onClick }) {
 function DiffCard({ children, color, gradFrom, gradTo, bars, selected, onClick }) {
   return (
     <button className={`${styles.diffCard} ${selected ? styles.diffCardSel : ''}`}
-      style={{'--dc': color, '--dc-from': gradFrom, '--dc-to': gradTo}} onClick={onClick}>
+      style= ['--diff-accent']: color  onClick={onClick}>
       <div className={styles.diffIcon} style={{background: `linear-gradient(135deg, ${gradFrom}, ${gradTo})`}}>
         {bars === 1 && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>}
         {bars === 2 && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>}

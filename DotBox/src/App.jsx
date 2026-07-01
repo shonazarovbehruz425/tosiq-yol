@@ -24,7 +24,7 @@ export default function App() {
   const [ui, setUi] = useState({ scores: [0,0], cur: 1, over: false, aiOn: false, mode: 'local', size: 4, names: [meName(), t('nameOpponent')] });
 
   // Online state
-  const [online, setOnline] = useState({ roomCode: null, side: 0, connecting: false });
+  const [online, setOnline] = useState({ roomCode: null, side: 0, connecting: false, error: null });
 
   // Sync UI from game ref
   const sync = useCallback(() => {
@@ -47,7 +47,7 @@ export default function App() {
     const { roomCode } = online;
     if (roomCode) { ws.send('dotbox_leave', { code: roomCode }); }
     ws.cancelPending();
-    setOnline({ roomCode: null, side: 0, connecting: false });
+    setOnline({ roomCode: null, side: 0, connecting: false, error: null });
     setMenuStep('main');
     setScreen('menu');
   }, [online]);
@@ -139,7 +139,7 @@ export default function App() {
     const onMatch = payload => {
       const { code, size, side, opponent } = payload;
       const oppName = opponent?.name || t('nameOpponent');
-      setOnline(prev => ({ ...prev, roomCode: code, side, connecting: false }));
+      setOnline(prev => ({ ...prev, roomCode: code, side, connecting: false, error: null }));
       const names = side === 1 ? [meName(), oppName] : [oppName, meName()];
       launch(size, 'online', 'easy', names);
     };
@@ -147,7 +147,7 @@ export default function App() {
       doMove(payload.t, payload.r, payload.c, true);
     };
     const onRoomCreated = payload => {
-      setOnline(prev => ({ ...prev, roomCode: payload.code, connecting: false }));
+      setOnline(prev => ({ ...prev, roomCode: payload.code, connecting: false, error: null }));
       setMenuStep('friend-wait');
     };
     const onOppLeft = () => {
@@ -160,8 +160,15 @@ export default function App() {
       setTimeout(() => { playWin(); setScreen('result'); }, 400);
     };
     const onErr = payload => {
-      setOnline(prev => ({ ...prev, connecting: false }));
-      console.warn('DotBox WS error:', payload?.message);
+      const msg = payload?.message;
+      // Surface room-level errors (room not found / full) to the user; ignore
+      // per-move validation noise which is handled inside the game.
+      if (msg && msg !== 'invalid_move') {
+        setOnline(prev => ({ ...prev, connecting: false, error: msg }));
+      } else {
+        setOnline(prev => ({ ...prev, connecting: false }));
+      }
+      console.warn('DotBox WS error:', msg);
     };
 
     ws.on('dotbox_match_found', onMatch);
@@ -264,23 +271,26 @@ export default function App() {
           onStartLocal={size => launch(size, 'local', 'easy', [meName(), t('nameFriend')])}
           onStartBot={(size, diff, opts) => launch(size, 'ai', diff, [meName(), `${t('nameBot')} (${t('diff'+diff.charAt(0).toUpperCase()+diff.slice(1))})`], opts)}
           onJoinOnline={size => {
-            setOnline(p => ({ ...p, connecting: true }));
+            setOnline(p => ({ ...p, connecting: true, error: null }));
             setMenuStep('online-mm');
             ws.connect(() => { ws.send('dotbox_join_queue', { size }); setOnline(p => ({ ...p, connecting: false })); });
           }}
           onCancelOnline={() => {
             ws.send('dotbox_cancel_queue', {}); ws.cancelPending();
-            setOnline(p => ({ ...p, connecting: false }));
+            setOnline(p => ({ ...p, connecting: false, error: null }));
             setMenuStep('main');
           }}
           onCreateRoom={size => {
-            setOnline(p => ({ ...p, connecting: true }));
+            setOnline(p => ({ ...p, connecting: true, error: null }));
             ws.connect(() => { ws.send('dotbox_create_room', { size }); setOnline(p => ({ ...p, connecting: false })); });
           }}
-          onJoinRoom={code => ws.connect(() => ws.send('dotbox_join_room', { code }))}
+          onJoinRoom={code => {
+            setOnline(p => ({ ...p, error: null }));
+            ws.connect(() => ws.send('dotbox_join_room', { code }));
+          }}
           onCancelRoom={() => {
             if (online.roomCode) ws.send('dotbox_leave', { code: online.roomCode });
-            setOnline(p => ({ ...p, roomCode: null }));
+            setOnline(p => ({ ...p, roomCode: null, error: null }));
             setMenuStep('main');
           }}
         />
