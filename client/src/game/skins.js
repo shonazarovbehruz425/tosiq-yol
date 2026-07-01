@@ -5,11 +5,13 @@
 // meme categories use ORIGINAL hand-built SVG artwork (see skins-art.js), NOT
 // emoji stickers and NOT copyrighted artwork/photos.
 //
+// Pricing (WAYZ): tier 1 = 400, tier 2 = 900, tier 3 = 1000. Defaults are free.
+// The server (server/game/skins-catalog.js) holds the authoritative prices.
+//
 // Each skin: { id, name, short?, colors: [primary, secondary], price, tier, category }
 
 import { ART } from './skins-art.js';
 
-// All crests are free for now (price 0).
 const FREE = 0;
 
 export const SKINS = [
@@ -157,15 +159,38 @@ export const SKINS = [
 ];
 
 // Categories shown as tabs at the top of the Shop. Football is the default.
+// Tab icons are crisp SVG (see catIconSvg) — no emoji / stickers.
 export const SHOP_CATEGORIES = [
-  { id: 'football',  label: 'Futbol',    icon: '\u26bd' },
-  { id: 'minecraft', label: 'Minecraft', icon: '\u26cf\ufe0f' },
-  { id: 'famous',    label: 'Mashhur',   icon: '\u2b50' },
-  { id: 'meme',      label: 'Meme',      icon: '\ud83d\ude02' }
+  { id: 'football',  label: 'Futbol' },
+  { id: 'minecraft', label: 'Minecraft' },
+  { id: 'famous',    label: 'Mashhur' },
+  { id: 'meme',      label: 'Meme' }
 ];
+
+// Small crisp category-tab icons (SVG, no emoji/stickers). Uses currentColor so
+// each icon adopts the tab's text colour (active = white, inactive = grey).
+export function catIconSvg(id, size = 15) {
+  const box = `viewBox="0 0 24 24" width="${size}" height="${size}" style="vertical-align:-2px;margin-right:2px;"`;
+  switch (id) {
+    case 'football':
+      return `<svg ${box} fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><polygon points="12,7.4 15.4,9.9 14.1,14 9.9,14 8.6,9.9" fill="currentColor" stroke="none"/><path d="M12 3v4.4M20.5 9.9 15.4 9.9M18.2 18 14.1 14M5.8 18 9.9 14M3.5 9.9 8.6 9.9"/></svg>`;
+    case 'minecraft':
+      return `<svg ${box} fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5Q12 3.5 20 8.5"/><path d="M4 8.5Q7.5 11 11.5 10"/><path d="M20 8.5Q16.5 11 12.5 10"/><line x1="12" y1="9.6" x2="9.6" y2="21"/></svg>`;
+    case 'famous':
+      return `<svg ${box} fill="currentColor" stroke="none"><polygon points="12,2.5 14.7,8.7 21.5,9.4 16.4,13.9 18,20.6 12,17 6,20.6 7.6,13.9 2.5,9.4 9.3,8.7"/></svg>`;
+    case 'meme':
+      return `<svg ${box} fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8 13.8Q12 17.5 16 13.8"/><line x1="9" y1="9.4" x2="9" y2="10.3"/><line x1="15" y1="9.4" x2="15" y2="10.3"/></svg>`;
+    default:
+      return '';
+  }
+}
 
 // Any tier>0 skin without an explicit category belongs to the football set.
 SKINS.forEach(s => { if (!s.category) s.category = s.tier > 0 ? 'football' : 'default'; });
+
+// Tiered pricing (WAYZ) — keep in sync with server/game/skins-catalog.js.
+const TIER_PRICE = { 1: 400, 2: 900, 3: 1000 };
+SKINS.forEach(s => { if (s.tier > 0) s.price = TIER_PRICE[s.tier] || s.price; });
 
 export const DEFAULT_SKIN = { 0: 'default_red', 1: 'default_blue' };
 
