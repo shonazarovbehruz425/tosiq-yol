@@ -199,100 +199,83 @@ export class QuoridorAI {
       .map(x => x.m);
   }
 
-  // BFS to find shortest path length
+  // BFS to find shortest path length.
+  // PERF: this runs twice at every search leaf, so it is the single hottest
+  // function in the whole engine. The old version allocated a 2D `visited`
+  // array + a `dirs` array on EVERY call, which crushed the garbage collector
+  // on mobile and capped how deep the search could go. This flat-typed-array
+  // version does zero per-neighbour allocation → several times faster → the
+  // bot reaches meaningfully greater depth in the SAME time budget.
   getShortestPathLength(engine, player) {
+    const N = engine.boardSize;
     const start = engine.pawnPos[player];
     const targetRow = engine.goalRow(player);
-    
-    const visited = Array.from({ length: engine.boardSize }, () => Array(engine.boardSize).fill(false));
-    // store nodes as { r, c, dist }
-    const queue = [{ r: start.r, c: start.c, dist: 0 }];
-    visited[start.r][start.c] = true;
 
-    const dirs = [
-      { dr: -1, dc: 0 },
-      { dr: 1, dc: 0 },
-      { dr: 0, dc: -1 },
-      { dr: 0, dc: 1 }
-    ];
+    const visited = new Uint8Array(N * N);
+    const queue = new Int32Array(N * N);
+    const dist = new Int16Array(N * N);
+    let head = 0, tail = 0;
 
-    let head = 0;
-    while (head < queue.length) {
-      const current = queue[head++];
-      
-      if (current.r === targetRow) {
-        return current.dist;
-      }
+    const startIdx = start.r * N + start.c;
+    queue[tail++] = startIdx;
+    visited[startIdx] = 1;
+    dist[startIdx] = 0;
 
-      for (const d of dirs) {
-        const nr = current.r + d.dr;
-        const nc = current.c + d.dc;
+    while (head < tail) {
+      const idx = queue[head++];
+      const r = (idx / N) | 0;
+      const c = idx % N;
 
-        if (nr >= 0 && nr < engine.boardSize && nc >= 0 && nc < engine.boardSize) {
-          if (!visited[nr][nc]) {
-            if (!engine.isWallBlocking(current.r, current.c, nr, nc)) {
-              visited[nr][nc] = true;
-              queue.push({ r: nr, c: nc, dist: current.dist + 1 });
-            }
-          }
-        }
-      }
+      if (r === targetRow) return dist[idx];
+      const d1 = dist[idx] + 1;
+
+      if (r - 1 >= 0) { const ni = (r - 1) * N + c; if (!visited[ni] && !engine.isWallBlocking(r, c, r - 1, c)) { visited[ni] = 1; dist[ni] = d1; queue[tail++] = ni; } }
+      if (r + 1 < N)  { const ni = (r + 1) * N + c; if (!visited[ni] && !engine.isWallBlocking(r, c, r + 1, c)) { visited[ni] = 1; dist[ni] = d1; queue[tail++] = ni; } }
+      if (c - 1 >= 0) { const ni = r * N + (c - 1); if (!visited[ni] && !engine.isWallBlocking(r, c, r, c - 1)) { visited[ni] = 1; dist[ni] = d1; queue[tail++] = ni; } }
+      if (c + 1 < N)  { const ni = r * N + (c + 1); if (!visited[ni] && !engine.isWallBlocking(r, c, r, c + 1)) { visited[ni] = 1; dist[ni] = d1; queue[tail++] = ni; } }
     }
 
     return 999; // Unreachable
   }
 
-  // Helper to extract the actual shortest path cells (for wall placing heuristics)
+  // Helper to extract the actual shortest path cells (for wall placing heuristics).
+  // Same flat-array optimisation as getShortestPathLength, plus parent tracking
+  // for path reconstruction.
   getShortestPath(engine, player) {
+    const N = engine.boardSize;
     const start = engine.pawnPos[player];
     const targetRow = engine.goalRow(player);
-    
-    const visited = Array.from({ length: engine.boardSize }, () => Array(engine.boardSize).fill(false));
-    const parentMap = {}; // key: 'r,c' -> 'pr,pc'
-    const queue = [start];
-    visited[start.r][start.c] = true;
 
-    const dirs = [
-      { dr: -1, dc: 0 },
-      { dr: 1, dc: 0 },
-      { dr: 0, dc: -1 },
-      { dr: 0, dc: 1 }
-    ];
+    const visited = new Uint8Array(N * N);
+    const parent = new Int32Array(N * N).fill(-1);
+    const queue = new Int32Array(N * N);
+    let head = 0, tail = 0;
 
-    let head = 0;
-    let foundNode = null;
+    const startIdx = start.r * N + start.c;
+    queue[tail++] = startIdx;
+    visited[startIdx] = 1;
 
-    while (head < queue.length) {
-      const current = queue[head++];
-      
-      if (current.r === targetRow) {
-        foundNode = current;
-        break;
-      }
+    let foundIdx = -1;
+    while (head < tail) {
+      const idx = queue[head++];
+      const r = (idx / N) | 0;
+      const c = idx % N;
 
-      for (const d of dirs) {
-        const nr = current.r + d.dr;
-        const nc = current.c + d.dc;
+      if (r === targetRow) { foundIdx = idx; break; }
 
-        if (nr >= 0 && nr < engine.boardSize && nc >= 0 && nc < engine.boardSize) {
-          if (!visited[nr][nc]) {
-            if (!engine.isWallBlocking(current.r, current.c, nr, nc)) {
-              visited[nr][nc] = true;
-              parentMap[`${nr},${nc}`] = current;
-              queue.push({ r: nr, c: nc });
-            }
-          }
-        }
-      }
+      if (r - 1 >= 0) { const ni = (r - 1) * N + c; if (!visited[ni] && !engine.isWallBlocking(r, c, r - 1, c)) { visited[ni] = 1; parent[ni] = idx; queue[tail++] = ni; } }
+      if (r + 1 < N)  { const ni = (r + 1) * N + c; if (!visited[ni] && !engine.isWallBlocking(r, c, r + 1, c)) { visited[ni] = 1; parent[ni] = idx; queue[tail++] = ni; } }
+      if (c - 1 >= 0) { const ni = r * N + (c - 1); if (!visited[ni] && !engine.isWallBlocking(r, c, r, c - 1)) { visited[ni] = 1; parent[ni] = idx; queue[tail++] = ni; } }
+      if (c + 1 < N)  { const ni = r * N + (c + 1); if (!visited[ni] && !engine.isWallBlocking(r, c, r, c + 1)) { visited[ni] = 1; parent[ni] = idx; queue[tail++] = ni; } }
     }
 
-    if (!foundNode) return [];
+    if (foundIdx === -1) return [];
 
     const path = [];
-    let curr = foundNode;
-    while (curr) {
-      path.push(curr);
-      curr = parentMap[`${curr.r},${curr.c}`];
+    let cur = foundIdx;
+    while (cur !== -1) {
+      path.push({ r: (cur / N) | 0, c: cur % N });
+      cur = parent[cur];
     }
     return path.reverse();
   }
@@ -546,6 +529,18 @@ export class QuoridorAI {
       score += diff * 35;
       const sideToMove = engine.currentPlayer === this.playerIndex ? 1 : -1;
       score += sideToMove * 6;
+
+      // Tight-race tempo: in Quoridor whoever is NOT to move is effectively half
+      // a step behind. A tie the bot cannot break is actually a LOSS when the
+      // opponent moves next (they reach their goal one tempo earlier). This term
+      // makes the bot understand it must convert a tie into a REAL lead — almost
+      // always by placing a blocking wall — instead of passively racing a tie it
+      // will lose. This is exactly how a human out-tempos a naive shortest-path bot.
+      if (Math.abs(diff) <= 1) {
+        const iMoveNext = engine.currentPlayer === this.playerIndex;
+        score += iMoveNext ? 18 : -18;
+        if (diff <= 0 && !iMoveNext) score -= 24;
+      }
 
       // Wall advantage matters more when paths are close (tight games),
       // and is nearly worthless once the race is clearly decided.

@@ -168,7 +168,7 @@ export class QuoridorEngine {
   // Fog of War: the cells a player MAY try to step into (all orthogonal
   // neighbours + the opponent's cell for a possible jump), ignoring walls.
   // Each entry is tagged with whether a wall actually blocks that step, so the
-  // UI can offer "blind" moves and the caller can detect a bump.
+  // UI can offer \"blind\" moves and the caller can detect a bump.
   getBlindMoves(playerIndex) {
     if (this.winner !== -1) return [];
     const me = this.pawnPos[playerIndex];
@@ -333,7 +333,7 @@ export class QuoridorEngine {
       if (dest) this.pawnPos[playerIndex] = dest;
       this.lastEvent = { type: 'teleport', player: playerIndex, to: dest };
     } else if (type === 'hammer') {
-      // Remove a random opponent wall (the most "harmful" — on our path — first).
+      // Remove a random opponent wall (the most \"harmful\" — on our path — first).
       const removed = this._hammerSmash(playerIndex);
       this.lastEvent = { type: 'hammer', player: playerIndex, wall: removed };
     }
@@ -367,44 +367,35 @@ export class QuoridorEngine {
     return target;
   }
 
-  // BFS check to verify if playerIndex has a path to their target row
+  // BFS check to verify if playerIndex has a path to their target row.
+  // PERF: called twice for every candidate wall in isValidWall (which itself is
+  // called for every wall the search considers), so it is on the hottest path.
+  // Flat typed arrays instead of a fresh 2D `visited` + `dirs` array per call
+  // massively reduces GC churn, letting the AI search deeper in the same time.
   hasPathToGoal(playerIndex) {
+    const N = this.boardSize;
     const start = this.pawnPos[playerIndex];
     const targetRow = this.goalRow(playerIndex);
-    
-    // Visited matrix
-    const visited = Array.from({ length: this.boardSize }, () => Array(this.boardSize).fill(false));
-    const queue = [start];
-    visited[start.r][start.c] = true;
 
-    const dirs = [
-      { dr: -1, dc: 0 },
-      { dr: 1, dc: 0 },
-      { dr: 0, dc: -1 },
-      { dr: 0, dc: 1 }
-    ];
+    const visited = new Uint8Array(N * N);
+    const queue = new Int32Array(N * N);
+    let head = 0, tail = 0;
 
-    let head = 0;
-    while (head < queue.length) {
-      const current = queue[head++];
-      
-      if (current.r === targetRow) {
-        return true; // Path exists!
-      }
+    const startIdx = start.r * N + start.c;
+    queue[tail++] = startIdx;
+    visited[startIdx] = 1;
 
-      for (const d of dirs) {
-        const nr = current.r + d.dr;
-        const nc = current.c + d.dc;
+    while (head < tail) {
+      const idx = queue[head++];
+      const r = (idx / N) | 0;
+      const c = idx % N;
 
-        if (nr >= 0 && nr < this.boardSize && nc >= 0 && nc < this.boardSize) {
-          if (!visited[nr][nc]) {
-            if (!this.isWallBlocking(current.r, current.c, nr, nc)) {
-              visited[nr][nc] = true;
-              queue.push({ r: nr, c: nc });
-            }
-          }
-        }
-      }
+      if (r === targetRow) return true; // Path exists!
+
+      if (r - 1 >= 0) { const ni = (r - 1) * N + c; if (!visited[ni] && !this.isWallBlocking(r, c, r - 1, c)) { visited[ni] = 1; queue[tail++] = ni; } }
+      if (r + 1 < N)  { const ni = (r + 1) * N + c; if (!visited[ni] && !this.isWallBlocking(r, c, r + 1, c)) { visited[ni] = 1; queue[tail++] = ni; } }
+      if (c - 1 >= 0) { const ni = r * N + (c - 1); if (!visited[ni] && !this.isWallBlocking(r, c, r, c - 1)) { visited[ni] = 1; queue[tail++] = ni; } }
+      if (c + 1 < N)  { const ni = r * N + (c + 1); if (!visited[ni] && !this.isWallBlocking(r, c, r, c + 1)) { visited[ni] = 1; queue[tail++] = ni; } }
     }
 
     return false; // Trapped!
