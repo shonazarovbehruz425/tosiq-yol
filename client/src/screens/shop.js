@@ -45,7 +45,7 @@ export class ShopScreen {
           </div>
         </div>
 
-        <div id="shop-cats" class="shop-cats" style="display:flex;gap:8px;overflow-x:auto;padding:2px 2px 12px;margin:0 -2px;">
+        <div id="shop-cats" class="shop-cats" style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0 14px;">
           ${this.renderCats()}
         </div>
 
