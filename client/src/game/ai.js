@@ -47,6 +47,13 @@ export class QuoridorAI {
     }
   }
 
+  // Two candidate moves are the same actual action?
+  _sameMove(a, b) {
+    if (!a || !b || a.type !== b.type) return false;
+    if (a.type === 'move') return a.r === b.r && a.c === b.c;
+    return a.r === b.r && a.c === b.c && a.wallType === b.wallType;
+  }
+
   // Get next best move depending on difficulty
   getMove(engine, difficulty = 'normal') {
     // Check opening book for first 2 moves
@@ -67,20 +74,22 @@ export class QuoridorAI {
     }
 
     if (difficulty === 'easy') {
+      // Easy: mostly random, no lookahead.
       return this.getRandomMove(engine);
     } else if (difficulty === 'normal') {
-      return this.getBestMoveDepth1(engine);
+      // Normal: a real 2-ply search (was greedy depth-1). Reads one opponent
+      // reply ahead so it stops walking into obvious blocks, but stays casual.
+      return this.getBestMoveMinimax(engine, 2, false);
     } else if (difficulty === 'hard') {
-      // Hard: iterative-deepening to depth 3 with the SMART evaluation, so it
-      // already reads the opponent's plan instead of just racing. No weakening
-      // random shuffle — it plays its best move every time.
-      return this.getBestMoveTimed(engine, { maxDepth: 3, timeMs: 1200, advanced: true });
+      // Hard: iterative-deepening with the SMART evaluation and principal-
+      // variation ordering, so it genuinely reads several moves ahead.
+      return this.getBestMoveTimed(engine, { maxDepth: 5, timeMs: 2000, advanced: true });
     } else if (difficulty === 'master') {
-      // Master: a full ply deeper than Hard (depth 4) — sees wall combinations.
-      return this.getBestMoveTimed(engine, { maxDepth: 4, timeMs: 2500, advanced: true });
+      // Master: deeper ceiling + more thinking time than Hard — sees wall combos.
+      return this.getBestMoveTimed(engine, { maxDepth: 7, timeMs: 3500, advanced: true });
     } else if (difficulty === 'grandmaster') {
-      // Grandmaster: depth 5 search — plans several moves ahead, near-optimal.
-      return this.getBestMoveTimed(engine, { maxDepth: 5, timeMs: 4500, advanced: true });
+      // Grandmaster: deepest search — plans many moves ahead, near-optimal.
+      return this.getBestMoveTimed(engine, { maxDepth: 9, timeMs: 5000, advanced: true });
     }
     // Fallback
     return this.getBestMoveMinimax(engine, 2);
@@ -89,7 +98,10 @@ export class QuoridorAI {
   // ---- Iterative deepening with a time budget --------------------------------
   // Searches progressively deeper (2,3,4,...) until the time budget runs out,
   // always keeping the best move from the last fully-completed depth. Combined
-  // with move ordering this lets the bot play much deeper, hence much stronger.
+  // with principal-variation move ordering (the best move from the previous
+  // depth is searched first) this prunes far more aggressively, so the bot
+  // reaches much greater depth within the same time — hence much stronger and
+  // properly differentiated between levels.
   getBestMoveTimed(engine, { maxDepth, timeMs, advanced }) {
     this.advancedEval = advanced;
     this.deadline = Date.now() + timeMs;
@@ -97,12 +109,17 @@ export class QuoridorAI {
 
     // Guaranteed-valid fallback so we never return null.
     let bestMove = this.getBestMoveDepth1(engine);
+    this.rootBest = bestMove; // principal variation seed
 
     for (let depth = 2; depth <= maxDepth; depth++) {
       const result = this.searchRoot(engine, depth);
       if (this.aborted) break;        // ran out of time mid-search → discard
-      if (result) bestMove = result;  // completed this depth → adopt it
+      if (result) {                   // completed this depth → adopt it
+        bestMove = result;
+        this.rootBest = result;       // carry the PV move into the next depth
+      }
     }
+    this.rootBest = null;
     return bestMove;
   }
 
@@ -110,8 +127,17 @@ export class QuoridorAI {
     // The root always sees the FULL candidate set (every sensible wall) so the
     // bot never overlooks a key move. Deeper nodes prune walls tightly.
     this.tightSearch = false;
-    const candidates = this.orderCandidates(engine, this.generateCandidates(engine));
+    let candidates = this.orderCandidates(engine, this.generateCandidates(engine));
     this.tightSearch = depth >= 3;
+
+    // Principal-variation ordering: search the best move from the previous,
+    // shallower iteration FIRST. This tightens the alpha-beta window early so
+    // the rest of the tree is pruned hard — the key to reaching real depth.
+    if (this.rootBest) {
+      candidates.sort((a, b) =>
+        (this._sameMove(b, this.rootBest) ? 1 : 0) - (this._sameMove(a, this.rootBest) ? 1 : 0)
+      );
+    }
 
     let bestScore = -Infinity;
     let bestMove = null;
