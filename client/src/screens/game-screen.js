@@ -31,6 +31,9 @@ export class GameScreen {
     this.revealedWalls = new Set(); // walls permanently revealed after a bump
     this.chaos = this.params.chaos === true; // Power-up grid mode
     this.soundEnabled = true;
+    // True while the bot is calculating its move: the board is locked for the
+    // human so a fast tap/drag can never be applied during (or as) the bot turn.
+    this._botThinking = false;
     
     // Engine & Board Renderer
     this.engine = new QuoridorEngine(this.boardSize, this.wallsCount, this.mode, {
@@ -551,8 +554,13 @@ export class GameScreen {
 
   // Handle local pawn moves
   onMovePawn(r, c) {
-    // Prevent moves if it's not my turn online
-    if (this.vs !== 'bot' && this.engine.currentPlayer !== this.mySide) {
+    // Turn lock. Block input unless it is genuinely the local human's turn and
+    // the bot is NOT mid-calculation. In BOT games the bot "owns" currentPlayer
+    // while it thinks, so without this guard a fast tap during the bot's turn
+    // was applied AS THE BOT (playerIndex = currentPlayer = botSide) — the exact
+    // bug where placing walls quickly let the player also move on the AI's turn.
+    // Note: this now covers bot games too (previously it only checked online).
+    if (this.engine.currentPlayer !== this.mySide || this._botThinking) {
       Sound.error();
       return;
     }
@@ -612,7 +620,10 @@ export class GameScreen {
 
   // Handle local wall placements
   onPlaceWall(r, c, type) {
-    if (this.vs !== 'bot' && this.engine.currentPlayer !== this.mySide) {
+    // Same turn lock as onMovePawn: never let a wall be placed unless it is the
+    // local human's turn and the bot isn't mid-think — otherwise a rapid tap/
+    // drag would drop a wall on the AI's turn and as the AI.
+    if (this.engine.currentPlayer !== this.mySide || this._botThinking) {
       Sound.error();
       return;
     }
@@ -755,10 +766,14 @@ export class GameScreen {
   // Can the local player place a wall right now?
   canPlaceWallNow() {
     if (this.engine.winner !== -1) return false;
-    // In online/friend games it must be my turn; vs bot the human always controls currentPlayer
-    if (this.vs !== 'bot' && this.engine.currentPlayer !== this.mySide) return false;
-    // Must have walls left for whoever's turn it is
-    return this.engine.playerWallsLeft[this.engine.currentPlayer] > 0;
+    // The bot is calculating — the board is locked for the human.
+    if (this._botThinking) return false;
+    // It must be the local human's turn. This applies to BOTH bot and
+    // online/friend games (previously bot games skipped this check, which let
+    // the human drop walls during the bot's turn).
+    if (this.engine.currentPlayer !== this.mySide) return false;
+    // Must have walls left.
+    return this.engine.playerWallsLeft[this.mySide] > 0;
   }
 
   // Enable/disable wall drag chips depending on turn & remaining walls
@@ -775,9 +790,9 @@ export class GameScreen {
       if (chip) chip.classList.toggle('chip-disabled', !enabled);
     });
 
-    // Show remaining wall count for the current local player
+    // Show remaining wall count for the local human (side we control).
     if (hint) {
-      const sideForCount = this.vs === 'bot' ? this.engine.currentPlayer : this.mySide;
+      const sideForCount = this.vs === 'bot' ? this.mySide : this.mySide;
       const left = this.engine.playerWallsLeft[sideForCount];
       const wallSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/><path d="M8 4v6M16 14v6M12 4v6"/></svg>`;
       hint.innerHTML = `${wallSvg} ${left} ${t('wallsLeftLabel')}`;
@@ -790,8 +805,15 @@ export class GameScreen {
   runBotAI() {
     const botSide = 1 - this.mySide;
 
+    // Lock the board while the bot calculates so a fast tap/drag can never be
+    // applied during (or as) the bot's turn. Cleared the instant we apply the
+    // bot's move (see applyMove below).
+    this._botThinking = true;
+    this.updateWallChips();
+
     const applyMove = (botMove) => {
-      if (!botMove) return;
+      this._botThinking = false;
+      if (!botMove) { this.updateWallChips(); return; }
       if (botMove.type === 'move') {
         this.engine.movePawn(botMove.r, botMove.c, botSide);
         Sound.move();
