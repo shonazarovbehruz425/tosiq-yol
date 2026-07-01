@@ -5,8 +5,17 @@ import crypto from 'crypto';
  * Reference: https://core.telegram.org/bots/webapps#validating-data-received-via-the-web-app
  */
 export function verifyTelegramWebAppData(initData, botToken) {
-  if (!botToken || botToken.startsWith('YOUR_TELEGRAM_BOT_TOKEN') || !initData) {
-    // Development bypass if token is omitted, placeholder, or if running directly in a browser
+  // SECURITY: the development bypass below authenticates a RANDOM mock user
+  // without any valid Telegram signature. It must NEVER run in production.
+  // Previously the bypass also triggered whenever `initData` was empty, which
+  // meant that in production an attacker could authenticate simply by sending
+  // an empty initData. We now gate the bypass strictly behind a non-production
+  // environment and fail closed otherwise.
+  const isProd = process.env.NODE_ENV === 'production' || !!process.env.RENDER;
+
+  if (!isProd && (!botToken || botToken.startsWith('YOUR_TELEGRAM_BOT_TOKEN') || !initData)) {
+    // Development-only bypass if token is omitted, placeholder, or if running
+    // directly in a browser without Telegram initData.
     const randomId = 123456700 + Math.floor(Math.random() * 1000);
     console.warn(`verifyTelegramWebAppData: Development bypass active. Mock User ID: ${randomId}`);
     return {
@@ -17,6 +26,15 @@ export function verifyTelegramWebAppData(initData, botToken) {
         username: `dev_local_${randomId % 100}`
       }
     };
+  }
+
+  // In production we fail closed if the server is misconfigured or the client
+  // sent no initData — no anonymous/mock access is ever granted.
+  if (!botToken || botToken.startsWith('YOUR_TELEGRAM_BOT_TOKEN')) {
+    return { isValid: false, reason: 'Server bot token not configured' };
+  }
+  if (!initData) {
+    return { isValid: false, reason: 'initData missing' };
   }
 
   try {
