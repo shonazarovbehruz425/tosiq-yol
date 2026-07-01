@@ -530,17 +530,21 @@ export class QuoridorAI {
       const sideToMove = engine.currentPlayer === this.playerIndex ? 1 : -1;
       score += sideToMove * 6;
 
-      // Tight-race tempo: in Quoridor whoever is NOT to move is effectively half
-      // a step behind. A tie the bot cannot break is actually a LOSS when the
-      // opponent moves next (they reach their goal one tempo earlier). This term
-      // makes the bot understand it must convert a tie into a REAL lead — almost
-      // always by placing a blocking wall — instead of passively racing a tie it
-      // will lose. This is exactly how a human out-tempos a naive shortest-path bot.
-      if (Math.abs(diff) <= 1) {
-        const iMoveNext = engine.currentPlayer === this.playerIndex;
-        score += iMoveNext ? 18 : -18;
-        if (diff <= 0 && !iMoveNext) score -= 24;
-      }
+      // ===== Tempo-correct race margin (THE key strategic term) =====
+      // In Quoridor turns alternate, so the side to move is effectively HALF a
+      // step ahead. This means a RAW TIE in path length is actually a LOSS for
+      // the bot whenever the human moves next — the human moved first, so on
+      // equal paths they reach their goal one tempo earlier. Encoding this
+      // half-ply makes the bot STOP passively racing a tie it will lose and
+      // instead hunt for a blocking wall that FLIPS the race. This is the direct
+      // counter to a straight center rush (the exact way a human out-tempos a
+      // naive shortest-path bot).
+      const botToMove = engine.currentPlayer === this.playerIndex;
+      const effMargin = diff + (botToMove ? 0.5 : -0.5);
+      score += effMargin * 70;
+      // When the bot is actually behind in the tempo race, ADD urgency so it
+      // commits to blocking instead of hopelessly racing.
+      if (effMargin < 0) score += effMargin * 30;
 
       // Wall advantage matters more when paths are close (tight games),
       // and is nearly worthless once the race is clearly decided.
