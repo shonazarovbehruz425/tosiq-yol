@@ -1,10 +1,10 @@
-// Pawn skins shop: football-team-themed crest badges.
+// Pawn skins shop: football-team-themed crest badges + emoji categories.
 //
-// NOTE: These are ORIGINAL color-crest designs (team colours + abbreviation),
-// NOT the official trademarked club logos. They represent teams by their
-// recognizable colours without reproducing copyrighted artwork.
+// NOTE: Football crests are ORIGINAL color-crest designs (team colours +
+// abbreviation), NOT the official trademarked club logos. Minecraft / famous /
+// meme categories use emoji-based crests (no copyrighted artwork/photos).
 //
-// Each skin: { id, name, short, colors: [primary, secondary], price, tier }
+// Each skin: { id, name, short?, emoji?, colors: [primary, secondary], price, tier, category }
 
 // All crests are free for now (price 0).
 const FREE = 0;
@@ -117,8 +117,52 @@ export const SKINS = [
   { id: 'ity', name: 'Inter Miami',    short: 'MIA', colors: ['#f7b5cd', '#000000'], price: FREE, tier: 3 },
   { id: 'lag', name: 'LA Galaxy',      short: 'LAG', colors: ['#00245d', '#fdb913'], price: FREE, tier: 3 },
   { id: 'lafc',name: 'LAFC',           short: 'LFC', colors: ['#000000', '#c39e6d'], price: FREE, tier: 3 },
-  { id: 'pal', name: 'Palmeiras',      short: 'PAL', colors: ['#006437', '#ffffff'], price: FREE, tier: 3 }
+  { id: 'pal', name: 'Palmeiras',      short: 'PAL', colors: ['#006437', '#ffffff'], price: FREE, tier: 3 },
+
+  // ===== Minecraft =====
+  { id: 'mc_creeper',  name: 'Creeper',   emoji: '🟩', colors: ['#5bbf3a', '#3d8b28'], category: 'minecraft', price: FREE, tier: 1 },
+  { id: 'mc_steve',    name: 'Miner',     emoji: '⛏️', colors: ['#8b5a2b', '#5c3a1a'], category: 'minecraft', price: FREE, tier: 1 },
+  { id: 'mc_zombie',   name: 'Zombie',    emoji: '🧟', colors: ['#3d8b28', '#1f5214'], category: 'minecraft', price: FREE, tier: 1 },
+  { id: 'mc_skeleton', name: 'Skeleton',  emoji: '💀', colors: ['#d1d5db', '#9ca3af'], category: 'minecraft', price: FREE, tier: 1 },
+  { id: 'mc_ender',    name: 'Enderman',  emoji: '👾', colors: ['#4c1d95', '#1e1b4b'], category: 'minecraft', price: FREE, tier: 1 },
+  { id: 'mc_pig',      name: 'Pig',       emoji: '🐷', colors: ['#f9a8d4', '#ec4899'], category: 'minecraft', price: FREE, tier: 1 },
+  { id: 'mc_cow',      name: 'Cow',       emoji: '🐮', colors: ['#a16207', '#713f12'], category: 'minecraft', price: FREE, tier: 1 },
+  { id: 'mc_diamond',  name: 'Diamond',   emoji: '💎', colors: ['#22d3ee', '#0891b2'], category: 'minecraft', price: FREE, tier: 1 },
+  { id: 'mc_tnt',      name: 'TNT',       emoji: '🧨', colors: ['#ef4444', '#b91c1c'], category: 'minecraft', price: FREE, tier: 1 },
+  { id: 'mc_sword',    name: 'Sword',     emoji: '⚔️', colors: ['#94a3b8', '#475569'], category: 'minecraft', price: FREE, tier: 1 },
+
+  // ===== Mashhur insonlar (personas — emoji, not real photos) =====
+  { id: 'fam_king',    name: 'King',      emoji: '👑', colors: ['#f59e0b', '#b45309'], category: 'famous', price: FREE, tier: 1 },
+  { id: 'fam_astro',   name: 'Astronaut', emoji: '🧑‍🚀', colors: ['#1e3a8a', '#0f172a'], category: 'famous', price: FREE, tier: 1 },
+  { id: 'fam_star',    name: 'Superstar', emoji: '🌟', colors: ['#facc15', '#ca8a04'], category: 'famous', price: FREE, tier: 1 },
+  { id: 'fam_science', name: 'Scientist', emoji: '🧑‍🔬', colors: ['#0ea5e9', '#0369a1'], category: 'famous', price: FREE, tier: 1 },
+  { id: 'fam_artist',  name: 'Artist',    emoji: '🧑‍🎨', colors: ['#a855f7', '#6b21a8'], category: 'famous', price: FREE, tier: 1 },
+  { id: 'fam_singer',  name: 'Singer',    emoji: '🎤', colors: ['#ec4899', '#9d174d'], category: 'famous', price: FREE, tier: 1 },
+  { id: 'fam_boxer',   name: 'Champion',  emoji: '🥊', colors: ['#dc2626', '#7f1d1d'], category: 'famous', price: FREE, tier: 1 },
+  { id: 'fam_gamer',   name: 'Gamer',     emoji: '🎮', colors: ['#22c55e', '#15803d'], category: 'famous', price: FREE, tier: 1 },
+
+  // ===== Meme =====
+  { id: 'meme_lol',    name: 'LOL',       emoji: '😂', colors: ['#fbbf24', '#d97706'], category: 'meme', price: FREE, tier: 1 },
+  { id: 'meme_moai',   name: 'Moai',      emoji: '🗿', colors: ['#6b7280', '#374151'], category: 'meme', price: FREE, tier: 1 },
+  { id: 'meme_cool',   name: 'Cool',      emoji: '😎', colors: ['#0ea5e9', '#075985'], category: 'meme', price: FREE, tier: 1 },
+  { id: 'meme_clown',  name: 'Clown',     emoji: '🤡', colors: ['#f43f5e', '#be123c'], category: 'meme', price: FREE, tier: 1 },
+  { id: 'meme_frog',   name: 'Frog',      emoji: '🐸', colors: ['#65a30d', '#3f6212'], category: 'meme', price: FREE, tier: 1 },
+  { id: 'meme_skull',  name: 'Skull',     emoji: '💀', colors: ['#e5e7eb', '#9ca3af'], category: 'meme', price: FREE, tier: 1 },
+  { id: 'meme_fire',   name: 'Lit',       emoji: '🔥', colors: ['#f97316', '#c2410c'], category: 'meme', price: FREE, tier: 1 },
+  { id: 'meme_cold',   name: 'Frozen',    emoji: '🥶', colors: ['#38bdf8', '#0369a1'], category: 'meme', price: FREE, tier: 1 },
+  { id: 'meme_sus',    name: 'Sus',       emoji: '🤨', colors: ['#a3a3a3', '#525252'], category: 'meme', price: FREE, tier: 1 }
 ];
+
+// Categories shown as tabs at the top of the Shop. Football is the default.
+export const SHOP_CATEGORIES = [
+  { id: 'football',  label: 'Futbol',    icon: '⚽' },
+  { id: 'minecraft', label: 'Minecraft', icon: '⛏️' },
+  { id: 'famous',    label: 'Mashhur',   icon: '⭐' },
+  { id: 'meme',      label: 'Meme',      icon: '😂' }
+];
+
+// Any tier>0 skin without an explicit category belongs to the football set.
+SKINS.forEach(s => { if (!s.category) s.category = s.tier > 0 ? 'football' : 'default'; });
 
 export const DEFAULT_SKIN = { 0: 'default_red', 1: 'default_blue' };
 
@@ -144,6 +188,18 @@ let _uid = 0;
 export function crestSvg(id, size = 40) {
   const s = byId[id];
   const uid = `s${(++_uid)}`;
+
+  // Emoji-based crests (Minecraft, famous personas, memes): glossy disc + emoji.
+  if (s && s.emoji) {
+    const c = s.colors || ['#334155', '#1e293b'];
+    return `<svg viewBox="0 0 40 40" width="${size}" height="${size}">
+      <defs><radialGradient id="${uid}" cx="35%" cy="30%">
+        <stop offset="0%" stop-color="${c[0]}"/><stop offset="100%" stop-color="${c[1]}"/>
+      </radialGradient></defs>
+      <circle cx="20" cy="20" r="18" fill="url(#${uid})" stroke="rgba(255,255,255,0.9)" stroke-width="2.5"/>
+      <text x="20" y="20" text-anchor="middle" dominant-baseline="central" font-size="19">${s.emoji}</text>
+    </svg>`;
+  }
 
   // Default skins: a glossy solid dot.
   if (!s || s.tier === 0) {

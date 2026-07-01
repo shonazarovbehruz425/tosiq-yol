@@ -2,8 +2,12 @@ import { t } from '../core/i18n.js';
 import { socket } from '../core/websocket.js';
 import { haptic } from '../core/telegram.js';
 import { Toast } from '../components/toast.js';
-import { shopSkins, crestSvg, getSkin } from '../game/skins.js';
+import { shopSkins, crestSvg, getSkin, SHOP_CATEGORIES } from '../game/skins.js';
 import { coinSvg, CURRENCY } from '../game/currency.js';
+
+// Inline styles for the category tab pills (avoids touching the global CSS).
+const CAT_BASE = 'flex:0 0 auto;padding:9px 15px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#cbd5e1;font-weight:700;font-size:13px;white-space:nowrap;cursor:pointer;transition:all .15s;';
+const CAT_ACTIVE = 'background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(124,58,237,.4);';
 
 export class ShopScreen {
   constructor(router, params) {
@@ -12,6 +16,7 @@ export class ShopScreen {
     this.state = null; // { coins, owned, equipped }
     this.loaded = false;
     this._bound = false;
+    this.category = 'football';
 
     this.onShopState = this.onShopState.bind(this);
     this.onShopResult = this.onShopResult.bind(this);
@@ -40,6 +45,10 @@ export class ShopScreen {
           </div>
         </div>
 
+        <div id="shop-cats" class="shop-cats" style="display:flex;gap:8px;overflow-x:auto;padding:2px 2px 12px;margin:0 -2px;">
+          ${this.renderCats()}
+        </div>
+
         <div id="shop-body" class="shop-body">
           ${this.renderBody()}
         </div>
@@ -51,15 +60,26 @@ export class ShopScreen {
     `;
   }
 
+  renderCats() {
+    return SHOP_CATEGORIES.map(c =>
+      `<button class="shop-cat" data-cat="${c.id}" style="${CAT_BASE}${c.id === this.category ? CAT_ACTIVE : ''}">${c.icon} ${c.label}</button>`
+    ).join('');
+  }
+
   renderBody() {
     if (!this.loaded) {
       return `<div class="fr-empty"><div class="loader"></div></div>`;
     }
     const owned = this.state.owned || [];
     const equipped = this.state.equipped || '';
+    const cat = this.category || 'football';
+    const list = shopSkins().filter(s => (s.category || 'football') === cat);
+    if (!list.length) {
+      return `<div class="fr-empty" style="opacity:.55;padding:28px;text-align:center;">—</div>`;
+    }
     return `
       <div class="shop-grid">
-        ${shopSkins().map(s => this.skinCard(s, owned, equipped)).join('')}
+        ${list.map(s => this.skinCard(s, owned, equipped)).join('')}
       </div>
     `;
   }
@@ -99,7 +119,22 @@ export class ShopScreen {
     const backBtn = document.getElementById('back-btn');
     if (backBtn) backBtn.addEventListener('click', () => { haptic.impact('light'); this.router.back(); });
 
+    this.bindCats();
     this.bindCards();
+  }
+
+  bindCats() {
+    document.querySelectorAll('[data-cat]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (this.category === btn.dataset.cat) return;
+        haptic.impact('light');
+        this.category = btn.dataset.cat;
+        const cats = document.getElementById('shop-cats');
+        if (cats) cats.innerHTML = this.renderCats();
+        this.bindCats();
+        this.refreshBody();
+      });
+    });
   }
 
   bindCards() {
