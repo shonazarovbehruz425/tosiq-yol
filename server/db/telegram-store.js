@@ -66,15 +66,21 @@ export async function restoreFromChannel() {
         db.replaceData(parsed);
         // Re-attach the bot self-training patterns. replaceData only keeps
         // users/games, but the AI's learning is stored alongside them and MUST
-        // survive redeploys too — this is what stops the AI 'forgetting'.
+        // survive redeploys too \u2014 this is what stops the AI 'forgetting'.
         if (parsed && parsed.botPatterns) {
           db.data.botPatterns = parsed.botPatterns;
+        }
+        // Re-attach admin-edited bot messages (custom /start, welcome, etc.).
+        // Same reason as botPatterns: replaceData drops unknown top-level keys,
+        // so the admin's message customisations must be restored explicitly.
+        if (parsed && parsed.botMessages) {
+          db.data.botMessages = parsed.botMessages;
         }
         lastPinnedMsgId = pinned.message_id;
         return true;
       }
     }
-    console.log('[tg-store] No existing backup found in channel — starting fresh.');
+    console.log('[tg-store] No existing backup found in channel \u2014 starting fresh.');
   } catch (err) {
     console.warn('[tg-store] restore failed:', err.message);
   }
