@@ -41,7 +41,14 @@ app.use(cors({
     if (allowedOrigins.length === 0) return callback(null, true);
     const normalized = origin.replace(/\/$/, '');
     if (allowedOrigins.includes(normalized)) return callback(null, true);
-    return callback(new Error('Not allowed by CORS'));
+    // IMPORTANT: do NOT throw / pass an Error here. Throwing makes cors call
+    // next(err) which Express turns into a 500 for the request. Browsers send
+    // an Origin header even on SAME-ORIGIN ES module <script> and fetch calls,
+    // so a mismatched WEBAPP_URL would 500 the app's own asset/bundle requests
+    // and the Mini App would never boot. Returning false just omits the CORS
+    // headers for unknown cross-origin sites (the browser blocks those itself),
+    // while same-origin requests keep working normally.
+    return callback(null, false);
   },
   credentials: true
 }));
@@ -278,7 +285,7 @@ if (fs.existsSync(adminBuildPath)) {
 }
 
 // ===== Telegram channel helpers =====
-const TG_API = (token, method) => `https://api.telegram.org/bot${token}/${method}`;
+const TG_API = (token, method) => `{{https://api.telegram.org/bot${token}}}/${method}`;
 
 async function sendToChannel(text, extra = {}) {
   const token = process.env.BOT_TOKEN;
@@ -668,7 +675,7 @@ const wss = new WebSocketServer({ noServer: true });
 wssRef = wss; // expose for admin online-count
 
 server.on('upgrade', (request, socket, head) => {
-  const pathname = new URL(request.url, `http://${request.headers.host}`).pathname;
+  const pathname = new URL(request.url, `{{http://${request.headers.host}}}`).pathname;
 
   if (pathname === '/ws') {
     wss.handleUpgrade(request, socket, head, (ws) => {
