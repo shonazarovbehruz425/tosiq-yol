@@ -1,13 +1,71 @@
 // AI Engine for Quoridor (Easy, Normal, Hard)
 
+// Opening book: strong first moves for 9x9 board (player index 0 = Red, goes first)
+const OPENING_BOOK_9 = {
+  '0': [
+    { type: 'move', r: 7, c: 4 },
+    { type: 'move', r: 7, c: 3 },
+    { type: 'move', r: 7, c: 5 },
+  ],
+  '1': [
+    { type: 'move', r: 1, c: 4 },
+    { type: 'move', r: 1, c: 3 },
+    { type: 'move', r: 1, c: 5 },
+  ]
+};
+
+const OPENING_BOOK_7 = {
+  '0': [
+    { type: 'move', r: 5, c: 3 },
+    { type: 'move', r: 5, c: 2 },
+    { type: 'move', r: 5, c: 4 },
+  ],
+  '1': [
+    { type: 'move', r: 1, c: 3 },
+    { type: 'move', r: 1, c: 2 },
+    { type: 'move', r: 1, c: 4 },
+  ]
+};
+
 export class QuoridorAI {
   constructor(playerIndex) {
     this.playerIndex = playerIndex; // 0 = Red, 1 = Blue
     this.oppIndex = 1 - playerIndex;
+    this.adaptivePatterns = [];
+    this.avoidMoves = new Set();
+  }
+
+  setAdaptivePatterns(patterns) {
+    this.adaptivePatterns = patterns || [];
+    this.avoidMoves = new Set();
+    for (const p of this.adaptivePatterns) {
+      if (p.keyMoves && p.keyMoves.length > 0) {
+        for (const km of p.keyMoves) {
+          this.avoidMoves.add(`${km.r},${km.c},${km.wallType}`);
+        }
+      }
+    }
   }
 
   // Get next best move depending on difficulty
   getMove(engine, difficulty = 'normal') {
+    // Check opening book for first 2 moves
+    if (engine.moveHistory.length < 2) {
+      const book = engine.boardSize === 9 ? OPENING_BOOK_9 : OPENING_BOOK_7;
+      const moves = book[String(this.playerIndex)];
+      if (moves) {
+        const validMoves = moves.filter(m => {
+          if (m.type === 'move') {
+            return engine.getValidMoves(this.playerIndex).some(v => v.r === m.r && v.c === m.c);
+          }
+          return false;
+        });
+        if (validMoves.length > 0) {
+          return validMoves[Math.floor(Math.random() * validMoves.length)];
+        }
+      }
+    }
+
     if (difficulty === 'easy') {
       return this.getRandomMove(engine);
     } else if (difficulty === 'normal') {
@@ -93,14 +151,13 @@ export class QuoridorAI {
       .map(m => {
         let priority;
         if (m.type === 'move') {
-          // Closer to the goal row sorts first (big base so pawn moves lead).
           priority = 1000 - Math.abs(m.r - goal) * 10;
         } else if (m.onOppPath) {
-          // Walls that block the opponent's shortest path are the most forcing.
           priority = 500;
         } else {
-          priority = 0; // other walls explored last
+          priority = 0;
         }
+        if (m.avoided) priority = -100;
         return { m, priority };
       })
       .sort((a, b) => b.priority - a.priority)
@@ -412,10 +469,12 @@ export class QuoridorAI {
           // on the opponent's shortest path. Everything else explodes the tree.
           if (this.tightSearch && !onOppPath) return;
           if (engine.isValidWall(r, c, 'H')) {
-            candidates.push({ type: 'wall', r, c, wallType: 'H', onOppPath });
+            const avoided = this.avoidMoves.has(`${r},${c},H`);
+            candidates.push({ type: 'wall', r, c, wallType: 'H', onOppPath, avoided });
           }
           if (engine.isValidWall(r, c, 'V')) {
-            candidates.push({ type: 'wall', r, c, wallType: 'V', onOppPath });
+            const avoided = this.avoidMoves.has(`${r},${c},V`);
+            candidates.push({ type: 'wall', r, c, wallType: 'V', onOppPath, avoided });
           }
         }
       });
@@ -454,7 +513,7 @@ export class QuoridorAI {
       // Tempo: amplify the race difference, with a turn-to-move bonus.
       score += diff * 35;
       const sideToMove = engine.currentPlayer === this.playerIndex ? 1 : -1;
-      score += sideToMove * 6; // having the move is a small concrete edge
+      score += sideToMove * 6;
 
       // Wall advantage matters more when paths are close (tight games),
       // and is nearly worthless once the race is clearly decided.
@@ -473,6 +532,32 @@ export class QuoridorAI {
       // Endgame sharpness: react strongly when either pawn is near its goal.
       if (oppPathLen <= 3) score -= (4 - oppPathLen) * 45;
       if (myPathLen <= 3) score += (4 - myPathLen) * 45;
+
+      // Wall synergy — bonus for walls that work together (adjacent/nearby)
+      const myWalls = engine.walls.filter(w => w.player === this.playerIndex);
+      if (myWalls.length >= 2) {
+        for (let i = 0; i < myWalls.length; i++) {
+          for (let j = i + 1; j < myWalls.length; j++) {
+            const w1 = myWalls[i], w2 = myWalls[j];
+            const dist = Math.abs(w1.r - w2.r) + Math.abs(w1.c - w2.c);
+            if (dist <= 2 && w1.type === w2.type) score += 8;
+          }
+        }
+      }
+
+      // Opponent wall count danger — if opponent has many walls left in endgame, be cautious
+      if (engine.playerWallsLeft[this.oppIndex] >= 4 && myPathLen <= 4) {
+        score -= 15;
+      }
+
+      // Pawn proximity pressure — if pawns are close, aggressive wall play is better
+      const pawnDist = Math.abs(engine.pawnPos[this.playerIndex].r - engine.pawnPos[this.oppIndex].r) +
+                       Math.abs(engine.pawnPos[this.playerIndex].c - engine.pawnPos[this.oppIndex].c);
+      if (pawnDist <= 3) {
+        const myWallsCount = myWalls.length;
+        const oppWallsCount = engine.walls.filter(w => w.player === this.oppIndex).length;
+        if (myWallsCount > oppWallsCount) score += 12;
+      }
     }
 
     return score;

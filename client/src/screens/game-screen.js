@@ -48,6 +48,7 @@ export class GameScreen {
     
     // Bot AI helper
     this.botAI = null;
+    this._cachedPatterns = null;
     if (this.vs === 'bot') {
       const botSide = 1 - this.mySide;
       this.botAI = new QuoridorAI(botSide);
@@ -806,6 +807,16 @@ export class GameScreen {
     if (this._aiWorker === undefined) {
       try {
         this._aiWorker = new Worker(new URL('../game/ai.worker.js', import.meta.url), { type: 'module' });
+        // Fetch adaptive patterns for the AI
+        fetch('/api/bot-patterns')
+          .then(r => r.json())
+          .then(data => {
+            if (data.patterns && this._aiWorker) {
+              this._cachedPatterns = data.patterns;
+              this._aiWorker.postMessage({ patterns: data.patterns });
+            }
+          })
+          .catch(() => {});
       } catch (e) {
         this._aiWorker = null;
       }
@@ -840,7 +851,7 @@ export class GameScreen {
       const fallbackTimer = setTimeout(() => { onErr(); }, 8000);
       this._aiWorker.addEventListener('message', onMsg);
       this._aiWorker.addEventListener('error', onErr);
-      this._aiWorker.postMessage({ state, difficulty: this.params.difficulty, botSide });
+      this._aiWorker.postMessage({ state, difficulty: this.params.difficulty, botSide, patterns: this._cachedPatterns });
     } else {
       // No worker support — run synchronously.
       applyMove(this.botAI.getMove(this.engine, this.params.difficulty));
@@ -1048,6 +1059,21 @@ export class GameScreen {
     const isWin = result === 'win';
     if (isWin) Sound.win(); else Sound.lose();
     await StorageManager.recordGameResult(result);
+
+    // Send bot game result to server for adaptive AI
+    if (this.vs === 'bot' && this.params.difficulty) {
+      fetch('/api/bot-result', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          difficulty: this.params.difficulty,
+          result,
+          moveHistory: this.engine.moveHistory,
+          boardSize: this.boardSize,
+          mode: this.mode
+        })
+      }).catch(() => {});
+    }
 
     // Show the result as an overlay ON TOP of the finished board (not a
     // separate screen / background).

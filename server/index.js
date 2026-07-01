@@ -257,6 +257,92 @@ if (fs.existsSync(adminBuildPath)) {
   });
 }
 
+// ===== Bot game results & adaptive AI =====
+const BOT_PATTERNS_PATH = path.join(__dirname, 'bot-patterns.json');
+
+function loadBotPatterns() {
+  try {
+    if (fs.existsSync(BOT_PATTERNS_PATH)) {
+      return JSON.parse(fs.readFileSync(BOT_PATTERNS_PATH, 'utf8'));
+    }
+  } catch {}
+  return { patterns: [], stats: { totalGames: 0, playerWins: 0, botWins: 0 } };
+}
+
+function saveBotPatterns(data) {
+  try {
+    if (data.patterns.length > 200) {
+      data.patterns = data.patterns.slice(-200);
+    }
+    fs.writeFileSync(BOT_PATTERNS_PATH, JSON.stringify(data, null, 2), 'utf8');
+  } catch (err) {
+    console.error('[bot-patterns] Failed to save:', err.message);
+  }
+}
+
+app.post('/api/bot-result', express.json({ limit: '1mb' }), (req, res) => {
+  try {
+    const { difficulty, result, moveHistory, boardSize, mode } = req.body || {};
+    if (!difficulty || !result || !Array.isArray(moveHistory)) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const data = loadBotPatterns();
+    data.stats.totalGames++;
+
+    const isHardPlus = ['hard', 'master', 'grandmaster'].includes(difficulty);
+    if (result === 'win' && isHardPlus) {
+      data.stats.playerWins++;
+
+      const keyMoves = moveHistory
+        .filter(m => m.type === 'wall')
+        .map(m => ({ r: m.r, c: m.c, wallType: m.wallType, player: m.player }));
+
+      const positions = [];
+      for (let i = 3; i < moveHistory.length; i += 4) {
+        positions.push({
+          step: i,
+          type: moveHistory[i].type,
+          r: moveHistory[i].r,
+          c: moveHistory[i].c,
+          wallType: moveHistory[i].wallType
+        });
+      }
+
+      data.patterns.push({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        difficulty,
+        boardSize: boardSize || 9,
+        result,
+        keyMoves,
+        positions,
+        totalMoves: moveHistory.length,
+        timestamp: Date.now()
+      });
+
+      saveBotPatterns(data);
+      console.log(`[bot-patterns] Stored winning pattern (${difficulty}, ${keyMoves.length} walls, ${moveHistory.length} moves)`);
+    } else if (result === 'lose') {
+      data.stats.botWins++;
+      saveBotPatterns(data);
+    }
+
+    res.json({ ok: true, patternCount: data.patterns.length });
+  } catch (err) {
+    console.error('[bot-result] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/bot-patterns', (req, res) => {
+  try {
+    const data = loadBotPatterns();
+    res.json({ patterns: data.patterns.slice(-50), stats: data.stats });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Serve static frontend assets in production mode
 const clientBuildPath = path.join(__dirname, '../dist');
 if (fs.existsSync(clientBuildPath)) {

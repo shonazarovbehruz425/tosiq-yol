@@ -4,8 +4,14 @@
 import { QuoridorEngine } from './logic.js';
 import { QuoridorAI } from './ai.js';
 
+let cachedPatterns = null;
+
 self.onmessage = (e) => {
-  const { state, difficulty, botSide } = e.data || {};
+  const { state, difficulty, botSide, patterns } = e.data || {};
+
+  // Cache patterns for reuse
+  if (patterns) cachedPatterns = patterns;
+
   try {
     const engine = new QuoridorEngine(state.boardSize, state.wallsCount, state.mode, {
       chaos: state.chaos,
@@ -21,6 +27,7 @@ self.onmessage = (e) => {
     if (state.ghostCharges) engine.ghostCharges = state.ghostCharges;
 
     const ai = new QuoridorAI(botSide);
+    if (cachedPatterns) ai.setAdaptivePatterns(cachedPatterns);
     const move = ai.getMove(engine, difficulty);
     self.postMessage({ ok: true, move });
   } catch (err) {
