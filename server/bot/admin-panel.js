@@ -10,6 +10,10 @@
 //   \u201cforwarded from\u201d header (the source name stays hidden) and keeps the
 //   premium emoji intact.
 //
+// Alongside the copy reference we also keep light metadata (source type, the
+// link, a text snippet, saved time) purely so the panel can show the admin what
+// is currently set.
+//
 // Overrides live in db.data.botMessages, backed up to the Telegram channel and
 // restored on boot (see server/db/telegram-store.js).
 import { db } from '../db/database.js';
@@ -38,9 +42,17 @@ function getOverride(key) {
   return rec && rec.mode === 'copy' ? rec : null;
 }
 
-function setCopyOverride(key, fromChatId, messageId) {
+function setCopyOverride(key, fromChatId, messageId, meta = {}) {
   if (!db.data.botMessages) db.data.botMessages = {};
-  db.data.botMessages[key] = { mode: 'copy', fromChatId, messageId };
+  db.data.botMessages[key] = {
+    mode: 'copy',
+    fromChatId,
+    messageId,
+    source: meta.source || 'direct', // 'direct' | 'link'
+    link: meta.link || '',
+    preview: meta.preview || '',
+    savedAt: Date.now()
+  };
   db.save();
 }
 
@@ -52,6 +64,14 @@ function resetOverride(key) {
 function isCustom(key) { return !!getOverride(key); }
 function stateIcon(key) { return isCustom(key) ? '\u2705' : '\u2699\ufe0f'; }
 function stateLabel(key) { return isCustom(key) ? '\u2705 maxsus (ko\u02bbchirma)' : '\u2699\ufe0f standart'; }
+
+function fmtDate(ts) {
+  try {
+    return new Date(ts).toLocaleString('en-GB', { timeZone: 'Asia/Tashkent', hour12: false });
+  } catch (e) {
+    return new Date(ts).toISOString();
+  }
+}
 
 // ---------- public delivery helper (used by bot.js) ----------
 // If an override exists for `key`, deliver it via copyMessage (premium emoji
@@ -85,6 +105,11 @@ function parseMessageLink(text) {
   return { fromChatId: '@' + parts[0], messageId };
 }
 
+function extractLinkStr(text) {
+  const m = String(text).match(/https?:\/\/t\.me\/\S+/i) || String(text).match(/t\.me\/\S+/i);
+  return m ? m[0] : '';
+}
+
 // ---------- panel text & keyboards ----------
 function panelText() {
   return '\ud83d\udee0\ufe0f *Admin panel*\n\n' +
@@ -104,18 +129,39 @@ function panelKeyboard() {
 
 function subText(idx) {
   const e = EDITABLE[idx];
-  return `\u270f\ufe0f *${e.label}*\n\nHolat: ${stateLabel(e.key)}\n\n` +
-    '\u201c\u270f\ufe0f O\u02bbzgartirish\u201d ni bosing, so\u02bbng:\n' +
-    '\u2022 premium-emojili xabarni menga yuboring, yoki\n' +
-    '\u2022 kanaldagi post linkini (t.me/...) yuboring.';
+  const o = getOverride(e.key);
+  let out = `\u270f\ufe0f *${e.label}*\n\nHolat: ${stateLabel(e.key)}`;
+
+  if (o) {
+    out += '\n';
+    if (o.source === 'link') {
+      out += '\n\ud83d\udd17 *Manba:* kanal posti (link orqali)';
+      if (o.link) out += `\n\`${o.link}\``;
+    } else {
+      out += '\n\ud83d\udcdd *Manba:* to\u02bbg\u02bbridan-to\u02bbg\u02bbri yuborilgan xabar';
+      if (o.preview) out += `\n\n\u201c${o.preview}\u201d`;
+    }
+    if (o.savedAt) out += `\n\n\ud83d\udd52 Saqlangan: ${fmtDate(o.savedAt)}`;
+    out += '\n\n\ud83d\udc41 Aniq ko\u02bbrinishini ko\u02bbrish uchun \u201cKo\u02bbrish\u201d ni bosing.';
+  } else {
+    out += '\n\nHozircha standart (o\u02bbrnatilgan) matn ishlatilmoqda.';
+  }
+
+  out += '\n\u2014\u2014\u2014\n\u201c\u270f\ufe0f O\u02bbzgartirish\u201d: premium-emojili xabar yoki t.me link yuboring.';
+  return out;
 }
 
 function subKeyboard(idx) {
-  return { inline_keyboard: [
-    [{ text: '\u270f\ufe0f O\u02bbzgartirish', callback_data: `adm_e:${idx}` }],
-    [{ text: '\u267b\ufe0f Standartga qaytarish', callback_data: `adm_r:${idx}` }],
-    [{ text: '\u2b05\ufe0f Orqaga', callback_data: 'adm_home' }]
-  ] };
+  const e = EDITABLE[idx];
+  const rows = [[{ text: '\u270f\ufe0f O\u02bbzgartirish', callback_data: `adm_e:${idx}` }]];
+  if (isCustom(e.key)) {
+    rows.push([{ text: '\ud83d\udc41 Ko\u02bbrish (namuna)', callback_data: `adm_p:${idx}` }]);
+    rows.push([{ text: '\u267b\ufe0f Standartga qaytarish', callback_data: `adm_r:${idx}` }]);
+  } else {
+    rows.push([{ text: '\u267b\ufe0f Standartga qaytarish', callback_data: `adm_r:${idx}` }]);
+  }
+  rows.push([{ text: '\u2b05\ufe0f Orqaga', callback_data: 'adm_home' }]);
+  return { inline_keyboard: rows };
 }
 
 // ---------- open panel (from /behruz) ----------
@@ -153,6 +199,20 @@ export async function handleAdminCallback(call, token, cb) {
     await call(token, 'answerCallbackQuery', { callback_query_id: cb.id });
     if (EDITABLE[idx]) {
       await call(token, 'editMessageText', { chat_id: chatId, message_id: msgId, text: subText(idx), parse_mode: 'Markdown', reply_markup: subKeyboard(idx) });
+    }
+    return true;
+  }
+
+  // Live preview: copy the currently-stored message into the admin's chat.
+  if (data.startsWith('adm_p:')) {
+    const idx = parseInt(data.slice(6), 10);
+    const e = EDITABLE[idx];
+    await call(token, 'answerCallbackQuery', { callback_query_id: cb.id, text: '\ud83d\udc41 Namuna yuborildi' });
+    if (e) {
+      const ok = await sendOverride(call, token, chatId, e.key, null);
+      if (!ok) {
+        await call(token, 'sendMessage', { chat_id: chatId, text: '\u26a0\ufe0f Namunani ko\u02bbrsatib bo\u02bblmadi (asl xabar o\u02bbchirilgan yoki bot kanalda emas). Qaytadan o\u02bbrnating.' });
+      }
     }
     return true;
   }
@@ -229,7 +289,17 @@ export async function tryCaptureEdit(call, token, msg) {
     return true; // stay in pending so the admin can retry
   }
 
-  setCopyOverride(key, fromChatId, messageId);
+  // Build display metadata (does not affect delivery \u2014 only the panel view).
+  let meta;
+  if (link) {
+    meta = { source: 'link', link: extractLinkStr(text) || text };
+  } else {
+    const raw = msg.text || msg.caption || '';
+    const preview = raw.length > 160 ? raw.slice(0, 160) + '\u2026' : raw;
+    meta = { source: 'direct', preview };
+  }
+
+  setCopyOverride(key, fromChatId, messageId, meta);
   pending.delete(Number(from.id));
 
   const item = EDITABLE.find(e => e.key === key);
