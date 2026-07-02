@@ -2,12 +2,16 @@ import { haptic, getInitData } from '../core/telegram.js';
 import { getLanguage } from '../core/i18n.js';
 import { Toast } from '../components/toast.js';
 
+// Clean SVG coin (replaces the plain coin emoji that renders as a dull moon on
+// some devices).
+const COIN = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" style="display:inline-block;vertical-align:-2px;margin:0 1px;"><circle cx="12" cy="12" r="9.5" fill="#f7c948" stroke="#c98a15" stroke-width="1.6"/><circle cx="12" cy="12" r="6" fill="none" stroke="#e6ad2e" stroke-width="1.3"/><circle cx="9" cy="9" r="1.6" fill="#fff3c4"/></svg>';
+
 // Localized strings for the daily screen. Other languages fall back to English.
 const STR = {
   uz: {
     title: 'Kunlik mukofot', subtitle: "Har kuni kir \u2014 streak va tanga yig'",
     streakLabel: 'Streak', daysWord: 'kun', bestWord: 'Rekord',
-    checkinBtn: 'Bugun kirish +{r} \u{1FA99}', checkedBtn: 'Bugun olindi \u2713',
+    checkinBtn: 'Bugun kirish +{r}', checkedBtn: 'Bugun olindi \u2713',
     questsTitle: 'Bugungi topshiriqlar', doneWord: 'Bajarildi', backBtn: 'Orqaga',
     loadingWord: 'Yuklanmoqda\u2026', notReg: "Avval Telegram botda /start bosing",
     checkOk: '{s}-kun streak! +{r} \u{1FA99}', already: 'Bugun allaqachon olindingiz',
@@ -16,7 +20,7 @@ const STR = {
   en: {
     title: 'Daily rewards', subtitle: 'Check in daily \u2014 build a streak & earn coins',
     streakLabel: 'Streak', daysWord: 'days', bestWord: 'Best',
-    checkinBtn: 'Check in +{r} \u{1FA99}', checkedBtn: 'Claimed today \u2713',
+    checkinBtn: 'Check in +{r}', checkedBtn: 'Claimed today \u2713',
     questsTitle: "Today's quests", doneWord: 'Done', backBtn: 'Back',
     loadingWord: 'Loading\u2026', notReg: 'Open the Telegram bot and press /start first',
     checkOk: '{s}-day streak! +{r} \u{1FA99}', already: 'Already checked in today',
@@ -25,7 +29,7 @@ const STR = {
   ru: {
     title: '\u0415\u0436\u0435\u0434\u043d\u0435\u0432\u043d\u044b\u0435 \u043d\u0430\u0433\u0440\u0430\u0434\u044b', subtitle: '\u0417\u0430\u0445\u043e\u0434\u0438\u0442\u0435 \u043a\u0430\u0436\u0434\u044b\u0439 \u0434\u0435\u043d\u044c \u2014 \u043a\u043e\u043f\u0438\u0442\u0435 \u0441\u0435\u0440\u0438\u044e \u0438 \u043c\u043e\u043d\u0435\u0442\u044b',
     streakLabel: '\u0421\u0435\u0440\u0438\u044f', daysWord: '\u0434\u043d.', bestWord: '\u0420\u0435\u043a\u043e\u0440\u0434',
-    checkinBtn: '\u041e\u0442\u043c\u0435\u0442\u0438\u0442\u044c\u0441\u044f +{r} \u{1FA99}', checkedBtn: '\u041f\u043e\u043b\u0443\u0447\u0435\u043d\u043e \u0441\u0435\u0433\u043e\u0434\u043d\u044f \u2713',
+    checkinBtn: '\u041e\u0442\u043c\u0435\u0442\u0438\u0442\u044c\u0441\u044f +{r}', checkedBtn: '\u041f\u043e\u043b\u0443\u0447\u0435\u043d\u043e \u0441\u0435\u0433\u043e\u0434\u043d\u044f \u2713',
     questsTitle: '\u0417\u0430\u0434\u0430\u043d\u0438\u044f \u0434\u043d\u044f', doneWord: '\u0413\u043e\u0442\u043e\u0432\u043e', backBtn: '\u041d\u0430\u0437\u0430\u0434',
     loadingWord: '\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430\u2026', notReg: '\u0421\u043d\u0430\u0447\u0430\u043b\u0430 \u043e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u0431\u043e\u0442\u0430 \u0432 Telegram \u0438 \u043d\u0430\u0436\u043c\u0438\u0442\u0435 /start',
     checkOk: '\u0421\u0435\u0440\u0438\u044f {s} \u0434\u043d.! +{r} \u{1FA99}', already: '\u0412\u044b \u0443\u0436\u0435 \u043e\u0442\u043c\u0435\u0442\u0438\u043b\u0438\u0441\u044c \u0441\u0435\u0433\u043e\u0434\u043d\u044f',
@@ -103,7 +107,7 @@ export class DailyScreen {
 
     const btn = checked
       ? `<button class="btn" id="checkin-btn" disabled style="opacity:.55;cursor:default;background:#334155;">${this.s('checkedBtn')}</button>`
-      : `<button class="btn" id="checkin-btn">${this.s('checkinBtn', { r: nextReward })}</button>`;
+      : `<button class="btn daily-cta" id="checkin-btn" style="background:linear-gradient(135deg,#fbbf24 0%,#f97316 100%);box-shadow:0 8px 24px rgba(245,158,11,.5);color:#fff;font-weight:800;letter-spacing:.2px;">${this.s('checkinBtn', { r: nextReward })} ${COIN}</button>`;
 
     return `
       <div style="background:linear-gradient(135deg,rgba(124,58,237,.22),rgba(34,211,238,.14));border:1px solid rgba(124,58,237,.35);border-radius:18px;padding:18px;text-align:center;">
@@ -132,7 +136,7 @@ export class DailyScreen {
       <div style="background:#1e293b;border:1px solid ${done ? 'rgba(34,197,94,.45)' : 'rgba(51,65,85,.6)'};border-radius:14px;padding:12px 14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
           <span style="color:#f1f5f9;font-size:13px;font-weight:600;">${done ? '\u2705 ' : ''}${this.esc(this.questText(q))}</span>
-          <span style="color:#fbbf24;font-size:12px;font-weight:700;white-space:nowrap;">+${q.reward} \u{1FA99}</span>
+          <span style="color:#fbbf24;font-size:12px;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:2px;">+${q.reward} ${COIN}</span>
         </div>
         <div style="margin-top:8px;height:7px;background:#0f172a;border-radius:99px;overflow:hidden;">
           <div style="height:100%;width:${pct}%;background:${done ? '#22c55e' : 'linear-gradient(90deg,#7c3aed,#22d3ee)'};border-radius:99px;transition:width .3s;"></div>
