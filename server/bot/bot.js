@@ -8,7 +8,7 @@
 //   /behruz           -> (admins only) open the message-editor panel
 import { db } from '../db/database.js';
 import { getProfileSummary, getDailyState, dailyCheckin } from '../game/progression.js';
-import { openAdminPanel, handleAdminCallback, tryCaptureEdit, msgOverride, isAdmin } from './admin-panel.js';
+import { openAdminPanel, handleAdminCallback, tryCaptureEdit, sendOverride, isAdmin } from './admin-panel.js';
 
 // Build the Telegram API base via concatenation (NEVER a single URL literal)
 // so tooling that rewrites URL-looking strings can't corrupt it.
@@ -187,25 +187,6 @@ function getUserLang(userId) {
   return (u && u.lang) || 'en';
 }
 
-// Send a message that may have an admin override (with preserved entities).
-// Falls back to the default text, and to a no-entities retry if Telegram
-// rejects custom-emoji entities.
-async function sendMsg(token, chatId, key, lang, defText, opts = {}) {
-  const { keyboard, parse_mode } = opts;
-  const ov = msgOverride(key, lang);
-  if (ov) {
-    const payload = { chat_id: chatId, text: ov.text, reply_markup: keyboard, disable_web_page_preview: true };
-    if (ov.entities && ov.entities.length) payload.entities = ov.entities;
-    const res = await call(token, 'sendMessage', payload);
-    if (res && res.ok) return res;
-    if (payload.entities) {
-      return call(token, 'sendMessage', { chat_id: chatId, text: ov.text, reply_markup: keyboard, disable_web_page_preview: true });
-    }
-    return res;
-  }
-  return call(token, 'sendMessage', { chat_id: chatId, text: defText, parse_mode, reply_markup: keyboard });
-}
-
 async function handleMessage(token, msg, webAppUrl) {
   const chatId = msg.chat?.id;
   const from = msg.from;
@@ -231,15 +212,8 @@ async function handleMessage(token, msg, webAppUrl) {
 
   // /start -> always ask for language first (admin can customise this text)
   if (text.startsWith('/start') || text.startsWith('/language') || text.startsWith('/lang')) {
-    const ov = msgOverride('startPrompt', 'all');
-    if (ov) {
-      const payload = { chat_id: chatId, text: ov.text, reply_markup: langKeyboard(), disable_web_page_preview: true };
-      if (ov.entities && ov.entities.length) payload.entities = ov.entities;
-      const r = await call(token, 'sendMessage', payload);
-      if ((!r || !r.ok) && payload.entities) {
-        await call(token, 'sendMessage', { chat_id: chatId, text: ov.text, reply_markup: langKeyboard() });
-      }
-    } else {
+    const sent = await sendOverride(call, token, chatId, 'startPrompt', langKeyboard());
+    if (!sent) {
       await call(token, 'sendMessage', {
         chat_id: chatId,
         text: '\ud83c\udf10 Tilni tanlang / Choose language / \u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u044f\u0437\u044b\u043a:',
@@ -253,7 +227,10 @@ async function handleMessage(token, msg, webAppUrl) {
   const s = tr(lang);
 
   if (text.startsWith('/play')) {
-    await sendMsg(token, chatId, 'letsPlay', lang, s.letsPlay, { keyboard: playKeyboard(lang, webAppUrl) });
+    const kb = playKeyboard(lang, webAppUrl);
+    if (!(await sendOverride(call, token, chatId, 'letsPlay', kb))) {
+      await call(token, 'sendMessage', { chat_id: chatId, text: s.letsPlay, reply_markup: kb });
+    }
     return;
   }
 
@@ -284,49 +261,40 @@ async function handleMessage(token, msg, webAppUrl) {
   }
 
   if (text.startsWith('/help')) {
-    await sendMsg(token, chatId, 'help', lang, s.help, { keyboard: playKeyboard(lang, webAppUrl), parse_mode: 'Markdown' });
+    const kb = playKeyboard(lang, webAppUrl);
+    if (!(await sendOverride(call, token, chatId, 'help', kb))) {
+      await call(token, 'sendMessage', { chat_id: chatId, text: s.help, parse_mode: 'Markdown', reply_markup: kb });
+    }
     return;
   }
 
   // Default nudge
-  await sendMsg(token, chatId, 'nudge', lang, s.nudge, { keyboard: playKeyboard(lang, webAppUrl) });
+  const kb = playKeyboard(lang, webAppUrl);
+  if (!(await sendOverride(call, token, chatId, 'nudge', kb))) {
+    await call(token, 'sendMessage', { chat_id: chatId, text: s.nudge, reply_markup: kb });
+  }
 }
 
 // Deliver the localized (or admin-overridden) welcome after language pick.
-// Tries to edit the language-picker message in place; sends a fresh one if the
-// edit fails. Custom-emoji entities are preserved, with a no-entities retry.
+// If an override exists it is copied in as a fresh message (premium emoji kept,
+// source name hidden). Otherwise the language-picker message is edited in place.
 async function pushWelcome(token, chatId, msgId, valid, name, webAppUrl) {
-  const ov = msgOverride('welcome', valid);
-  const kbEdit = playKeyboardEditable(valid);
-  let edited;
-  if (ov) {
-    const payload = { chat_id: chatId, message_id: msgId, text: ov.text, reply_markup: kbEdit };
-    if (ov.entities && ov.entities.length) payload.entities = ov.entities;
-    edited = await call(token, 'editMessageText', payload);
-    if ((!edited || !edited.ok) && payload.entities) {
-      edited = await call(token, 'editMessageText', { chat_id: chatId, message_id: msgId, text: ov.text, reply_markup: kbEdit });
-    }
-  } else {
-    edited = await call(token, 'editMessageText', {
-      chat_id: chatId, message_id: msgId, text: tr(valid).welcome(name), parse_mode: 'Markdown', reply_markup: kbEdit
-    });
+  // Override present -> send the copied welcome as a new message.
+  if (await sendOverride(call, token, chatId, 'welcome', playKeyboard(valid, webAppUrl))) {
+    return;
   }
 
+  // No override -> edit the picker message in place into the default welcome.
+  const kbEdit = playKeyboardEditable(valid);
+  const edited = await call(token, 'editMessageText', {
+    chat_id: chatId, message_id: msgId, text: tr(valid).welcome(name), parse_mode: 'Markdown', reply_markup: kbEdit
+  });
   if (edited && edited.ok) return;
 
-  // Edit failed (e.g. message deleted) \u2014 send a fresh welcome.
-  if (ov) {
-    const p2 = { chat_id: chatId, text: ov.text, reply_markup: playKeyboard(valid, webAppUrl), disable_web_page_preview: true };
-    if (ov.entities && ov.entities.length) p2.entities = ov.entities;
-    const r2 = await call(token, 'sendMessage', p2);
-    if ((!r2 || !r2.ok) && p2.entities) {
-      await call(token, 'sendMessage', { chat_id: chatId, text: ov.text, reply_markup: playKeyboard(valid, webAppUrl), disable_web_page_preview: true });
-    }
-  } else {
-    await call(token, 'sendMessage', {
-      chat_id: chatId, text: tr(valid).welcome(name), parse_mode: 'Markdown', reply_markup: playKeyboard(valid, webAppUrl)
-    });
-  }
+  // Edit failed (e.g. message deleted) -> send a fresh default welcome.
+  await call(token, 'sendMessage', {
+    chat_id: chatId, text: tr(valid).welcome(name), parse_mode: 'Markdown', reply_markup: playKeyboard(valid, webAppUrl)
+  });
 }
 
 async function handleCallback(token, cb, webAppUrl) {
