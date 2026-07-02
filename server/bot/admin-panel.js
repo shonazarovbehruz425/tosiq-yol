@@ -1,92 +1,129 @@
-// Small in-chat admin panel for editing the bot's outgoing messages.
-// Only the whitelisted Telegram user IDs can open it. Edited messages are
-// stored WITH their entities (so premium emoji & formatting survive) inside
-// db.data.botMessages, which is backed up to the Telegram channel and restored
-// on boot (see server/db/telegram-store.js).
+// Small in-chat admin panel for replacing the bot's outgoing messages.
+// Only the whitelisted Telegram user IDs can open it.
+//
+// How premium emoji works here:
+//   A regular bot CANNOT type custom/premium emoji into a normal sendMessage.
+//   So instead we COPY a message that already contains them. The admin either
+//   sends the decorated message straight to the bot, or pastes a link to a
+//   channel post. We store a reference (chat + message id) and re-deliver it to
+//   users with copyMessage \u2014 which reproduces the content WITHOUT any
+//   \u201cforwarded from\u201d header (the source name stays hidden) and keeps the
+//   premium emoji intact.
+//
+// Overrides live in db.data.botMessages, backed up to the Telegram channel and
+// restored on boot (see server/db/telegram-store.js).
 import { db } from '../db/database.js';
 
 // Only these Telegram user IDs may open the panel.
 export const ADMIN_IDS = new Set([7046087449, 8012901047]);
 export function isAdmin(id) { return ADMIN_IDS.has(Number(id)); }
 
-// The messages an admin can customise. `perLang` messages have a separate
-// version per interface language (uz/en/ru); the rest share a single version.
+// The messages an admin can replace. One override per message (no per-language
+// split \u2014 kept intentionally simple).
 export const EDITABLE = [
-  { key: 'startPrompt', perLang: false, label: '/start \u2014 til tanlash xabari' },
-  { key: 'welcome',     perLang: true,  label: 'Xush kelibsiz (til tanlangach)' },
-  { key: 'letsPlay',    perLang: true,  label: '/play javobi' },
-  { key: 'help',        perLang: true,  label: '/help javobi' },
-  { key: 'nudge',       perLang: true,  label: 'Oddiy javob (nudge)' }
+  { key: 'startPrompt', label: '/start \u2014 til tanlash xabari' },
+  { key: 'welcome',     label: 'Xush kelibsiz (til tanlangach)' },
+  { key: 'letsPlay',    label: '/play javobi' },
+  { key: 'help',        label: '/help javobi' },
+  { key: 'nudge',       label: 'Oddiy javob (nudge)' }
 ];
 
-// adminId -> { key, lang } while an admin is composing a replacement message.
+// adminId -> key  (while an admin is composing a replacement)
 const pending = new Map();
 
-// ----- storage helpers (db.data.botMessages) -----
-export function msgOverride(key, lang) {
+// ---------- storage helpers (db.data.botMessages) ----------
+function getOverride(key) {
   const bm = db.data && db.data.botMessages;
-  if (!bm || !bm[key]) return null;
-  const rec = bm[key][lang];
-  return rec && rec.text ? rec : null;
+  const rec = bm && bm[key];
+  return rec && rec.mode === 'copy' ? rec : null;
 }
 
-function setOverride(key, lang, text, entities) {
+function setCopyOverride(key, fromChatId, messageId) {
   if (!db.data.botMessages) db.data.botMessages = {};
-  if (!db.data.botMessages[key]) db.data.botMessages[key] = {};
-  db.data.botMessages[key][lang] = { text, entities: entities || [] };
+  db.data.botMessages[key] = { mode: 'copy', fromChatId, messageId };
   db.save();
 }
 
-function resetOverride(key, lang) {
+function resetOverride(key) {
   const bm = db.data && db.data.botMessages;
-  if (bm && bm[key] && bm[key][lang]) { delete bm[key][lang]; db.save(); }
+  if (bm && bm[key]) { delete bm[key]; db.save(); }
 }
 
-function stateLabel(key, lang) {
-  return msgOverride(key, lang) ? '\u2705 maxsus' : '\u2699\ufe0f standart';
+function isCustom(key) { return !!getOverride(key); }
+function stateIcon(key) { return isCustom(key) ? '\u2705' : '\u2699\ufe0f'; }
+function stateLabel(key) { return isCustom(key) ? '\u2705 maxsus (ko\u02bbchirma)' : '\u2699\ufe0f standart'; }
+
+// ---------- public delivery helper (used by bot.js) ----------
+// If an override exists for `key`, deliver it via copyMessage (premium emoji
+// preserved, source name hidden) and return true. Otherwise return false so the
+// caller can send its built-in default.
+export async function sendOverride(call, token, chatId, key, keyboard) {
+  const o = getOverride(key);
+  if (!o) return false;
+  const payload = { chat_id: chatId, from_chat_id: o.fromChatId, message_id: o.messageId };
+  if (keyboard) payload.reply_markup = keyboard;
+  const r = await call(token, 'copyMessage', payload);
+  return !!(r && r.ok);
 }
 
-// ----- panel text & keyboards -----
+// ---------- link parsing ----------
+// Accepts https://t.me/<username>/<id>, https://t.me/c/<internal>/<id>, and
+// topic links (.../<thread>/<id>) \u2014 the last number is the message id.
+function parseMessageLink(text) {
+  const m = String(text).match(/t\.me\/([^\s]+)/i);
+  if (!m) return null;
+  const path = m[1].split('?')[0].replace(/\/+$/, '');
+  const parts = path.split('/').filter(Boolean);
+  if (parts.length < 2) return null;
+  const messageId = parseInt(parts[parts.length - 1], 10);
+  if (!Number.isFinite(messageId)) return null;
+  if (parts[0] === 'c') {
+    const internal = parts[1];
+    if (!/^\d+$/.test(internal)) return null;
+    return { fromChatId: Number('-100' + internal), messageId };
+  }
+  return { fromChatId: '@' + parts[0], messageId };
+}
+
+// ---------- panel text & keyboards ----------
 function panelText() {
-  return '\ud83d\udee0\ufe0f *Admin panel*\n\nBot foydalanuvchilarga yuboradigan xabarlarni shu yerdan tahrirlaysiz. Premium emoji va formatlash saqlanadi.\n\nQaysi xabarni o\'zgartiramiz?';
+  return '\ud83d\udee0\ufe0f *Admin panel*\n\n' +
+    'Bot yuboradigan xabarlarni shu yerdan almashtirasiz.\n\n' +
+    '\ud83d\udca1 *Premium emoji uchun:*\n' +
+    '1) Kerakli xabarni premium emoji bilan bezab yozing.\n' +
+    '2) \u201c\u270f\ufe0f O\u02bbzgartirish\u201d ni bosgach, o\u02bbsha bezalgan xabarni menga yuboring (yoki kanaldagi post *linkini*).\n' +
+    '3) Men uni nom ko\u02bbrsatmasdan foydalanuvchilarga ko\u02bbchiraman \u2014 emojilar saqlanadi.\n\n' +
+    'Qaysi xabarni o\u02bbzgartiramiz?';
 }
 
 function panelKeyboard() {
-  const rows = EDITABLE.map((e, i) => [{ text: e.label, callback_data: `adm_k:${i}` }]);
+  const rows = EDITABLE.map((e, i) => [{ text: `${stateIcon(e.key)} ${e.label}`, callback_data: `adm_k:${i}` }]);
   rows.push([{ text: '\u274c Yopish', callback_data: 'adm_close' }]);
   return { inline_keyboard: rows };
 }
 
 function subText(idx) {
   const e = EDITABLE[idx];
-  if (e.perLang) {
-    return `\u270f\ufe0f *${e.label}*\n\nTilni tanlang, so\u2018ng yangi matn yuboring:\n\n\ud83c\uddfa\ud83c\uddff UZ \u2014 ${stateLabel(e.key, 'uz')}\n\ud83c\uddec\ud83c\udde7 EN \u2014 ${stateLabel(e.key, 'en')}\n\ud83c\uddf7\ud83c\uddfa RU \u2014 ${stateLabel(e.key, 'ru')}\n\n\u270f\ufe0f = tahrirlash  \u2022  \u267b\ufe0f = standartga qaytarish`;
-  }
-  return `\u270f\ufe0f *${e.label}*\n\nHolat: ${stateLabel(e.key, 'all')}\n\n\u270f\ufe0f = tahrirlash  \u2022  \u267b\ufe0f = standartga qaytarish`;
+  return `\u270f\ufe0f *${e.label}*\n\nHolat: ${stateLabel(e.key)}\n\n` +
+    '\u201c\u270f\ufe0f O\u02bbzgartirish\u201d ni bosing, so\u02bbng:\n' +
+    '\u2022 premium-emojili xabarni menga yuboring, yoki\n' +
+    '\u2022 kanaldagi post linkini (t.me/...) yuboring.';
 }
 
 function subKeyboard(idx) {
-  const e = EDITABLE[idx];
-  if (e.perLang) {
-    return { inline_keyboard: [
-      [{ text: '\u270f\ufe0f UZ', callback_data: `adm_e:${idx}:uz` }, { text: '\u270f\ufe0f EN', callback_data: `adm_e:${idx}:en` }, { text: '\u270f\ufe0f RU', callback_data: `adm_e:${idx}:ru` }],
-      [{ text: '\u267b\ufe0f UZ', callback_data: `adm_r:${idx}:uz` }, { text: '\u267b\ufe0f EN', callback_data: `adm_r:${idx}:en` }, { text: '\u267b\ufe0f RU', callback_data: `adm_r:${idx}:ru` }],
-      [{ text: '\u2b05\ufe0f Orqaga', callback_data: 'adm_home' }]
-    ] };
-  }
   return { inline_keyboard: [
-    [{ text: '\u270f\ufe0f Tahrirlash', callback_data: `adm_e:${idx}:all` }],
-    [{ text: '\u267b\ufe0f Tiklash', callback_data: `adm_r:${idx}:all` }],
+    [{ text: '\u270f\ufe0f O\u02bbzgartirish', callback_data: `adm_e:${idx}` }],
+    [{ text: '\u267b\ufe0f Standartga qaytarish', callback_data: `adm_r:${idx}` }],
     [{ text: '\u2b05\ufe0f Orqaga', callback_data: 'adm_home' }]
   ] };
 }
 
-// Open the panel (called from /behruz). `call` is bot.js's Telegram API caller.
+// ---------- open panel (from /behruz) ----------
 export async function openAdminPanel(call, token, chatId) {
   await call(token, 'sendMessage', { chat_id: chatId, text: panelText(), parse_mode: 'Markdown', reply_markup: panelKeyboard() });
 }
 
-// Handle any adm_* callback. Returns true if it consumed the callback.
+// ---------- handle adm_* callbacks ----------
 export async function handleAdminCallback(call, token, cb) {
   const data = cb.data || '';
   if (!data.startsWith('adm_')) return false;
@@ -121,17 +158,14 @@ export async function handleAdminCallback(call, token, cb) {
   }
 
   if (data.startsWith('adm_e:')) {
-    const parts = data.split(':');
-    const idx = parseInt(parts[1], 10);
-    const lang = parts[2] || 'all';
+    const idx = parseInt(data.slice(6), 10);
     const e = EDITABLE[idx];
     if (e) {
-      pending.set(Number(from.id), { key: e.key, lang });
-      await call(token, 'answerCallbackQuery', { callback_query_id: cb.id, text: '\u270d\ufe0f Yangi matn kutilmoqda' });
-      const tag = lang !== 'all' ? ` [${lang.toUpperCase()}]` : '';
+      pending.set(Number(from.id), e.key);
+      await call(token, 'answerCallbackQuery', { callback_query_id: cb.id, text: '\u270d\ufe0f Xabar kutilmoqda' });
       await call(token, 'editMessageText', {
         chat_id: chatId, message_id: msgId, parse_mode: 'Markdown',
-        text: `\u270d\ufe0f *${e.label}*${tag}\n\nEndi menga yangi xabar matnini yuboring. Premium emoji, qalin/kursiv \u2014 barchasi saqlanadi.\n\nBekor qilish uchun /bekor deb yozing.`
+        text: `\u270d\ufe0f *${e.label}*\n\nEndi menga:\n\u2022 premium-emojili *xabarni* yuboring, yoki\n\u2022 kanaldagi post *linkini* (t.me/...) yuboring.\n\nBekor qilish: /bekor`
       });
     } else {
       await call(token, 'answerCallbackQuery', { callback_query_id: cb.id });
@@ -140,12 +174,10 @@ export async function handleAdminCallback(call, token, cb) {
   }
 
   if (data.startsWith('adm_r:')) {
-    const parts = data.split(':');
-    const idx = parseInt(parts[1], 10);
-    const lang = parts[2] || 'all';
+    const idx = parseInt(data.slice(6), 10);
     const e = EDITABLE[idx];
     if (e) {
-      resetOverride(e.key, lang);
+      resetOverride(e.key);
       await call(token, 'answerCallbackQuery', { callback_query_id: cb.id, text: '\u267b\ufe0f Standartga qaytarildi' });
       await call(token, 'editMessageText', { chat_id: chatId, message_id: msgId, text: subText(idx), parse_mode: 'Markdown', reply_markup: subKeyboard(idx) });
     } else {
@@ -158,46 +190,52 @@ export async function handleAdminCallback(call, token, cb) {
   return true;
 }
 
-// If the admin is mid-edit, capture their next text message as the new content.
+// ---------- capture the admin's next message as the new content ----------
 // Returns true if the message was consumed (bot.js should stop processing it).
 export async function tryCaptureEdit(call, token, msg) {
   const from = msg.from || {};
-  const p = pending.get(Number(from.id));
-  if (!p) return false;
+  const key = pending.get(Number(from.id));
+  if (!key) return false;
 
   const chatId = msg.chat && msg.chat.id;
   const text = (msg.text || '').trim();
 
+  // Cancel.
   if (text === '/bekor' || text === '/cancel') {
     pending.delete(Number(from.id));
-    await call(token, 'sendMessage', { chat_id: chatId, text: '\u274c Tahrirlash bekor qilindi.' });
+    await call(token, 'sendMessage', { chat_id: chatId, text: '\u274c Bekor qilindi.' });
     return true;
   }
 
-  // Switching to another command cancels the edit and lets it run normally.
-  if (text.startsWith('/')) {
+  // Any OTHER slash command (that isn't a link) cancels and runs normally.
+  const looksLikeLink = /t\.me\//i.test(text);
+  if (text.startsWith('/') && !looksLikeLink) {
     pending.delete(Number(from.id));
     return false;
   }
 
-  if (!msg.text) {
-    await call(token, 'sendMessage', { chat_id: chatId, text: '\u26a0\ufe0f Iltimos, matn ko\u2018rinishidagi xabar yuboring (rasm/stiker emas).' });
-    return true;
+  // Work out what to copy: a channel post link, or the admin's own message.
+  const link = parseMessageLink(text);
+  const fromChatId = link ? link.fromChatId : chatId;
+  const messageId = link ? link.messageId : msg.message_id;
+
+  // Verify we can actually copy it \u2014 this doubles as the preview.
+  const test = await call(token, 'copyMessage', { chat_id: chatId, from_chat_id: fromChatId, message_id: messageId });
+  if (!test || !test.ok) {
+    const hint = link
+      ? '\u26a0\ufe0f Bu postni ko\u02bbchira olmadim. Bot o\u02bbsha kanalda a\u02bbzo/admin ekanini tekshiring va linkni qayta yuboring.'
+      : '\u26a0\ufe0f Bu xabarni ko\u02bbchira olmadim. Iltimos, matnli xabar yoki kanal post linkini yuboring.';
+    await call(token, 'sendMessage', { chat_id: chatId, text: hint });
+    return true; // stay in pending so the admin can retry
   }
 
-  setOverride(p.key, p.lang, msg.text, msg.entities || []);
+  setCopyOverride(key, fromChatId, messageId);
   pending.delete(Number(from.id));
 
-  const item = EDITABLE.find(e => e.key === p.key);
-  const tag = p.lang !== 'all' ? ` [${p.lang.toUpperCase()}]` : '';
-  await call(token, 'sendMessage', { chat_id: chatId, text: `\u2705 Saqlandi \u2014 ${item ? item.label : p.key}${tag}\n\nQuyida foydalanuvchi ko\u2018radigan ko\u2018rinishi:` });
-
-  const preview = { chat_id: chatId, text: msg.text, disable_web_page_preview: true };
-  if (msg.entities && msg.entities.length) preview.entities = msg.entities;
-  const r = await call(token, 'sendMessage', preview);
-  if ((!r || !r.ok) && preview.entities) {
-    await call(token, 'sendMessage', { chat_id: chatId, text: msg.text, disable_web_page_preview: true });
-    await call(token, 'sendMessage', { chat_id: chatId, text: '\u26a0\ufe0f Eslatma: ba\u2019zi premium emojilar botdan yuborilganda oddiy ko\u2018rinishga o\u2018tishi mumkin (Telegram cheklovi).' });
-  }
+  const item = EDITABLE.find(e => e.key === key);
+  await call(token, 'sendMessage', {
+    chat_id: chatId,
+    text: `\u2705 Saqlandi \u2014 ${item ? item.label : key}.\n\u2b06\ufe0f Yuqoridagi ko\u02bbchirma \u2014 foydalanuvchilar aynan shuni ko\u02bbradi (nom ko\u02bbrsatilmaydi).`
+  });
   return true;
 }
